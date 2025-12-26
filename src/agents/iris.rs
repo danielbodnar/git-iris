@@ -648,7 +648,9 @@ Guidelines:
 
     /// Inject style instructions into the system prompt based on config and capability
     ///
-    /// Handles: instruction presets, gitmoji, conventional commits, and capability-specific styling
+    /// Key distinction:
+    /// - Commits: preset controls format (conventional = no emojis)
+    /// - Non-commits (PR, review, changelog, `release_notes`): `use_gitmoji` controls emojis
     fn inject_style_instructions(&self, system_prompt: &mut String, capability: &str) {
         let Some(config) = &self.config else {
             return;
@@ -659,11 +661,15 @@ Guidelines:
         let is_default_mode = preset_name == "default" || preset_name.is_empty();
 
         // For commits in default mode with no explicit gitmoji override, use style detection
-        // (don't inject any style instructions - let the agent detect from git_log)
         let use_style_detection =
             capability == "commit" && is_default_mode && config.gitmoji_override.is_none();
 
-        let gitmoji_enabled = config.use_gitmoji && !is_conventional && !use_style_detection;
+        // Commit emoji: respects preset (conventional = no emoji)
+        let commit_emoji = config.use_gitmoji && !is_conventional && !use_style_detection;
+
+        // Output emoji: independent of preset, only respects use_gitmoji setting
+        // CLI --gitmoji/--no-gitmoji override is already applied to config.use_gitmoji
+        let output_emoji = config.gitmoji_override.unwrap_or(config.use_gitmoji);
 
         // Inject instruction preset if configured (skip for default mode)
         if !preset_name.is_empty() && !is_default_mode {
@@ -681,10 +687,8 @@ Guidelines:
         // Handle commit-specific styling (structured JSON output with emoji field)
         if capability == "commit" {
             if use_style_detection {
-                // In default mode, let the agent detect style from git_log
-                // The commit.toml prompt has instructions for this
                 tracing::info!("🔍 Using local commit style detection (default mode)");
-            } else if gitmoji_enabled {
+            } else if commit_emoji {
                 system_prompt.push_str("\n\n=== GITMOJI INSTRUCTIONS ===\n");
                 system_prompt.push_str("Set the 'emoji' field to a single relevant gitmoji. ");
                 system_prompt.push_str(
@@ -702,58 +706,64 @@ Guidelines:
             }
         }
 
-        // Handle PR/review styling (markdown output with inline emojis)
+        // Handle non-commit outputs: use output_emoji (independent of preset)
         if capability == "pr" || capability == "review" {
-            if gitmoji_enabled {
-                system_prompt.push_str("\n\n=== EMOJI STYLING ===\n");
-                system_prompt
-                    .push_str("Use emojis to make the output visually scannable and engaging:\n");
-                system_prompt.push_str("- H1 title: ONE gitmoji at the start (✨, 🐛, ♻️, etc.)\n");
-                system_prompt.push_str(
-                    "- Section headers (## headings): Add relevant emojis (🎯 What's New, ⚙️ How It Works, 📋 Commits, ⚠️ Breaking Changes, 🧪 Testing, 📝 Notes)\n",
-                );
-                system_prompt
-                    .push_str("- Commit list entries: Include the gitmoji from each commit\n");
-                system_prompt
-                    .push_str("- Body text: Keep clean - no scattered emojis within prose\n\n");
-                system_prompt.push_str("Choose from this gitmoji list:\n\n");
-                system_prompt.push_str(&crate::gitmoji::get_gitmoji_list());
-            } else if is_conventional {
-                system_prompt.push_str("\n\n=== CONVENTIONAL STYLE ===\n");
-                system_prompt.push_str("DO NOT include any emojis anywhere in the output. ");
-                system_prompt.push_str("Keep all titles and content plain text without emojis.");
+            if output_emoji {
+                Self::inject_pr_review_emoji_styling(system_prompt);
+            } else {
+                Self::inject_no_emoji_styling(system_prompt);
             }
         }
 
-        // Handle release_notes/changelog emoji styling
-        if gitmoji_enabled {
-            match capability {
-                "release_notes" => {
-                    system_prompt.push_str("\n\n=== EMOJI STYLING ===\n");
-                    system_prompt.push_str(
-                        "Use at most one emoji per highlight title and per section title. Do not place emojis inside bullet descriptions, upgrade notes, or metrics. ",
-                    );
-                    system_prompt.push_str(
-                        "Skip emojis entirely if they do not add clarity for a given heading. When you do use one, pick it from the approved gitmoji list so it reinforces meaning (e.g., 🌟 Highlights, 🤖 Agents, 🔧 Tooling, 🐛 Fixes, ⚡ Performance). ",
-                    );
-                    system_prompt.push_str(
-                        "Never sprinkle emojis within normal sentences or JSON keys—only the human-readable heading text may include them.\n\n",
-                    );
-                    system_prompt.push_str(&crate::gitmoji::get_gitmoji_list());
-                }
-                "changelog" => {
-                    system_prompt.push_str("\n\n=== EMOJI STYLING ===\n");
-                    system_prompt.push_str(
-                        "Section keys must remain plain text (Added/Changed/Deprecated/Removed/Fixed/Security). When helpful, you may include at most one emoji within a change description to reinforce meaning. ",
-                    );
-                    system_prompt.push_str(
-                        "Never add emojis to JSON keys, section names, metrics, or upgrade notes. If the emoji does not add clarity, omit it.\n\n",
-                    );
-                    system_prompt.push_str(&crate::gitmoji::get_gitmoji_list());
-                }
-                _ => {}
-            }
+        if capability == "release_notes" && output_emoji {
+            Self::inject_release_notes_emoji_styling(system_prompt);
+        } else if capability == "release_notes" {
+            Self::inject_no_emoji_styling(system_prompt);
         }
+
+        if capability == "changelog" && output_emoji {
+            Self::inject_changelog_emoji_styling(system_prompt);
+        } else if capability == "changelog" {
+            Self::inject_no_emoji_styling(system_prompt);
+        }
+    }
+
+    fn inject_pr_review_emoji_styling(prompt: &mut String) {
+        prompt.push_str("\n\n=== EMOJI STYLING ===\n");
+        prompt.push_str("Use emojis to make the output visually scannable and engaging:\n");
+        prompt.push_str("- H1 title: ONE gitmoji at the start (✨, 🐛, ♻️, etc.)\n");
+        prompt.push_str("- Section headers: Add relevant emojis (🎯 What's New, ⚙️ How It Works, 📋 Commits, ⚠️ Breaking Changes)\n");
+        prompt.push_str("- Commit list entries: Include gitmoji where appropriate\n");
+        prompt.push_str("- Body text: Keep clean - no scattered emojis within prose\n\n");
+        prompt.push_str("Choose from this gitmoji list:\n\n");
+        prompt.push_str(&crate::gitmoji::get_gitmoji_list());
+    }
+
+    fn inject_release_notes_emoji_styling(prompt: &mut String) {
+        prompt.push_str("\n\n=== EMOJI STYLING ===\n");
+        prompt.push_str("Use at most one emoji per highlight/section title. No emojis in bullet descriptions, upgrade notes, or metrics. ");
+        prompt.push_str("Pick from the approved gitmoji list (e.g., 🌟 Highlights, 🤖 Agents, 🔧 Tooling, 🐛 Fixes, ⚡ Performance). ");
+        prompt.push_str("Never sprinkle emojis within sentences or JSON keys.\n\n");
+        prompt.push_str(&crate::gitmoji::get_gitmoji_list());
+    }
+
+    fn inject_changelog_emoji_styling(prompt: &mut String) {
+        prompt.push_str("\n\n=== EMOJI STYLING ===\n");
+        prompt.push_str("Section keys must remain plain text (Added/Changed/Deprecated/Removed/Fixed/Security). ");
+        prompt.push_str(
+            "You may include one emoji within a change description to reinforce meaning. ",
+        );
+        prompt.push_str(
+            "Never add emojis to JSON keys, section names, metrics, or upgrade notes.\n\n",
+        );
+        prompt.push_str(&crate::gitmoji::get_gitmoji_list());
+    }
+
+    fn inject_no_emoji_styling(prompt: &mut String) {
+        prompt.push_str("\n\n=== NO EMOJI STYLING ===\n");
+        prompt.push_str(
+            "DO NOT include any emojis anywhere in the output. Keep all content plain text.",
+        );
     }
 
     /// Execute a task with the given capability and user prompt

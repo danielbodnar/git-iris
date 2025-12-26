@@ -326,9 +326,7 @@ impl IrisAgentService {
 
         // Extract version and date info if this is a Changelog context
         let version_info = if let TaskContext::Changelog {
-            version_name,
-            date,
-            ..
+            version_name, date, ..
         } = context
         {
             let version_str = version_name
