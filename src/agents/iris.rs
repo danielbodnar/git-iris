@@ -4,9 +4,8 @@
 //! and multi-turn execution using Rig. One agent to rule them all! ✨
 
 use anyhow::Result;
-use rig::agent::{Agent, AgentBuilder as RigAgentBuilder, PromptResponse};
-use rig::client::builder::DynClientBuilder;
-use rig::completion::{CompletionModel, Prompt};
+use rig::agent::{AgentBuilder, PromptResponse};
+use rig::completion::CompletionModel;
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -24,11 +23,34 @@ const CAPABILITY_RELEASE_NOTES: &str = include_str!("capabilities/release_notes.
 const CAPABILITY_CHAT: &str = include_str!("capabilities/chat.toml");
 const CAPABILITY_SEMANTIC_BLAME: &str = include_str!("capabilities/semantic_blame.toml");
 
-use crate::agents::tools::{GitRepoInfo, ParallelAnalyze, Workspace};
-// Added to ensure builder extension methods like `.max_tokens` are in scope
+/// Default preamble for Iris agent
+const DEFAULT_PREAMBLE: &str = "\
+You are Iris, a helpful AI assistant specialized in Git operations and workflows.
 
-/// Type alias for a dynamic agent that can work with any completion model
-pub type DynAgent = Agent<Box<dyn CompletionModel + Send + Sync>>;
+You have access to Git tools, code analysis tools, and powerful sub-agent capabilities for handling large analyses.
+
+**File Access Tools:**
+- **file_read** - Read file contents directly. Use `start_line` and `num_lines` for large files.
+- **file_analyzer** - Get metadata and structure analysis of files.
+- **code_search** - Search for patterns across files. Use sparingly; prefer file_read for known files.
+
+**Sub-Agent Tools:**
+
+1. **parallel_analyze** - Run multiple analysis tasks CONCURRENTLY with independent context windows
+   - Best for: Large changesets (>500 lines or >20 files), batch commit analysis
+   - Each task runs in its own subagent, preventing context overflow
+   - Example: parallel_analyze({ \"tasks\": [\"Analyze auth/ changes for security\", \"Review db/ for performance\", \"Check api/ for breaking changes\"] })
+
+2. **analyze_subagent** - Delegate a single focused task to a sub-agent
+   - Best for: Deep dive on specific files or focused analysis
+
+**Best Practices:**
+- Use git_diff to get changes first - it includes file content
+- Use file_read to read files directly instead of multiple code_search calls
+- Use parallel_analyze for large changesets to avoid context overflow";
+
+use crate::agents::provider::{self, DynAgent};
+use crate::agents::tools::{GitRepoInfo, ParallelAnalyze, Workspace};
 
 /// Trait for streaming callback to handle real-time response processing
 #[async_trait::async_trait]
@@ -391,62 +413,26 @@ impl IrisAgent {
 
     /// Build the actual agent for execution
     ///
-    /// Note: We create a fresh `DynClientBuilder` each time because Rig's builder is
-    /// stateless—it reads API keys from environment variables at call time. This design
-    /// ensures Send safety and allows the agent to be used across async boundaries.
-    fn build_agent(&self) -> Result<Agent<impl CompletionModel + 'static>> {
+    /// Uses provider-specific builders (rig-core 0.27+) with enum dispatch for runtime
+    /// provider selection. Each provider arm builds both the subagent and main agent
+    /// with proper typing.
+    fn build_agent(&self) -> Result<DynAgent> {
         use crate::agents::debug_tool::DebugTool;
 
-        let client_builder = DynClientBuilder::new();
-
-        let agent_builder = client_builder
-            .agent(&self.provider, &self.model)
-            .map_err(|e| {
-                anyhow::anyhow!(
-                    "Failed to create agent builder for provider '{}': {}",
-                    self.provider,
-                    e
-                )
-            })?;
-        let agent_builder = self.apply_reasoning_defaults(agent_builder);
-
-        let preamble = self.preamble.as_deref().unwrap_or(
-            "You are Iris, a helpful AI assistant specialized in Git operations and workflows.
-
-You have access to Git tools, code analysis tools, and powerful sub-agent capabilities for handling large analyses.
-
-**File Access Tools:**
-- **file_read** - Read file contents directly. Use `start_line` and `num_lines` for large files.
-- **file_analyzer** - Get metadata and structure analysis of files.
-- **code_search** - Search for patterns across files. Use sparingly; prefer file_read for known files.
-
-**Sub-Agent Tools:**
-
-1. **parallel_analyze** - Run multiple analysis tasks CONCURRENTLY with independent context windows
-   - Best for: Large changesets (>500 lines or >20 files), batch commit analysis
-   - Each task runs in its own subagent, preventing context overflow
-   - Example: parallel_analyze({ \"tasks\": [\"Analyze auth/ changes for security\", \"Review db/ for performance\", \"Check api/ for breaking changes\"] })
-
-2. **analyze_subagent** - Delegate a single focused task to a sub-agent
-   - Best for: Deep dive on specific files or focused analysis
-
-**Best Practices:**
-- Use git_diff to get changes first - it includes file content
-- Use file_read to read files directly instead of multiple code_search calls
-- Use parallel_analyze for large changesets to avoid context overflow"
-        );
-
-        // Build a simple sub-agent that can be delegated to
-        // This sub-agent has tools but cannot spawn more sub-agents (prevents recursion)
-        // Uses fast model for cost efficiency since subagent tasks are focused/bounded
+        let preamble = self.preamble.as_deref().unwrap_or(DEFAULT_PREAMBLE);
         let fast_model = self.effective_fast_model();
-        let client_builder = DynClientBuilder::new();
-        let sub_agent_builder = client_builder
-            .agent(&self.provider, fast_model)
-            .map_err(|e| anyhow::anyhow!("Failed to create sub-agent: {}", e))?
-            .name("analyze_subagent")
-            .description("Delegate focused analysis tasks to a sub-agent with its own context window. Use for analyzing specific files, commits, or code sections independently. The sub-agent has access to Git tools (diff, log, status) and file analysis tools.")
-            .preamble("You are a specialized analysis sub-agent for Iris. Your job is to complete focused analysis tasks and return concise, actionable summaries.
+        let subagent_timeout = self
+            .config
+            .as_ref()
+            .map_or(120, |c| c.subagent_timeout_secs);
+
+        // Macro to build and configure subagent with core tools
+        macro_rules! build_subagent {
+            ($builder:expr) => {{
+                let builder = $builder
+                    .name("analyze_subagent")
+                    .description("Delegate focused analysis tasks to a sub-agent with its own context window. Use for analyzing specific files, commits, or code sections independently. The sub-agent has access to Git tools (diff, log, status) and file analysis tools.")
+                    .preamble("You are a specialized analysis sub-agent for Iris. Your job is to complete focused analysis tasks and return concise, actionable summaries.
 
 Guidelines:
 - Use the available tools to gather information
@@ -454,45 +440,87 @@ Guidelines:
 - Return a clear, structured summary of findings
 - Highlight important issues, patterns, or insights
 - Keep your response focused and concise")
-            .max_tokens(4096);
-        let sub_agent_builder = self.apply_reasoning_defaults(sub_agent_builder);
-        // Use shared tool registry for core tools (prevents drift with subagents)
-        let sub_agent = crate::attach_core_tools!(sub_agent_builder).build();
+                    .max_tokens(4096);
+                let builder = self.apply_reasoning_defaults(builder);
+                crate::attach_core_tools!(builder).build()
+            }};
+        }
 
-        // Start with preamble and max_tokens, then attach core tools via registry
-        let agent_builder = agent_builder.preamble(preamble).max_tokens(16384); // Increased for complex structured outputs like PRs and release notes
+        // Macro to attach main agent tools (excluding subagent which varies by type)
+        macro_rules! attach_main_tools {
+            ($builder:expr) => {{
+                crate::attach_core_tools!($builder)
+                    .tool(DebugTool::new(GitRepoInfo))
+                    .tool(DebugTool::new(self.workspace.clone()))
+                    .tool(DebugTool::new(ParallelAnalyze::with_timeout(
+                        &self.provider,
+                        fast_model,
+                        subagent_timeout,
+                    )?))
+            }};
+        }
 
-        // Attach core tools (shared with subagents) + GitRepoInfo (main agent only)
-        let agent_builder = crate::attach_core_tools!(agent_builder)
-            .tool(DebugTool::new(GitRepoInfo))
-            // Workspace for Iris's notes and task management (clone to share Arc-backed state)
-            .tool(DebugTool::new(self.workspace.clone()))
-            // Parallel analysis for distributing work across multiple subagents
-            .tool(DebugTool::new(ParallelAnalyze::with_timeout(
-                &self.provider,
-                fast_model,
-                self.config
-                    .as_ref()
-                    .map_or(120, |c| c.subagent_timeout_secs),
-            )?))
-            // Sub-agent delegation (Rig's built-in agent-as-tool!)
-            .tool(sub_agent);
+        // Macro to optionally attach content update tools
+        macro_rules! maybe_attach_update_tools {
+            ($builder:expr) => {{
+                if let Some(sender) = &self.content_update_sender {
+                    use crate::agents::tools::{UpdateCommitTool, UpdatePRTool, UpdateReviewTool};
+                    $builder
+                        .tool(DebugTool::new(UpdateCommitTool::new(sender.clone())))
+                        .tool(DebugTool::new(UpdatePRTool::new(sender.clone())))
+                        .tool(DebugTool::new(UpdateReviewTool::new(sender.clone())))
+                        .build()
+                } else {
+                    $builder.build()
+                }
+            }};
+        }
 
-        // Add content update tools if a sender is configured (Studio chat mode)
-        if let Some(sender) = &self.content_update_sender {
-            use crate::agents::tools::{UpdateCommitTool, UpdatePRTool, UpdateReviewTool};
-            let agent = agent_builder
-                .tool(DebugTool::new(UpdateCommitTool::new(sender.clone())))
-                .tool(DebugTool::new(UpdatePRTool::new(sender.clone())))
-                .tool(DebugTool::new(UpdateReviewTool::new(sender.clone())))
-                .build();
-            Ok(agent)
-        } else {
-            Ok(agent_builder.build())
+        match self.provider.as_str() {
+            "openai" => {
+                // Build subagent
+                let sub_agent = build_subagent!(provider::openai_builder(fast_model));
+
+                // Build main agent
+                let builder = provider::openai_builder(&self.model)
+                    .preamble(preamble)
+                    .max_tokens(16384);
+                let builder = self.apply_reasoning_defaults(builder);
+                let builder = attach_main_tools!(builder).tool(sub_agent);
+                let agent = maybe_attach_update_tools!(builder);
+                Ok(DynAgent::OpenAI(agent))
+            }
+            "anthropic" => {
+                // Build subagent
+                let sub_agent = build_subagent!(provider::anthropic_builder(fast_model));
+
+                // Build main agent
+                let builder = provider::anthropic_builder(&self.model)
+                    .preamble(preamble)
+                    .max_tokens(16384);
+                let builder = self.apply_reasoning_defaults(builder);
+                let builder = attach_main_tools!(builder).tool(sub_agent);
+                let agent = maybe_attach_update_tools!(builder);
+                Ok(DynAgent::Anthropic(agent))
+            }
+            "google" | "gemini" => {
+                // Build subagent
+                let sub_agent = build_subagent!(provider::gemini_builder(fast_model));
+
+                // Build main agent
+                let builder = provider::gemini_builder(&self.model)
+                    .preamble(preamble)
+                    .max_tokens(16384);
+                let builder = self.apply_reasoning_defaults(builder);
+                let builder = attach_main_tools!(builder).tool(sub_agent);
+                let agent = maybe_attach_update_tools!(builder);
+                Ok(DynAgent::Gemini(agent))
+            }
+            _ => Err(anyhow::anyhow!("Unsupported provider: {}", self.provider)),
         }
     }
 
-    fn apply_reasoning_defaults<M>(&self, builder: RigAgentBuilder<M>) -> RigAgentBuilder<M>
+    fn apply_reasoning_defaults<M>(&self, builder: AgentBuilder<M>) -> AgentBuilder<M>
     where
         M: CompletionModel,
     {
@@ -585,11 +613,7 @@ Guidelines:
             "LLM request",
             "Sending prompt to agent with multi_turn(50)",
         );
-        let prompt_response: PromptResponse = agent
-            .prompt(&full_prompt)
-            .multi_turn(50)
-            .extended_details()
-            .await?;
+        let prompt_response: PromptResponse = agent.prompt_extended(&full_prompt, 50).await?;
 
         timer.finish();
 
@@ -847,7 +871,7 @@ Guidelines:
                 // For semantic blame, we want plain text response
                 let agent = self.build_agent()?;
                 let full_prompt = format!("{system_prompt}\n\n{user_prompt}");
-                let response = agent.prompt(&full_prompt).multi_turn(10).await?;
+                let response = agent.prompt_multi_turn(&full_prompt, 10).await?;
                 Ok(StructuredResponse::SemanticBlame(response))
             }
             _ => {
@@ -855,7 +879,7 @@ Guidelines:
                 let agent = self.build_agent()?;
                 let full_prompt = format!("{system_prompt}\n\n{user_prompt}");
                 // Use multi_turn to allow tool calls even for unknown capability types
-                let response = agent.prompt(&full_prompt).multi_turn(50).await?;
+                let response = agent.prompt_multi_turn(&full_prompt, 50).await?;
                 Ok(StructuredResponse::PlainText(response))
             }
         }
@@ -903,9 +927,6 @@ Guidelines:
             4
         );
 
-        // Build the agent
-        let agent = std::sync::Arc::new(self.build_agent()?);
-
         // Build the full prompt (simplified for streaming - no JSON schema enforcement)
         let full_prompt = format!(
             "{}\n\n{}\n\n\
@@ -918,48 +939,62 @@ Guidelines:
         let gen_msg = get_capability_message(capability);
         crate::iris_status_dynamic!(IrisPhase::Generation, gen_msg.text, 3, 4);
 
-        // Use streaming prompt
-        let mut stream = agent.stream_prompt(&full_prompt).multi_turn(50).await;
-
-        let mut aggregated_text = String::new();
-
-        // Consume the stream
-        while let Some(item) = stream.next().await {
-            match item {
-                Ok(MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(
-                    text,
-                ))) => {
-                    aggregated_text.push_str(&text.text);
-                    on_chunk(&text.text, &aggregated_text);
+        // Macro to consume a stream and aggregate text
+        macro_rules! consume_stream {
+            ($stream:expr) => {{
+                let mut aggregated_text = String::new();
+                let mut stream = $stream;
+                while let Some(item) = stream.next().await {
+                    match item {
+                        Ok(MultiTurnStreamItem::StreamAssistantItem(
+                            StreamedAssistantContent::Text(text),
+                        )) => {
+                            aggregated_text.push_str(&text.text);
+                            on_chunk(&text.text, &aggregated_text);
+                        }
+                        Ok(MultiTurnStreamItem::StreamAssistantItem(
+                            StreamedAssistantContent::ToolCall(tool_call),
+                        )) => {
+                            let tool_name = &tool_call.function.name;
+                            let reason = format!("Calling {}", tool_name);
+                            crate::iris_status_dynamic!(
+                                IrisPhase::ToolExecution {
+                                    tool_name: tool_name.clone(),
+                                    reason: reason.clone()
+                                },
+                                format!("🔧 {}", reason),
+                                3,
+                                4
+                            );
+                        }
+                        Ok(MultiTurnStreamItem::FinalResponse(_)) => break,
+                        Err(e) => return Err(anyhow::anyhow!("Streaming error: {}", e)),
+                        _ => {}
+                    }
                 }
-                Ok(MultiTurnStreamItem::StreamAssistantItem(
-                    StreamedAssistantContent::ToolCall(tool_call),
-                )) => {
-                    // Update status to show tool execution
-                    let tool_name = &tool_call.function.name;
-                    let reason = format!("Calling {}", tool_name);
-                    crate::iris_status_dynamic!(
-                        IrisPhase::ToolExecution {
-                            tool_name: tool_name.clone(),
-                            reason: reason.clone()
-                        },
-                        format!("🔧 {}", reason),
-                        3,
-                        4
-                    );
-                }
-                Ok(MultiTurnStreamItem::FinalResponse(_)) => {
-                    // Stream complete
-                    break;
-                }
-                Err(e) => {
-                    return Err(anyhow::anyhow!("Streaming error: {}", e));
-                }
-                _ => {
-                    // Reasoning, etc. - continue
-                }
-            }
+                aggregated_text
+            }};
         }
+
+        // Build and stream per-provider (streaming types are model-specific)
+        let aggregated_text = match self.provider.as_str() {
+            "openai" => {
+                let agent = self.build_openai_agent_for_streaming(&full_prompt)?;
+                let stream = agent.stream_prompt(&full_prompt).multi_turn(50).await;
+                consume_stream!(stream)
+            }
+            "anthropic" => {
+                let agent = self.build_anthropic_agent_for_streaming(&full_prompt)?;
+                let stream = agent.stream_prompt(&full_prompt).multi_turn(50).await;
+                consume_stream!(stream)
+            }
+            "google" | "gemini" => {
+                let agent = self.build_gemini_agent_for_streaming(&full_prompt)?;
+                let stream = agent.stream_prompt(&full_prompt).multi_turn(50).await;
+                consume_stream!(stream)
+            }
+            _ => return Err(anyhow::anyhow!("Unsupported provider: {}", self.provider)),
+        };
 
         // Update status
         crate::iris_status_dynamic!(
@@ -969,31 +1004,151 @@ Guidelines:
             4
         );
 
-        // Convert the aggregated text to structured response based on output type
-        let response = match output_type.as_str() {
-            "MarkdownReview" => StructuredResponse::MarkdownReview(crate::types::MarkdownReview {
-                content: aggregated_text,
-            }),
-            "MarkdownPullRequest" => {
-                StructuredResponse::PullRequest(crate::types::MarkdownPullRequest {
-                    content: aggregated_text,
-                })
+        let response = Self::text_to_structured_response(&output_type, aggregated_text);
+        crate::iris_status_completed!();
+        Ok(response)
+    }
+
+    /// Convert raw text to the appropriate structured response type
+    fn text_to_structured_response(output_type: &str, text: String) -> StructuredResponse {
+        match output_type {
+            "MarkdownReview" => {
+                StructuredResponse::MarkdownReview(crate::types::MarkdownReview { content: text })
             }
-            "MarkdownChangelog" => StructuredResponse::Changelog(crate::types::MarkdownChangelog {
-                content: aggregated_text,
-            }),
+            "MarkdownPullRequest" => {
+                StructuredResponse::PullRequest(crate::types::MarkdownPullRequest { content: text })
+            }
+            "MarkdownChangelog" => {
+                StructuredResponse::Changelog(crate::types::MarkdownChangelog { content: text })
+            }
             "MarkdownReleaseNotes" => {
                 StructuredResponse::ReleaseNotes(crate::types::MarkdownReleaseNotes {
-                    content: aggregated_text,
+                    content: text,
                 })
             }
-            "SemanticBlame" => StructuredResponse::SemanticBlame(aggregated_text),
-            _ => StructuredResponse::PlainText(aggregated_text),
-        };
+            "SemanticBlame" => StructuredResponse::SemanticBlame(text),
+            _ => StructuredResponse::PlainText(text),
+        }
+    }
 
-        crate::iris_status_completed!();
+    /// Build `OpenAI` agent for streaming (with tools attached)
+    fn build_openai_agent_for_streaming(
+        &self,
+        _prompt: &str,
+    ) -> Result<rig::agent::Agent<provider::OpenAIModel>> {
+        use crate::agents::debug_tool::DebugTool;
 
-        Ok(response)
+        let fast_model = self.effective_fast_model();
+        let subagent_timeout = self
+            .config
+            .as_ref()
+            .map_or(120, |c| c.subagent_timeout_secs);
+
+        // Build subagent
+        let sub_agent = crate::attach_core_tools!(
+            provider::openai_builder(fast_model)
+                .name("analyze_subagent")
+                .preamble("You are a specialized analysis sub-agent.")
+                .max_tokens(4096)
+        )
+        .build();
+
+        // Build main agent with tools
+        let builder = provider::openai_builder(&self.model)
+            .preamble(self.preamble.as_deref().unwrap_or("You are Iris."))
+            .max_tokens(16384);
+
+        let builder = crate::attach_core_tools!(builder)
+            .tool(DebugTool::new(GitRepoInfo))
+            .tool(DebugTool::new(self.workspace.clone()))
+            .tool(DebugTool::new(ParallelAnalyze::with_timeout(
+                &self.provider,
+                fast_model,
+                subagent_timeout,
+            )?))
+            .tool(sub_agent);
+
+        Ok(builder.build())
+    }
+
+    /// Build Anthropic agent for streaming (with tools attached)
+    fn build_anthropic_agent_for_streaming(
+        &self,
+        _prompt: &str,
+    ) -> Result<rig::agent::Agent<provider::AnthropicModel>> {
+        use crate::agents::debug_tool::DebugTool;
+
+        let fast_model = self.effective_fast_model();
+        let subagent_timeout = self
+            .config
+            .as_ref()
+            .map_or(120, |c| c.subagent_timeout_secs);
+
+        // Build subagent
+        let sub_agent = crate::attach_core_tools!(
+            provider::anthropic_builder(fast_model)
+                .name("analyze_subagent")
+                .preamble("You are a specialized analysis sub-agent.")
+                .max_tokens(4096)
+        )
+        .build();
+
+        // Build main agent with tools
+        let builder = provider::anthropic_builder(&self.model)
+            .preamble(self.preamble.as_deref().unwrap_or("You are Iris."))
+            .max_tokens(16384);
+
+        let builder = crate::attach_core_tools!(builder)
+            .tool(DebugTool::new(GitRepoInfo))
+            .tool(DebugTool::new(self.workspace.clone()))
+            .tool(DebugTool::new(ParallelAnalyze::with_timeout(
+                &self.provider,
+                fast_model,
+                subagent_timeout,
+            )?))
+            .tool(sub_agent);
+
+        Ok(builder.build())
+    }
+
+    /// Build Gemini agent for streaming (with tools attached)
+    fn build_gemini_agent_for_streaming(
+        &self,
+        _prompt: &str,
+    ) -> Result<rig::agent::Agent<provider::GeminiModel>> {
+        use crate::agents::debug_tool::DebugTool;
+
+        let fast_model = self.effective_fast_model();
+        let subagent_timeout = self
+            .config
+            .as_ref()
+            .map_or(120, |c| c.subagent_timeout_secs);
+
+        // Build subagent
+        let sub_agent = crate::attach_core_tools!(
+            provider::gemini_builder(fast_model)
+                .name("analyze_subagent")
+                .preamble("You are a specialized analysis sub-agent.")
+                .max_tokens(4096)
+        )
+        .build();
+
+        // Build main agent with tools
+        let builder = provider::gemini_builder(&self.model)
+            .preamble(self.preamble.as_deref().unwrap_or("You are Iris."))
+            .max_tokens(16384);
+
+        let builder = crate::attach_core_tools!(builder)
+            .tool(DebugTool::new(GitRepoInfo))
+            .tool(DebugTool::new(self.workspace.clone()))
+            .tool(DebugTool::new(ParallelAnalyze::with_timeout(
+                &self.provider,
+                fast_model,
+                subagent_timeout,
+            )?))
+            .tool(sub_agent);
+
+        Ok(builder.build())
     }
 
     /// Load capability configuration from embedded TOML, returning both prompt and output type

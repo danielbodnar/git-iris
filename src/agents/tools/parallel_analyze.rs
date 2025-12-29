@@ -6,7 +6,7 @@
 
 use anyhow::Result;
 use rig::{
-    client::CompletionClient,
+    client::{CompletionClient, ProviderClient},
     completion::{Prompt, ToolDefinition},
     providers::{anthropic, openai},
     tool::Tool,

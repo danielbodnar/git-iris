@@ -5,11 +5,11 @@
 //! timeout to ensure we never block on status messages.
 
 use anyhow::Result;
-use rig::client::builder::DynClientBuilder;
-use rig::completion::Prompt;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tokio::time::{Duration, timeout};
+
+use crate::agents::provider::{self, DynAgent};
 
 /// Context for generating status messages
 #[derive(Debug, Clone)]
@@ -188,24 +188,37 @@ impl StatusMessageGenerator {
         mpsc::unbounded_channel()
     }
 
-    /// Build the agent synchronously (this is important for Send safety)
-    fn build_status_agent(
-        provider: &str,
-        fast_model: &str,
-    ) -> Result<rig::agent::Agent<impl rig::completion::CompletionModel + 'static>> {
-        let client_builder = DynClientBuilder::new();
-        let agent = client_builder
-            .agent(provider, fast_model)
-            .map_err(|e| anyhow::anyhow!("Failed to create status agent: {}", e))?
-            .preamble(
-                "You write fun waiting messages for a Git AI named Iris. \
-                 Concise, yet fun and encouraging, add vibes, be clever, not cheesy. \
-                 Capitalize first letter, end with ellipsis. Under 35 chars. No emojis. \
-                 Just the message text, nothing else.",
-            )
-            .max_tokens(50)
-            .build();
-        Ok(agent)
+    /// Build the agent for status message generation
+    fn build_status_agent(provider: &str, fast_model: &str) -> Result<DynAgent> {
+        let preamble = "You write fun waiting messages for a Git AI named Iris. \
+                        Concise, yet fun and encouraging, add vibes, be clever, not cheesy. \
+                        Capitalize first letter, end with ellipsis. Under 35 chars. No emojis. \
+                        Just the message text, nothing else.";
+
+        match provider {
+            "openai" => {
+                let agent = provider::openai_builder(fast_model)
+                    .preamble(preamble)
+                    .max_tokens(50)
+                    .build();
+                Ok(DynAgent::OpenAI(agent))
+            }
+            "anthropic" => {
+                let agent = provider::anthropic_builder(fast_model)
+                    .preamble(preamble)
+                    .max_tokens(50)
+                    .build();
+                Ok(DynAgent::Anthropic(agent))
+            }
+            "google" | "gemini" => {
+                let agent = provider::gemini_builder(fast_model)
+                    .preamble(preamble)
+                    .max_tokens(50)
+                    .build();
+                Ok(DynAgent::Gemini(agent))
+            }
+            _ => Err(anyhow::anyhow!("Unsupported provider: {}", provider)),
+        }
     }
 
     /// Internal generation logic
