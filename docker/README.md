@@ -67,7 +67,7 @@ Example with advanced configuration:
 docker run --rm --user $(id -u):$(id -g) -v "$(pwd):/git-repo" \
   -e GITIRIS_PROVIDER="anthropic" \
   -e GITIRIS_API_KEY="your-api-key" \
-  -e GITIRIS_MODEL="claude-3-7-sonnet-20250219" \
+  -e GITIRIS_MODEL="claude-sonnet-4-5-20250929" \
   -e GITIRIS_TOKEN_LIMIT="200000" \
   -e GITIRIS_PRESET="detailed" \
   -e GITIRIS_INSTRUCTIONS="Always include the ticket number and highlight performance impacts" \

@@ -146,26 +146,27 @@ pub struct ParallelAnalyze {
 
 impl ParallelAnalyze {
     /// Create a new parallel analyzer with default timeout
-    pub fn new(provider: &str, model: &str) -> Self {
+    pub fn new(provider: &str, model: &str) -> Result<Self> {
         Self::with_timeout(provider, model, DEFAULT_SUBAGENT_TIMEOUT_SECS)
     }
 
     /// Create a new parallel analyzer with custom timeout
-    pub fn with_timeout(provider: &str, model: &str, timeout_secs: u64) -> Self {
-        // Default to openai if creation fails
-        let runner = SubagentRunner::new(provider, model).unwrap_or_else(|_| {
+    pub fn with_timeout(provider: &str, model: &str, timeout_secs: u64) -> Result<Self> {
+        // Try the requested provider first, then fall back to openai
+        let runner = SubagentRunner::new(provider, model).or_else(|e| {
             tracing::warn!(
-                "Failed to create {} runner, falling back to openai",
-                provider
+                "Failed to create {} runner: {}, falling back to openai",
+                provider,
+                e
             );
-            SubagentRunner::new("openai", "gpt-4o").expect("OpenAI fallback should work")
-        });
+            SubagentRunner::new("openai", "gpt-4o")
+        })?;
 
-        Self {
+        Ok(Self {
             runner,
             model: model.to_string(),
             timeout_secs,
-        }
+        })
     }
 }
 

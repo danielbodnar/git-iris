@@ -205,12 +205,18 @@ impl GitRepo {
             let stderr = child.stderr.take().context("Could not get stderr")?;
 
             std::thread::spawn(move || {
-                std::io::copy(&mut std::io::BufReader::new(stdout), &mut std::io::stdout())
-                    .expect("Failed to copy data to stdout");
+                if let Err(e) =
+                    std::io::copy(&mut std::io::BufReader::new(stdout), &mut std::io::stdout())
+                {
+                    tracing::debug!("Failed to copy hook stdout: {e}");
+                }
             });
             std::thread::spawn(move || {
-                std::io::copy(&mut std::io::BufReader::new(stderr), &mut std::io::stderr())
-                    .expect("Failed to copy data to stderr");
+                if let Err(e) =
+                    std::io::copy(&mut std::io::BufReader::new(stderr), &mut std::io::stderr())
+                {
+                    tracing::debug!("Failed to copy hook stderr: {e}");
+                }
             });
 
             let status = child.wait()?;

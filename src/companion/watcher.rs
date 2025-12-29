@@ -89,12 +89,16 @@ impl FileWatcherService {
         let _ = builder.add_line(None, ".git/");
 
         Arc::new(builder.build().unwrap_or_else(|_| {
-            // Fallback: just ignore .git
+            // Fallback: just ignore .git - an empty builder should always succeed
             let mut fallback = GitignoreBuilder::new(repo_path);
             let _ = fallback.add_line(None, ".git/");
-            fallback
-                .build()
-                .expect("Failed to build fallback gitignore")
+            // SAFETY: A fresh builder with just ".git/" should never fail to build
+            fallback.build().unwrap_or_else(|_| {
+                // Final fallback: completely empty gitignore (matches nothing)
+                GitignoreBuilder::new(repo_path)
+                    .build()
+                    .expect("empty GitignoreBuilder should always build")
+            })
         }))
     }
 

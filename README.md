@@ -463,6 +463,7 @@ git-iris gen
 Options:
 
 - `-a`, `--auto-commit`: Automatically commit with the generated message
+- `--amend`: Amend the previous commit instead of creating a new one
 - `-i`, `--instructions`: Provide custom instructions for this commit
 - `--provider`: Specify an LLM provider
 - `--preset`: Use a specific instruction preset
@@ -725,6 +726,26 @@ Example:
 ```bash
 git-iris project-config --provider anthropic --preset security --model claude-sonnet-4-5-20250929
 ```
+
+### 🐚 Shell Completions
+
+Generate shell completions for your preferred shell:
+
+```bash
+# Bash
+git-iris completions bash > ~/.bash_completion.d/git-iris
+
+# Zsh
+git-iris completions zsh > ~/.zfunc/_git-iris
+
+# Fish
+git-iris completions fish > ~/.config/fish/completions/git-iris.fish
+
+# PowerShell
+git-iris completions powershell > git-iris.ps1
+```
+
+Available shells: `bash`, `zsh`, `fish`, `powershell`, `elvish`
 
 ### 🌍 Working with Remote Repositories
 

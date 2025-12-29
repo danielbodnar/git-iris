@@ -474,7 +474,7 @@ Guidelines:
                 self.config
                     .as_ref()
                     .map_or(120, |c| c.subagent_timeout_secs),
-            )))
+            )?))
             // Sub-agent delegation (Rig's built-in agent-as-tool!)
             .tool(sub_agent);
 
