@@ -288,7 +288,7 @@ Simply call the appropriate tool with the new content. Do NOT echo back the full
     // Review Generation
     // ═══════════════════════════════════════════════════════════════════════════════
 
-    /// Spawn a task for code review generation with streaming
+    /// Spawn a task for code review generation
     pub(super) fn spawn_review_generation(&self, from_ref: String, to_ref: String) {
         use super::super::events::AgentTask;
         use crate::agents::{StructuredResponse, TaskContext};
@@ -310,7 +310,6 @@ Simply call the appropriate tool with the new content. Do NOT echo back the full
         self.spawn_status_messages(&task);
 
         let tx = self.iris_result_tx.clone();
-        let streaming_tx = tx.clone();
 
         tokio::spawn(async move {
             // Use review context with specified refs
@@ -325,29 +324,9 @@ Simply call the appropriate tool with the new content. Do NOT echo back the full
                 }
             };
 
-            // Execute with streaming - send chunks as they arrive
-            let on_chunk = {
-                let tx = streaming_tx.clone();
-                move |chunk: &str, aggregated: &str| {
-                    let _ = tx.send(IrisTaskResult::StreamingChunk {
-                        task_type: TaskType::Review,
-                        chunk: chunk.to_string(),
-                        aggregated: aggregated.to_string(),
-                    });
-                }
-            };
-
-            match agent
-                .execute_task_streaming("review", context, on_chunk)
-                .await
-            {
+            // Execute non-streaming for clean structured output
+            match agent.execute_task("review", context).await {
                 Ok(response) => {
-                    // Send streaming complete
-                    let _ = tx.send(IrisTaskResult::StreamingComplete {
-                        task_type: TaskType::Review,
-                    });
-
-                    // Also send final content
                     let review_text = match response {
                         StructuredResponse::MarkdownReview(review) => review.content,
                         StructuredResponse::PlainText(text) => text,
@@ -369,7 +348,7 @@ Simply call the appropriate tool with the new content. Do NOT echo back the full
     // PR Generation
     // ═══════════════════════════════════════════════════════════════════════════════
 
-    /// Spawn a task for PR description generation with streaming
+    /// Spawn a task for PR description generation
     pub(super) fn spawn_pr_generation(&self, base_branch: String, to_ref: &str) {
         use super::super::events::AgentTask;
         use crate::agents::{StructuredResponse, TaskContext};
@@ -391,30 +370,14 @@ Simply call the appropriate tool with the new content. Do NOT echo back the full
         self.spawn_status_messages(&task);
 
         let tx = self.iris_result_tx.clone();
-        let streaming_tx = tx.clone();
 
         tokio::spawn(async move {
             // Build context for PR (comparing current branch to base)
             let context = TaskContext::for_pr(Some(base_branch), None);
 
-            // Execute with streaming
-            let on_chunk = {
-                let tx = streaming_tx.clone();
-                move |chunk: &str, aggregated: &str| {
-                    let _ = tx.send(IrisTaskResult::StreamingChunk {
-                        task_type: TaskType::PR,
-                        chunk: chunk.to_string(),
-                        aggregated: aggregated.to_string(),
-                    });
-                }
-            };
-
-            match agent.execute_task_streaming("pr", context, on_chunk).await {
+            // Execute non-streaming for clean structured output
+            match agent.execute_task("pr", context).await {
                 Ok(response) => {
-                    let _ = tx.send(IrisTaskResult::StreamingComplete {
-                        task_type: TaskType::PR,
-                    });
-
                     let pr_text = match response {
                         StructuredResponse::PullRequest(pr) => pr.content,
                         StructuredResponse::PlainText(text) => text,
@@ -436,7 +399,7 @@ Simply call the appropriate tool with the new content. Do NOT echo back the full
     // Changelog Generation
     // ═══════════════════════════════════════════════════════════════════════════════
 
-    /// Spawn a task for changelog generation with streaming
+    /// Spawn a task for changelog generation
     pub(super) fn spawn_changelog_generation(&self, from_ref: String, to_ref: String) {
         use super::super::events::AgentTask;
         use crate::agents::{StructuredResponse, TaskContext};
@@ -458,33 +421,14 @@ Simply call the appropriate tool with the new content. Do NOT echo back the full
         self.spawn_status_messages(&task);
 
         let tx = self.iris_result_tx.clone();
-        let streaming_tx = tx.clone();
 
         tokio::spawn(async move {
             // Build context for changelog (comparing two refs, date auto-set to today)
             let context = TaskContext::for_changelog(from_ref, Some(to_ref), None, None);
 
-            // Execute with streaming
-            let on_chunk = {
-                let tx = streaming_tx.clone();
-                move |chunk: &str, aggregated: &str| {
-                    let _ = tx.send(IrisTaskResult::StreamingChunk {
-                        task_type: TaskType::Changelog,
-                        chunk: chunk.to_string(),
-                        aggregated: aggregated.to_string(),
-                    });
-                }
-            };
-
-            match agent
-                .execute_task_streaming("changelog", context, on_chunk)
-                .await
-            {
+            // Execute non-streaming for clean structured output
+            match agent.execute_task("changelog", context).await {
                 Ok(response) => {
-                    let _ = tx.send(IrisTaskResult::StreamingComplete {
-                        task_type: TaskType::Changelog,
-                    });
-
                     let changelog_text = match response {
                         StructuredResponse::Changelog(cl) => cl.content,
                         StructuredResponse::PlainText(text) => text,
@@ -506,7 +450,7 @@ Simply call the appropriate tool with the new content. Do NOT echo back the full
     // Release Notes Generation
     // ═══════════════════════════════════════════════════════════════════════════════
 
-    /// Spawn a task for release notes generation with streaming
+    /// Spawn a task for release notes generation
     pub(super) fn spawn_release_notes_generation(&self, from_ref: String, to_ref: String) {
         use super::super::events::AgentTask;
         use crate::agents::{StructuredResponse, TaskContext};
@@ -528,33 +472,14 @@ Simply call the appropriate tool with the new content. Do NOT echo back the full
         self.spawn_status_messages(&task);
 
         let tx = self.iris_result_tx.clone();
-        let streaming_tx = tx.clone();
 
         tokio::spawn(async move {
             // Build context for release notes (comparing two refs, date auto-set to today)
             let context = TaskContext::for_changelog(from_ref, Some(to_ref), None, None);
 
-            // Execute with streaming
-            let on_chunk = {
-                let tx = streaming_tx.clone();
-                move |chunk: &str, aggregated: &str| {
-                    let _ = tx.send(IrisTaskResult::StreamingChunk {
-                        task_type: TaskType::ReleaseNotes,
-                        chunk: chunk.to_string(),
-                        aggregated: aggregated.to_string(),
-                    });
-                }
-            };
-
-            match agent
-                .execute_task_streaming("release_notes", context, on_chunk)
-                .await
-            {
+            // Execute non-streaming for clean structured output
+            match agent.execute_task("release_notes", context).await {
                 Ok(response) => {
-                    let _ = tx.send(IrisTaskResult::StreamingComplete {
-                        task_type: TaskType::ReleaseNotes,
-                    });
-
                     let release_notes_text = match response {
                         StructuredResponse::ReleaseNotes(rn) => rn.content,
                         StructuredResponse::PlainText(text) => text,
