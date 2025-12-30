@@ -101,6 +101,7 @@ fn handle_global_key(state: &mut StudioState, key: KeyEvent) -> Option<Vec<SideE
             state.modal = Some(Modal::Settings(Box::new(SettingsState::from_config(
                 &state.config,
             ))));
+            state.mark_dirty();
             Some(vec![])
         }
 
@@ -163,7 +164,18 @@ fn switch_mode(state: &mut StudioState, mode: Mode) -> Vec<SideEffect> {
             from_ref: Some(state.modes.release_notes.from_ref.clone()),
             to_ref: Some(state.modes.release_notes.to_ref.clone()),
         }],
-        Mode::Explore => vec![],
+        Mode::Explore => {
+            // Load file tree if not already populated
+            if state.modes.explore.file_tree.is_empty() {
+                vec![SideEffect::LoadData {
+                    data_type: DataType::ExploreFiles,
+                    from_ref: None,
+                    to_ref: None,
+                }]
+            } else {
+                vec![]
+            }
+        }
     }
 }
 
