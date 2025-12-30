@@ -1068,7 +1068,17 @@ Guidelines:
             )?))
             .tool(sub_agent);
 
-        Ok(builder.build())
+        // Conditionally attach content update tools for chat mode
+        if let Some(sender) = &self.content_update_sender {
+            use crate::agents::tools::{UpdateCommitTool, UpdatePRTool, UpdateReviewTool};
+            Ok(builder
+                .tool(DebugTool::new(UpdateCommitTool::new(sender.clone())))
+                .tool(DebugTool::new(UpdatePRTool::new(sender.clone())))
+                .tool(DebugTool::new(UpdateReviewTool::new(sender.clone())))
+                .build())
+        } else {
+            Ok(builder.build())
+        }
     }
 
     /// Build Anthropic agent for streaming (with tools attached)
@@ -1108,7 +1118,17 @@ Guidelines:
             )?))
             .tool(sub_agent);
 
-        Ok(builder.build())
+        // Conditionally attach content update tools for chat mode
+        if let Some(sender) = &self.content_update_sender {
+            use crate::agents::tools::{UpdateCommitTool, UpdatePRTool, UpdateReviewTool};
+            Ok(builder
+                .tool(DebugTool::new(UpdateCommitTool::new(sender.clone())))
+                .tool(DebugTool::new(UpdatePRTool::new(sender.clone())))
+                .tool(DebugTool::new(UpdateReviewTool::new(sender.clone())))
+                .build())
+        } else {
+            Ok(builder.build())
+        }
     }
 
     /// Build Gemini agent for streaming (with tools attached)
@@ -1148,7 +1168,17 @@ Guidelines:
             )?))
             .tool(sub_agent);
 
-        Ok(builder.build())
+        // Conditionally attach content update tools for chat mode
+        if let Some(sender) = &self.content_update_sender {
+            use crate::agents::tools::{UpdateCommitTool, UpdatePRTool, UpdateReviewTool};
+            Ok(builder
+                .tool(DebugTool::new(UpdateCommitTool::new(sender.clone())))
+                .tool(DebugTool::new(UpdatePRTool::new(sender.clone())))
+                .tool(DebugTool::new(UpdateReviewTool::new(sender.clone())))
+                .build())
+        } else {
+            Ok(builder.build())
+        }
     }
 
     /// Load capability configuration from embedded TOML, returning both prompt and output type
