@@ -2,38 +2,19 @@
 
 **Iris Studio** is Git-Iris's unified TUI (Terminal User Interface) for all AI-powered git workflows. It provides a beautiful, electric-themed interface where you can explore code, generate commit messages, create reviews, and more—all without leaving your terminal.
 
+![Iris Studio in Explore Mode](/studio-overview.png)
+
 ## Visual Overview
 
 Studio uses a **3-panel layout** across all modes:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  [Explore] Commit Review PR Changelog Release      ?Help /Chat  │
-├───────────────┬──────────────────────┬─────────────────────────┤
-│               │                      │                         │
-│     LEFT      │       CENTER         │         RIGHT           │
-│               │                      │                         │
-│  File Tree    │   Code/Content       │    Context/Details      │
-│  or Lists     │   (Main Focus)       │    (Supporting Info)    │
-│               │                      │                         │
-│               │                      │                         │
-│               │                      │                         │
-│               │                      │                         │
-│               │                      │                         │
-│               │                      │                         │
-│               │                      │                         │
-│               │                      │                         │
-│               │                      │                         │
-├───────────────┴──────────────────────┴─────────────────────────┤
-│  main | 3 staged, 2 modified | ⠋ Iris thinking...             │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-- **Top Bar**: Mode tabs, status indicators, and global shortcuts
-- **Left Panel**: Navigation (files, commits, changelogs)
-- **Center Panel**: Main content (code, messages, reviews, diffs)
-- **Right Panel**: Context (diffs, metadata, analysis)
-- **Bottom Bar**: Git status, Iris status, notifications
+| Region           | Purpose                                            |
+| ---------------- | -------------------------------------------------- |
+| **Top Bar**      | Mode tabs, status indicators, and global shortcuts |
+| **Left Panel**   | Navigation (files, commits, changelogs)            |
+| **Center Panel** | Main content (code, messages, reviews, diffs)      |
+| **Right Panel**  | Context (diffs, metadata, analysis)                |
+| **Bottom Bar**   | Git status, Iris status, notifications             |
 
 ## The Electric SilkCircuit Theme
 

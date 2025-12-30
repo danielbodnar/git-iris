@@ -6,7 +6,7 @@ hero:
   text: AI-Powered Git Workflows
   tagline: Intelligent commit messages, code reviews, and release documentation — beautifully crafted
   image:
-    src: /logo.svg
+    src: /logo.png
     alt: Git-Iris
   actions:
     - theme: brand

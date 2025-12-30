@@ -2,6 +2,8 @@
 
 **Explore Mode** is your semantic code browser. Navigate files, view syntax-highlighted source, and ask Iris "why does this code exist?" to get AI-powered historical analysis.
 
+![Explore Mode](/mode-explore.png)
+
 ## When to Use Explore Mode
 
 - **Understanding unfamiliar code**: Jump into a new codebase and get oriented
@@ -11,23 +13,11 @@
 
 ## Panel Layout
 
-```
-┌─────────────┬──────────────────────┬─────────────────────┐
-│  File Tree  │    Code View         │   Blame Analysis    │
-│             │                      │                     │
-│ src/        │  1  pub fn new() {   │ Why does this       │
-│ ├─ agents/  │  2    Self {         │ code exist?         │
-│ │  ├─ iris  │  3      mode: Auto,  │                     │
-│ │  └─ tools │  4    }              │ This initialization │
-│ ├─ studio ▸ │  5  }                │ was added to handle │
-│ │  └─ state │                      │ emoji selection...  │
-│ └─ types/   │  ← Line 3 selected   │                     │
-│             │                      │ Commits:            │
-│ 📄 Selected │  [Ctrl+H] Heat Map   │ • abc123f          │
-│ iris.rs     │  [v] Visual Select   │ • def456a          │
-│             │  [w] Why?            │                     │
-└─────────────┴──────────────────────┴─────────────────────┘
-```
+| Panel      | Content                                   |
+| ---------- | ----------------------------------------- |
+| **Left**   | File tree with git status indicators      |
+| **Center** | Syntax-highlighted code with line numbers |
+| **Right**  | Blame analysis and commit history         |
 
 ### Left Panel: File Tree
 

@@ -2,6 +2,8 @@
 
 **PR Mode** generates pull request descriptions from commit history and diffs. Get structured markdown output ready to paste into GitHub, GitLab, or any PR system.
 
+![PR Mode](/mode-pr.png)
+
 ## When to Use PR Mode
 
 - **Creating pull requests**: Generate comprehensive PR descriptions
@@ -11,25 +13,11 @@
 
 ## Panel Layout
 
-```
-┌─────────────┬──────────────────────┬─────────────────────┐
-│ Commits     │   PR Description     │   Diff Summary      │
-│             │                      │                     │
-│ abc123f Add │ # Add Emoji Selector │ @@ -10,6 +10,8 @@  │
-│ def456a Fix │                      │                     │
-│ ghi789b Upd │ ## Summary           │ 3 files changed    │
-│             │                      │ +145 -32 lines     │
-│ From: main  │ Introduces emoji     │                     │
-│ To: HEAD    │ selection UI with    │ src/iris.rs        │
-│             │ three modes...       │ src/state.rs       │
-│ 3 commits   │                      │ src/commit.rs      │
-│ 5 files     │ ## Changes           │                     │
-│             │                      │ [n] Next file       │
-│ [f] From    │ - New EmojiSelector  │ [p] Prev file       │
-│ [t] To      │ - Modal keybinds     │ []] Next hunk       │
-│ [r] Generate│                      │ [[] Prev hunk       │
-└─────────────┴──────────────────────┴─────────────────────┘
-```
+| Panel      | Content                                                  |
+| ---------- | -------------------------------------------------------- |
+| **Left**   | Commits in range with hash, title, and ref range summary |
+| **Center** | Markdown-formatted PR description ready to copy/paste    |
+| **Right**  | Aggregated diff summary with file changes and statistics |
 
 ### Left Panel: Commit List
 

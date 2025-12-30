@@ -91,14 +91,7 @@ In commit lists (PR, Changelog, Release modes):
 
 ## Panel Focus
 
-Studio has three panels: **Left**, **Center**, **Right**. Only one has focus at a time.
-
-```
-┌─────────┬────────────┬──────────┐
-│  LEFT   │   CENTER   │  RIGHT   │  ← Focus indicators
-│  (dim)  │  (bright)  │  (dim)   │     shown via border color
-└─────────┴────────────┴──────────┘
-```
+Studio has three panels: **Left**, **Center**, **Right**. Only one has focus at a time, indicated by a bright border color (Electric Purple). Unfocused panels have dimmed borders.
 
 ### Focus Control
 

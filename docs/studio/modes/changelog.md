@@ -2,6 +2,8 @@
 
 **Changelog Mode** generates structured changelogs following the [Keep a Changelog](https://keepachangelog.com) format. Organize commits into categories (Added, Changed, Fixed, etc.) for clear release documentation.
 
+![Changelog Mode](/mode-changelog.png)
+
 ## When to Use Changelog Mode
 
 - **Release preparation**: Document changes between versions
@@ -11,25 +13,11 @@
 
 ## Panel Layout
 
-```
-┌─────────────┬──────────────────────┬─────────────────────┐
-│ Commits     │   Changelog Output   │   Diff Summary      │
-│             │                      │                     │
-│ abc123f Add │ ## [1.1.0] - 2024... │ @@ -10,6 +10,8 @@  │
-│ def456a Fix │                      │                     │
-│ ghi789b Rem │ ### Added            │ 15 files changed   │
-│             │ - Emoji selector UI  │ +450 -120 lines    │
-│ v1.0.0..    │ - Custom presets     │                     │
-│ HEAD        │                      │ src/iris.rs        │
-│             │ ### Changed          │ src/state.rs       │
-│ 3 commits   │ - EmojiMode enum...  │ ...                │
-│ 15 files    │                      │                     │
-│             │ ### Fixed            │ [n] Next file       │
-│ [f] From    │ - File tree sync     │ [p] Prev file       │
-│ [t] To      │                      │ []] Next hunk       │
-│ [r] Generate│ [Unreleased]         │ [[] Prev hunk       │
-└─────────────┴──────────────────────┴─────────────────────┘
-```
+| Panel      | Content                                                          |
+| ---------- | ---------------------------------------------------------------- |
+| **Left**   | Commits in version range with hash, title, and version tags      |
+| **Center** | Keep a Changelog format output with categorized changes          |
+| **Right**  | Aggregated diff summary with file statistics and hunk navigation |
 
 ### Left Panel: Commit List
 

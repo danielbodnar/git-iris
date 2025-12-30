@@ -2,6 +2,8 @@
 
 Press <kbd>/</kbd> in any mode to open the **universal chat interface**. Chat with Iris about code, ask for changes to generated content, or get explanations—all while maintaining context across modes.
 
+![Chat with Iris](/chat-modal.png)
+
 ## What Makes Chat Special
 
 ### Universal & Persistent
@@ -29,29 +31,7 @@ No need to regenerate—just ask for changes.
 
 ## Chat Interface
 
-```
-┌─────────────────────────────────────────────────┐
-│  Chat with Iris                            [Esc] │
-├─────────────────────────────────────────────────┤
-│                                                 │
-│  You:                                           │
-│  Why did you choose ✨ for this commit?        │
-│                                                 │
-│  Iris:                                          │
-│  I chose ✨ (sparkles) because this commit      │
-│  introduces a new feature—the emoji selector.   │
-│  It's a conventional gitmoji for feature        │
-│  additions that enhance the user experience.    │
-│                                                 │
-│  You:                                           │
-│  Make the commit message more concise           │
-│                                                 │
-│  Iris: ⠋ Thinking...                            │
-│                                                 │
-├─────────────────────────────────────────────────┤
-│  > Your message here_                           │
-└─────────────────────────────────────────────────┘
-```
+The chat modal appears as an overlay with a conversation history and input field. Messages are rendered with markdown support, and Iris shows a thinking indicator while processing.
 
 ## Chat Controls
 

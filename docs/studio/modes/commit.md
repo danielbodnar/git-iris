@@ -2,6 +2,8 @@
 
 **Commit Mode** generates AI-powered commit messages with emoji, custom presets, and manual editing. Stage files, review changes, and create meaningful commits—all in one interface.
 
+![Commit Mode](/mode-commit.png)
+
 ## When to Use Commit Mode
 
 - **Creating commits**: Generate messages that capture intent, not just changes
@@ -11,23 +13,11 @@
 
 ## Panel Layout
 
-```
-┌─────────────┬──────────────────────┬─────────────────────┐
-│ Changed     │  Commit Message      │   Diff Preview      │
-│ Files       │                      │                     │
-│             │ ✨ Add emoji selector│ @@ -10,6 +10,8 @@  │
-│ ● iris.rs M │                      │  impl CommitMode {  │
-│   state.rs M│ Introduces emoji     │ +  pub emoji_mode   │
-│   commit.rs │ selection UI for     │ +  pub use_gitmoji  │
-│             │ commit messages with │                     │
-│ 2 staged    │ three modes: None,   │ Hunk 1/3           │
-│ 1 modified  │ Auto (AI picks), and │                     │
-│             │ Custom (user picks). │ [[] Previous hunk   │
-│ [s] Stage   │                      │ []] Next hunk       │
-│ [a] All     │ [e] Edit  [r] Regen  │ [n] Next file       │
-│ [u] Unstage │ [g] Emoji [p] Preset │ [p] Prev file       │
-└─────────────┴──────────────────────┴─────────────────────┘
-```
+| Panel      | Content                                                               |
+| ---------- | --------------------------------------------------------------------- |
+| **Left**   | Changed files with staging status, directory tree, and git indicators |
+| **Center** | AI-generated commit message with emoji, title, and body               |
+| **Right**  | Unified diff preview for selected file with syntax highlighting       |
 
 ### Left Panel: Changed Files
 
@@ -114,29 +104,7 @@ When editing message (after pressing <kbd>e</kbd>):
 
 ## Emoji Selector
 
-Press <kbd>g</kbd> to open the **emoji selector modal**:
-
-```
-┌─────────────────────────────────────────────┐
-│  Select Emoji                          [Esc] │
-├─────────────────────────────────────────────┤
-│  Type to filter...                           │
-│                                              │
-│  ∅   none     No emoji                       │
-│  ✨  auto     Let AI choose              ◀  │
-│  🎨  art      Improve structure/format       │
-│  ⚡  zap      Improve performance            │
-│  🐛  bug      Fix a bug                      │
-│  ✨  sparkles Introduce new features         │
-│  📝  memo     Add or update documentation    │
-│  🚀  rocket   Deploy stuff                   │
-│  💄  lipstick Update UI/style                │
-│  ♻️   recycle Refactor code                  │
-│  🔒  lock     Fix security issues            │
-│                                              │
-│  [j/k] Navigate  [Enter] Select  [/] Search  │
-└─────────────────────────────────────────────┘
-```
+Press <kbd>g</kbd> to open the **emoji selector modal**. The modal displays a filterable list of gitmoji options with type-to-search functionality.
 
 ### Emoji Modes
 
@@ -161,29 +129,7 @@ Press <kbd>Shift+E</kbd> to quickly toggle between **None** and **Auto** without
 
 ## Preset Selector
 
-Press <kbd>p</kbd> to open the **preset selector**:
-
-```
-┌─────────────────────────────────────────────┐
-│  Select Preset Style                   [Esc] │
-├─────────────────────────────────────────────┤
-│  Type to filter...                           │
-│                                              │
-│  ✨ default                              ◀  │
-│     Standard commit with context             │
-│                                              │
-│  🎯 concise                                  │
-│     Brief, single-line commits               │
-│                                              │
-│  📚 detailed                                 │
-│     Verbose with rationale                   │
-│                                              │
-│  🔧 technical                                │
-│     Implementation-focused                   │
-│                                              │
-│  [j/k] Navigate  [Enter] Select              │
-└─────────────────────────────────────────────┘
-```
+Press <kbd>p</kbd> to open the **preset selector**. The modal displays available commit message styles with descriptions.
 
 ### What Presets Do
 
@@ -211,20 +157,7 @@ being informative. Use metaphors and light humor.
 
 ## Custom Instructions
 
-Press <kbd>i</kbd> to add **one-time instructions** for the next generation:
-
-```
-┌─────────────────────────────────────────────┐
-│  Custom Instructions                   [Esc] │
-├─────────────────────────────────────────────┤
-│  These will be added to the next generation  │
-│                                              │
-│  Make it more technical and mention the      │
-│  use of the reducer pattern_                 │
-│                                              │
-│  [Enter] Apply  [Esc] Cancel                 │
-└─────────────────────────────────────────────┘
-```
+Press <kbd>i</kbd> to add **one-time instructions** for the next generation. Enter your guidance in the text input modal, then press <kbd>Enter</kbd> to apply or <kbd>Esc</kbd> to cancel.
 
 Instructions are used **once** for the next <kbd>r</kbd> (regenerate), then cleared.
 

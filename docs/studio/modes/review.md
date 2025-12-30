@@ -2,6 +2,8 @@
 
 **Review Mode** provides AI-powered code reviews analyzing security, performance, best practices, and potential bugs. Get comprehensive feedback before committing or creating PRs.
 
+![Review Mode](/mode-review.png)
+
 ## When to Use Review Mode
 
 - **Pre-commit quality checks**: Review changes before committing
@@ -12,23 +14,11 @@
 
 ## Panel Layout
 
-```
-┌─────────────┬──────────────────────┬─────────────────────┐
-│ Changed     │   Review Output      │   Diff View         │
-│ Files       │                      │                     │
-│             │ # Code Review        │ @@ -10,6 +10,8 @@  │
-│ ● iris.rs M │                      │  impl ReviewMode {  │
-│   state.rs M│ ## Security          │ +  pub from_ref     │
-│   review.rs │                      │ +  pub to_ref       │
-│             │ ⚠️ Potential SQL     │                     │
-│ Reviewing:  │ injection on line 45 │ File: iris.rs      │
-│ main..HEAD  │                      │ Hunk 2/5           │
-│             │ ## Performance       │                     │
-│ [f] From    │                      │ [[] Previous hunk   │
-│ [t] To      │ ✓ Efficient use of   │ []] Next hunk       │
-│ [r] Review  │ iterators            │ [n] Next file       │
-└─────────────┴──────────────────────┴─────────────────────┘
-```
+| Panel      | Content                                                                     |
+| ---------- | --------------------------------------------------------------------------- |
+| **Left**   | Changed files in selected range with directory tree and ref selection       |
+| **Center** | Markdown-formatted review with categorized findings and severity indicators |
+| **Right**  | Unified diff view with syntax highlighting and hunk navigation              |
 
 ### Left Panel: Changed Files
 
@@ -98,24 +88,7 @@
 
 ## Ref Selection
 
-Press <kbd>f</kbd> or <kbd>t</kbd> to select **from/to refs**:
-
-```
-┌─────────────────────────────────────────────┐
-│  Select Base Branch (from)             [Esc] │
-├─────────────────────────────────────────────┤
-│  Type to filter...                           │
-│                                              │
-│  main                                    ◀  │
-│  master                                      │
-│  origin/main                                 │
-│  develop                                     │
-│  feature/emoji-selector                      │
-│  origin/feature/emoji-selector               │
-│                                              │
-│  [j/k] Navigate  [Enter] Select              │
-└─────────────────────────────────────────────┘
-```
+Press <kbd>f</kbd> or <kbd>t</kbd> to select **from/to refs**. The modal displays a filterable list of branches and tags with type-to-search functionality.
 
 ### Default Refs
 

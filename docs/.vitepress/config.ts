@@ -6,7 +6,10 @@ export default defineConfig({
   base: '/git-iris/',
 
   head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
+    ['link', { rel: 'icon', type: 'image/x-icon', href: '/git-iris/favicon.ico' }],
+    ['link', { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/git-iris/favicon-32.png' }],
+    ['link', { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/git-iris/favicon-16.png' }],
+    ['link', { rel: 'apple-touch-icon', sizes: '180x180', href: '/git-iris/apple-touch-icon.png' }],
     ['meta', { name: 'theme-color', content: '#e135ff' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:title', content: 'Git-Iris Documentation' }],
@@ -14,7 +17,10 @@ export default defineConfig({
   ],
 
   themeConfig: {
-    logo: '/logo.svg',
+    logo: {
+      src: '/logo.png',
+      alt: 'Git-Iris'
+    },
 
     nav: [
       { text: 'Guide', link: '/getting-started/' },

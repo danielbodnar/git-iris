@@ -2,6 +2,8 @@
 
 **Release Notes Mode** generates user-facing release documentation with highlights, breaking changes, and migration guidance. Perfect for public releases, customer communication, and GitHub releases.
 
+![Release Notes Mode](/mode-release-notes.png)
+
 ## When to Use Release Notes Mode
 
 - **Public releases**: Announce new versions to users
@@ -12,25 +14,11 @@
 
 ## Panel Layout
 
-```
-┌─────────────┬──────────────────────┬─────────────────────┐
-│ Commits     │  Release Notes       │   Diff Summary      │
-│             │                      │                     │
-│ abc123f Add │ # Git-Iris v1.1.0    │ @@ -10,6 +10,8 @@  │
-│ def456a Fix │                      │                     │
-│ ghi789b Upd │ ## Highlights        │ 20 files changed   │
-│             │                      │ +650 -180 lines    │
-│ v1.0.0..    │ 🎨 **Custom Emoji    │                     │
-│ v1.1.0      │ Selection**          │ src/studio/        │
-│             │                      │ src/agents/        │
-│ 5 commits   │ Choose from 100+...  │ ...                │
-│ 20 files    │                      │                     │
-│             │ ## What's New        │ [n] Next file       │
-│ [f] From    │                      │ [p] Prev file       │
-│ [t] To      │ ### Features         │ []] Next hunk       │
-│ [r] Generate│ - Emoji selector...  │ [[] Prev hunk       │
-└─────────────┴──────────────────────┴─────────────────────┘
-```
+| Panel      | Content                                                             |
+| ---------- | ------------------------------------------------------------------- |
+| **Left**   | Commits in version range with hash, title, and version tags         |
+| **Center** | User-focused release notes with highlights and feature descriptions |
+| **Right**  | Change statistics and file overview for technical context           |
 
 ### Left Panel: Commit List
 

@@ -102,14 +102,14 @@ Generate comprehensive code reviews with AI.
 
 **Options:**
 
-| Flag                 | Description |
-| -------------------- | ----------- | -------------------------------------- |
-| `--print`            | `-p`        | Print review to stdout                 |
-| `--raw`              |             | Output raw markdown without formatting |
-| `--include-unstaged` |             | Include unstaged changes               |
-| `--commit <HASH>`    |             | Review specific commit                 |
-| `--from <REF>`       |             | Starting branch for comparison         |
-| `--to <REF>`         |             | Target branch for comparison           |
+| Flag                 | Short | Description                            |
+| -------------------- | ----- | -------------------------------------- |
+| `--print`            | `-p`  | Print review to stdout                 |
+| `--raw`              |       | Output raw markdown without formatting |
+| `--include-unstaged` |       | Include unstaged changes               |
+| `--commit <HASH>`    |       | Review specific commit                 |
+| `--from <REF>`       |       | Starting branch for comparison         |
+| `--to <REF>`         |       | Target branch for comparison           |
 
 **Examples:**
 
@@ -139,12 +139,12 @@ Generate pull request descriptions.
 
 **Options:**
 
-| Flag           | Description |
-| -------------- | ----------- | ------------------------------ |
-| `--print`      | `-p`        | Print to stdout                |
-| `--raw`        |             | Output raw markdown            |
-| `--from <REF>` |             | Starting ref (default: `main`) |
-| `--to <REF>`   |             | Target ref (default: `HEAD`)   |
+| Flag           | Short | Description                    |
+| -------------- | ----- | ------------------------------ |
+| `--print`      | `-p`  | Print to stdout                |
+| `--raw`        |       | Output raw markdown            |
+| `--from <REF>` |       | Starting ref (default: `main`) |
+| `--to <REF>`   |       | Target ref (default: `HEAD`)   |
 
 **Examples:**
 
@@ -284,14 +284,14 @@ Manage project-specific `.irisconfig` file.
 
 **Options:**
 
-| Flag                  | Description             |
-| --------------------- | ----------------------- | ---------------------------- |
-| `--provider <NAME>`   | Set project provider    |
-| `--model <NAME>`      | Set project model       |
-| `--fast-model <NAME>` | Set project fast model  |
-| `--token-limit <NUM>` | Set project token limit |
-| `--param <KEY=VALUE>` | Set project parameters  |
-| `--print`             | `-p`                    | Print current project config |
+| Flag                  | Short | Description                  |
+| --------------------- | ----- | ---------------------------- |
+| `--provider <NAME>`   |       | Set project provider         |
+| `--model <NAME>`      |       | Set project model            |
+| `--fast-model <NAME>` |       | Set project fast model       |
+| `--token-limit <NUM>` |       | Set project token limit      |
+| `--param <KEY=VALUE>` |       | Set project parameters       |
+| `--print`             | `-p`  | Print current project config |
 
 **Examples:**
 
