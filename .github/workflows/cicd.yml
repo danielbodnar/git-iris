@@ -358,7 +358,20 @@ jobs:
         run: |
           echo "::group::Preparing release assets"
           mkdir -p release-assets
-          find ./artifacts -type f -exec cp {} ./release-assets/ \;
+
+          # Rename binaries with platform suffix from artifact directory names
+          for dir in ./artifacts/git-iris-*/; do
+            artifact_name=$(basename "$dir")
+            if [ -f "$dir/git-iris" ]; then
+              cp "$dir/git-iris" "./release-assets/${artifact_name}"
+            elif [ -f "$dir/git-iris.exe" ]; then
+              cp "$dir/git-iris.exe" "./release-assets/${artifact_name}.exe"
+            fi
+          done
+
+          # Copy non-binary artifacts (deb, rpm, man page) as-is
+          find ./artifacts -type f \( -name "*.deb" -o -name "*.rpm" -o -name "*.1" \) -exec cp {} ./release-assets/ \;
+
           ls -la ./release-assets
           echo "::endgroup::"
 
@@ -374,21 +387,6 @@ jobs:
           chmod +x ./artifacts/git-iris-linux-amd64/git-iris
           echo "Binary ready: ./artifacts/git-iris-linux-amd64/git-iris"
           ./artifacts/git-iris-linux-amd64/git-iris --version
-
-      - name: 📋 Generate changelog with Git-Iris
-        id: changelog
-        if: steps.prev_tag.outputs.tag != ''
-        uses: ./
-        with:
-          command: changelog
-          from: ${{ steps.prev_tag.outputs.tag }}
-          to: ${{ github.ref_name }}
-          version-name: ${{ github.ref_name }}
-          provider: anthropic
-          model: claude-opus-4-5-20251101
-          api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-          output-file: CHANGELOG_SECTION.md
-          binary-path: ./artifacts/git-iris-linux-amd64/git-iris
 
       - name: 📥 Download release notes from release workflow
         id: download_notes
@@ -427,9 +425,7 @@ jobs:
           name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
-          files: |
-            ./release-assets/*
-            CHANGELOG_SECTION.md
+          files: ./release-assets/*
           body_path: RELEASE_NOTES.md
 
   # Auto-update major version tag (v1, v2, etc.) for GitHub Action users

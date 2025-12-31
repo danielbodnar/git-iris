@@ -23,19 +23,19 @@ BINARY_NAME="git-iris"
 INSTALL_DIR="${IRIS_INSTALL_DIR:-$HOME/.local/bin}"
 
 info() {
-	printf '%b>%b %s\n' "$CYAN" "$RESET" "$1"
+	printf '%b>%b %b\n' "$CYAN" "$RESET" "$1"
 }
 
 success() {
-	printf '%b%b%b %s\n' "$GREEN" "✓" "$RESET" "$1"
+	printf '%b%b%b %b\n' "$GREEN" "✓" "$RESET" "$1"
 }
 
 warn() {
-	printf '%b!%b %s\n' "$YELLOW" "$RESET" "$1"
+	printf '%b!%b %b\n' "$YELLOW" "$RESET" "$1"
 }
 
 error() {
-	printf '%b%b%b %s\n' "$RED" "✗" "$RESET" "$1" >&2
+	printf '%b%b%b %b\n' "$RED" "✗" "$RESET" "$1" >&2
 	exit 1
 }
 
