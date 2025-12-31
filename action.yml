@@ -130,11 +130,13 @@ runs:
 
         gh release download "$VERSION" \
           --repo hyperb1iss/git-iris \
-          --pattern "${{ steps.platform.outputs.artifact }}" \
+          --pattern "${{ steps.platform.outputs.artifact }}*" \
           --dir /tmp/git-iris-download
 
-        chmod +x "/tmp/git-iris-download/${{ steps.platform.outputs.binary }}"
-        sudo mv "/tmp/git-iris-download/${{ steps.platform.outputs.binary }}" /usr/local/bin/git-iris
+        # Downloaded file keeps original name (e.g., git-iris-linux-amd64 or git-iris-windows-gnu.exe)
+        DOWNLOADED=$(ls /tmp/git-iris-download/)
+        chmod +x "/tmp/git-iris-download/$DOWNLOADED"
+        sudo mv "/tmp/git-iris-download/$DOWNLOADED" /usr/local/bin/${{ steps.platform.outputs.binary }}
 
         echo "git-iris installed successfully"
         git-iris --version
