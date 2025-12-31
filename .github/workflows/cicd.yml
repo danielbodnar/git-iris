@@ -549,3 +549,53 @@ jobs:
           git add Formula/git-iris.rb
           git commit -m "git-iris ${{ steps.sha.outputs.version }}"
           git push
+
+  # Update AUR package with new release
+  update-aur:
+    name: 📦 Update AUR Package
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 📝 Generate PKGBUILD
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          SHA_X86_64=$(curl -fsSL "https://github.com/hyperb1iss/git-iris/releases/download/${GITHUB_REF_NAME}/git-iris-linux-amd64" | sha256sum | cut -d' ' -f1)
+          SHA_AARCH64=$(curl -fsSL "https://github.com/hyperb1iss/git-iris/releases/download/${GITHUB_REF_NAME}/git-iris-linux-arm64" | sha256sum | cut -d' ' -f1)
+
+          cat > PKGBUILD << EOF
+          # Maintainer: Stefanie Jane <stef@hyperbliss.tech>
+          pkgname=git-iris-bin
+          pkgver=${VERSION}
+          pkgrel=1
+          pkgdesc="An intelligent agent that understands your code and crafts perfect Git artifacts"
+          arch=('x86_64' 'aarch64')
+          url="https://github.com/hyperb1iss/git-iris"
+          license=('Apache-2.0')
+          provides=('git-iris')
+          conflicts=('git-iris')
+          depends=('gcc-libs' 'openssl')
+
+          source_x86_64=("\${pkgname}-\${pkgver}-x86_64::https://github.com/hyperb1iss/git-iris/releases/download/v\${pkgver}/git-iris-linux-amd64")
+          source_aarch64=("\${pkgname}-\${pkgver}-aarch64::https://github.com/hyperb1iss/git-iris/releases/download/v\${pkgver}/git-iris-linux-arm64")
+
+          sha256sums_x86_64=('${SHA_X86_64}')
+          sha256sums_aarch64=('${SHA_AARCH64}')
+
+          package() {
+              install -Dm755 "\${srcdir}/\${pkgname}-\${pkgver}-\${CARCH}" "\${pkgdir}/usr/bin/git-iris"
+          }
+          EOF
+
+      - name: 🚀 Publish to AUR
+        uses: KSXGitHub/github-actions-deploy-aur@v3.0.1
+        with:
+          pkgname: git-iris-bin
+          pkgbuild: ./PKGBUILD
+          commit_username: Stefanie Jane
+          commit_email: stef@hyperbliss.tech
+          ssh_private_key: ${{ secrets.AUR_SSH_KEY }}
+          commit_message: "Update to ${GITHUB_REF_NAME#v}"
