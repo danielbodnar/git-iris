@@ -10,6 +10,15 @@ repository = "https://github.com/hyperb1iss/git-iris"
 license = "Apache-2.0"
 keywords = ["git", "ai", "cli", "devtools", "productivity"]
 categories = ["command-line-utilities", "development-tools"]
+exclude = [
+    "docs/",
+    "docker/",
+    "homebrew/",
+    ".github/",
+    "*.md",
+    "!README.md",
+    "CHANGELOG.md",
+]
 
 [lib]
 name = "git_iris"
