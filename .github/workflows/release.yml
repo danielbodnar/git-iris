@@ -78,7 +78,13 @@ jobs:
           if [[ -n "${{ inputs.version }}" ]]; then
             VERSION="${{ inputs.version }}"
           else
-            IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+            # Parse version components using cut (more reliable than IFS)
+            MAJOR=$(echo "$CURRENT" | cut -d. -f1)
+            MINOR=$(echo "$CURRENT" | cut -d. -f2)
+            PATCH=$(echo "$CURRENT" | cut -d. -f3)
+
+            echo "Parsed: MAJOR=$MAJOR MINOR=$MINOR PATCH=$PATCH"
+
             case "${{ inputs.bump }}" in
               major) VERSION="$((MAJOR + 1)).0.0" ;;
               minor) VERSION="${MAJOR}.$((MINOR + 1)).0" ;;
