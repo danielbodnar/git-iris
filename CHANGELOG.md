@@ -1,3 +1,29 @@
+## [2.0.2] - 2025-12-31
+
+This patch release improves **CI/CD reliability** with better version parsing and adds **AUR package publishing** for Arch Linux users.
+
+### Added
+
+- ✨ Add automated **AUR package publishing** to CI/CD pipeline with dynamically calculated SHA256 checksums for x86_64 and aarch64 binaries (01f7ce78)
+- 📝 Add comprehensive **GitHub Action documentation** page with quick start examples, input/output reference tables, and provider-specific configurations (b8349aa9)
+
+### Changed
+
+- 🔧 Update GitHub Action metadata to "Git-Iris Action" with clearer description: "AI agent that crafts perfect Git artifacts" (b2fd2023)
+- 📝 Update README GitHub Action link to point to new dedicated documentation page
+
+### Fixed
+
+- 🐛 Fix version detection to filter semver tags only using explicit `v[0-9]*.[0-9]*.[0-9]*` pattern, excluding non-standard tags like `v2` (d1aceb34)
+- 🐛 Fix version parsing in release workflow using `cut` instead of IFS-based splitting for reliable cross-shell behavior (b4823bcf)
+
+### Metrics
+
+- Total Commits: 5
+- Files Changed: 6
+- Insertions: +322
+- Deletions: -12
+
 ## [2.0.1] - 2025-12-31
 
 This release introduces **Iris Studio**, a stunning terminal interface for AI-powered Git workflows, and completes the transition to an **agent-first architecture** where Iris actively explores your codebase using tool calls rather than static context dumps.
