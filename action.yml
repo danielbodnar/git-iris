@@ -1,5 +1,5 @@
-name: "Git-Iris"
-description: "AI-powered Git artifacts - release notes, changelogs, and more"
+name: "Git-Iris Action"
+description: "AI agent that crafts perfect Git artifacts - release notes, changelogs, and more"
 author: "hyperb1iss"
 branding:
   icon: "git-commit"
