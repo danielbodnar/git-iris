@@ -1,3 +1,103 @@
+## [2.0.1] - 2025-12-31
+
+This release introduces **Iris Studio**, a stunning terminal interface for AI-powered Git workflows, and completes the transition to an **agent-first architecture** where Iris actively explores your codebase using tool calls rather than static context dumps.
+
+### Added
+
+- ✨ Add **Iris Studio** TUI with six specialized modes: Explore, Commit, Review, PR, Changelog, and Release Notes (82ad0ac)
+- ✨ Add **agent-first architecture** powered by the Rig framework with dynamic tool-based context gathering
+- ✨ Add **interactive chat** with Iris in all Studio modes via `/` key—Iris can modify content directly through tool calls (eae0604, b53dc1b)
+- ✨ Add **token-based theme system** with TOML configuration and 13 built-in themes: SilkCircuit (Neon, Soft, Glow, Vibrant, Dawn), Catppuccin (Mocha, Latte), Dracula, Nord, Tokyo Night, Gruvbox Dark, One Dark, Solarized Light (bf4e80f, f72b66b, 372b7dc)
+- ✨ Add **Iris Companion** for ambient session awareness with branch memory persistence and live file watching (6c42718)
+- ✨ Add **GitHub Action** for automated release notes and changelog generation in CI/CD pipelines (fb776c5)
+- ✨ Add **shell installer** (`curl -fsSL ... | sh`) and **Homebrew tap** (`brew install hyperb1iss/tap/git-iris`) for easy installation (bda1718)
+- ✨ Add **AUR package** for Arch Linux users (0c93043)
+- ✨ Add **semantic blame** feature—press `w` in Explore mode to ask "why does this code exist?" (1dc5dd6)
+- ✨ Add **amend mode** (`git-iris gen --amend` and `Shift+A` in Studio) for modifying previous commits (c877314, 7e34b94)
+- ✨ Add **real-time streaming** response display for chat and generation tasks (443ed16, 5a15d42)
+- ✨ Add **dynamic status messages** using fast model for witty, contextual waiting feedback (7ccdb9a)
+- ✨ Add **file history panel** in Explore mode with commit navigation and `y` to copy hash (a6ecb66)
+- ✨ Add **syntax highlighting** for code blocks in chat and Explore mode using syntect (dd811c0, 5a15d42)
+- ✨ Add **commit count picker** modal (`#` key) for quick HEAD~N ref selection (624644d)
+- ✨ Add **shell completions** for bash, zsh, fish, elvish, and powershell via `completions` subcommand (bebffef)
+- ✨ Add `--model` flag for per-operation LLM model override without changing global config (3e51088)
+- ✨ Add `--amend` flag to `gen` command and `--update`/`--file` flags to `release-notes` command (bebffef)
+- ✨ Add `--raw` flag to `review`, `pr`, `changelog`, and `release-notes` for clean markdown output (c67f17c)
+- ✨ Add **project context** doc type for unified README and agent instructions fetching (a26592f)
+- ✨ Add **parallel subagent analysis** for processing large changesets concurrently
+- ✨ Add **progressive diff analysis**—summaries by default, full diffs on request (f4bd00e)
+- ✨ Add **automatic commit style detection** that mirrors repository format (gitmoji, conventional, plain) (05d26bc)
+- ✨ Add **commit message history** preservation across regenerations with arrow key navigation (9becc01)
+- ✨ Add **content update tools** (`UpdateCommitTool`, `UpdatePRTool`, `UpdateReviewTool`) for chat integration (f241f14)
+- ✨ Add **VitePress documentation site** at hyperb1iss.github.io/git-iris with comprehensive guides (6069a03)
+- ✨ Add **theme selector modal** with live preview and search filtering (bc4ae63)
+- ✨ Add **settings modal** (`Shift+S`) for in-app provider, model, theme, and preset configuration (dee1161, 62e285b)
+- ✨ Add **file staging controls** (`s`/`u` for individual, `a`/`U` for bulk) in Commit mode (04138723)
+- ✨ Add **mouse interaction** with click-to-navigate, double-click, and drag selection (8566330)
+- ✨ Add **visual selection mode** (`v` key) with multi-line copy support in code views (8566330)
+- ✨ Add **clipboard support** (`y` key) with visual feedback across all modes (6d48879)
+
+### Changed
+
+- ♻️ Migrate from prompt-based generation to **agent-first architecture** with Iris making tool calls to gather context dynamically (dfbd9c5)
+- ♻️ Replace `DynClientBuilder` with explicit provider dispatch for rig-core 0.27+ compatibility (dfbd9c5)
+- ♻️ Switch Studio generation tasks from streaming to non-streaming execution for reliable structured output parsing (228afdab)
+- ♻️ Reorganize codebase with new `src/agents/`, `src/studio/`, `src/theme/`, `src/companion/`, `src/services/`, and `src/types/` modules
+- ♻️ Split monolithic Studio files into modular submodules for handlers, render, state, and reducer (f34bda3, faf7ab5)
+- ♻️ Implement **reducer pattern** for predictable, testable state management in Studio (82ad0ac)
+- ♻️ Separate emoji styling logic for commits vs non-commit outputs—`--gitmoji`/`--no-gitmoji` now work independently of presets (a6381c8)
+- ♻️ Skip serializing default config values for cleaner `.irisconfig` files (dccd1ea)
+- ♻️ Improve JSON extraction with sanitization and markdown fallback handling (101ac8a)
+- ♻️ Improve file exclusion patterns with path boundary anchoring for precision (6b8e204)
+- ♻️ Replace Python release script with declarative GitHub Actions workflow (e231ad8)
+- ♻️ Use git tags instead of Cargo.toml for release version detection (6cf244b)
+- ♻️ Make TUI startup non-blocking with async git status loading and companion initialization (f470abf)
+- ♻️ Replace unbounded channels with bounded channels (capacity 100) for backpressure handling (b5656049)
+- 📝 Streamline README to ~10% of original size with links to hosted documentation (d6a4a5e6)
+- 📝 Update documentation for Studio TUI and agent architecture (2770e5d7, 104cbe96)
+
+### Fixed
+
+- 🐛 Fix **tab handling** in TUI with `expand_tabs` utility that converts tabs to spaces and strips control characters (cd12f2b)
+- 🐛 Fix **UTF-8 string truncation** to use char boundaries instead of byte slicing (f4bd00e, cccfbcdb)
+- 🐛 Fix **background task cleanup** on Studio exit by aborting tasks in Drop implementation (b398b2b)
+- 🐛 Fix **RPM artifact upload path** for cross-compiled targets (68f517c, c8dbadd)
+- 🐛 Fix **DEB package asset path** to include target directory (0eb4ebd)
+- 🐛 Fix **theme tests** for parallel execution safety by removing global state assertions (be6476a)
+- 🐛 Fix **state management** when opening settings modal and switching to Explore mode (5dd47cd)
+- 🐛 Fix **Docker entrypoint** gitmoji handling to use boolean flags correctly (45df4e0)
+- 🐛 Fix **scroll direction** in chat modal to match standard conventions (e5e11bb)
+- 🐛 Fix **search modal** input handling for character input and backspace (e5e11bb)
+- 🐛 Fix **custom instructions** (`--instructions` flag) propagation to agent (cd12f2b)
+- 🐛 Fix **file tree path construction** using full_path components (cccfbcdb)
+- 🐛 Fix **scroll bounds** to clamp offsets and prevent over-scrolling (cccfbcdb)
+- 🐛 Fix **memory growth** in long sessions with bounded capacity limits for chat (500 messages), tool history (20 entries), and content versions (50 per mode) (ee86f6c)
+- 🐛 Fix **panicking unwrap/expect calls** replaced with proper error handling in ParallelAnalyze, FileWatcherService, and GitRepo (ee4a7dfe)
+- ⚡️ Pass release notes between workflows via artifact to eliminate redundant generation (1c76200)
+
+### Removed
+
+- 🔥 **Remove MCP server** (`git-iris serve` command and all MCP tooling in `src/mcp/`)—the agent architecture provides superior integration
+- 🔥 **Remove legacy TUI** (`src/tui/`)—fully replaced by Iris Studio
+- 🔥 **Remove file analyzers module** (`src/file_analyzers/`)—the LLM agent handles file analysis directly via tool calls
+- 🔥 **Remove token optimizer** (`src/token_optimizer.rs`)—no longer needed with agent-based context management
+- 🔥 **Remove old generation modules** (`src/changes/`, `src/commit/`)—replaced by unified agent capabilities
+- 🔥 **Remove `src/llm.rs`**—provider logic moved to `src/agents/` and `src/providers.rs`
+- 🔥 **Remove Python release script** (`scripts/release.py`)—replaced by GitHub Actions workflow
+- 🔥 Remove unused dependencies: `once_cell`, `tiktoken-rs`, `tokio-retry`
+
+### Breaking Changes
+
+- **MCP server removed**: The `git-iris serve` command no longer exists. Users relying on MCP integration should migrate to the GitHub Action or direct CLI usage
+- **Architecture overhaul**: Internal APIs have changed significantly. Extensions built against v1.x will need updates for the new agent-based system
+
+### Metrics
+
+- Total Commits: 100
+- Files Changed: 356
+- Insertions: +62,529
+- Deletions: -16,771
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Changelog
 
