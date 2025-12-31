@@ -465,3 +465,91 @@ jobs:
 
           echo "✨ Updated $MAJOR_TAG to point to $FULL_TAG"
           echo "Users can now use: uses: hyperb1iss/git-iris@$MAJOR_TAG"
+
+  # Update Homebrew tap with new release
+  update-homebrew:
+    name: 🍺 Update Homebrew Tap
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout tap repo
+        uses: actions/checkout@v4
+        with:
+          repository: hyperb1iss/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: 🔢 Calculate SHA256 checksums
+        id: sha
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          MACOS_ARM64=$(curl -fsSL "https://github.com/hyperb1iss/git-iris/releases/download/${GITHUB_REF_NAME}/git-iris-macos-arm64" | shasum -a 256 | cut -d' ' -f1)
+          LINUX_ARM64=$(curl -fsSL "https://github.com/hyperb1iss/git-iris/releases/download/${GITHUB_REF_NAME}/git-iris-linux-arm64" | shasum -a 256 | cut -d' ' -f1)
+          LINUX_AMD64=$(curl -fsSL "https://github.com/hyperb1iss/git-iris/releases/download/${GITHUB_REF_NAME}/git-iris-linux-amd64" | shasum -a 256 | cut -d' ' -f1)
+          SOURCE=$(curl -fsSL "https://github.com/hyperb1iss/git-iris/archive/refs/tags/${GITHUB_REF_NAME}.tar.gz" | shasum -a 256 | cut -d' ' -f1)
+
+          echo "macos_arm64=$MACOS_ARM64" >> $GITHUB_OUTPUT
+          echo "linux_arm64=$LINUX_ARM64" >> $GITHUB_OUTPUT
+          echo "linux_amd64=$LINUX_AMD64" >> $GITHUB_OUTPUT
+          echo "source=$SOURCE" >> $GITHUB_OUTPUT
+
+      - name: 📝 Generate formula
+        run: |
+          cat > homebrew-tap/Formula/git-iris.rb << 'EOF'
+          # typed: false
+          # frozen_string_literal: true
+
+          class GitIris < Formula
+            desc "An intelligent agent that understands your code and crafts perfect Git artifacts"
+            homepage "https://github.com/hyperb1iss/git-iris"
+            license "Apache-2.0"
+            version "${{ steps.sha.outputs.version }}"
+
+            on_macos do
+              on_arm do
+                url "https://github.com/hyperb1iss/git-iris/releases/download/v#{version}/git-iris-macos-arm64"
+                sha256 "${{ steps.sha.outputs.macos_arm64 }}"
+              end
+              on_intel do
+                url "https://github.com/hyperb1iss/git-iris/archive/refs/tags/v#{version}.tar.gz"
+                sha256 "${{ steps.sha.outputs.source }}"
+                depends_on "rust" => :build
+              end
+            end
+
+            on_linux do
+              on_arm do
+                url "https://github.com/hyperb1iss/git-iris/releases/download/v#{version}/git-iris-linux-arm64"
+                sha256 "${{ steps.sha.outputs.linux_arm64 }}"
+              end
+              on_intel do
+                url "https://github.com/hyperb1iss/git-iris/releases/download/v#{version}/git-iris-linux-amd64"
+                sha256 "${{ steps.sha.outputs.linux_amd64 }}"
+              end
+            end
+
+            def install
+              if build.with?("rust")
+                system "cargo", "install", *std_cargo_args
+              else
+                bin.install Dir["git-iris*"].first => "git-iris"
+              end
+            end
+
+            test do
+              assert_match "git-iris #{version}", shell_output("#{bin}/git-iris --version")
+            end
+          end
+          EOF
+
+      - name: 🚀 Push to tap
+        run: |
+          cd homebrew-tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/git-iris.rb
+          git commit -m "git-iris ${{ steps.sha.outputs.version }}"
+          git push

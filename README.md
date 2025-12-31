@@ -47,15 +47,36 @@ Git-Iris is powered by **Iris**, an intelligent agent that actively explores you
 
 ## 📦 Installation
 
+### Quick Install (Recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/hyperb1iss/git-iris/main/install.sh | sh
+```
+
+### Homebrew
+
+```bash
+brew tap hyperb1iss/tap
+brew install git-iris
+```
+
+### Cargo
+
 ```bash
 cargo install git-iris
 ```
 
-Or via Docker:
+### Docker
 
 ```bash
 docker pull hyperb1iss/git-iris:latest
 ```
+
+### From Releases
+
+Download pre-built binaries from [GitHub Releases][releases] for Linux (x64/ARM64), macOS (ARM64), and Windows.
+
+---
 
 Then configure your AI provider:
 
