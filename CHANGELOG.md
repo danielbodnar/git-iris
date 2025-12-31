@@ -1,3 +1,18 @@
+## [2.0.3] - 2025-12-31
+
+Patch release fixing GitHub Action installation failures caused by asset naming mismatches.
+
+### Fixed
+
+- 🐛 Fix binary download and installation in GitHub Action by adding wildcard to release download pattern and dynamically detecting downloaded filename (028a6c6)
+
+### Metrics
+
+- Total Commits: 1
+- Files Changed: 1
+- Insertions: +6
+- Deletions: -4
+
 ## [2.0.2] - 2025-12-31
 
 This patch release improves **CI/CD reliability** with better version parsing and adds **AUR package publishing** for Arch Linux users.
