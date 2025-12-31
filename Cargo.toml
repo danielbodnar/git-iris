@@ -14,6 +14,7 @@ exclude = [
     "docs/",
     "docker/",
     "homebrew/",
+    "aur/",
     ".github/",
     "*.md",
     "!README.md",

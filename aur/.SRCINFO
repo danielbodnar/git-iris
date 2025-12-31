@@ -1,0 +1,18 @@
+pkgbase = git-iris-bin
+	pkgdesc = An intelligent agent that understands your code and crafts perfect Git artifacts
+	pkgver = 2.0.0
+	pkgrel = 1
+	url = https://github.com/hyperb1iss/git-iris
+	arch = x86_64
+	arch = aarch64
+	license = Apache-2.0
+	provides = git-iris
+	conflicts = git-iris
+	depends = gcc-libs
+	depends = openssl
+	source_x86_64 = git-iris-bin-2.0.0-x86_64::https://github.com/hyperb1iss/git-iris/releases/download/v2.0.0/git-iris-linux-amd64
+	source_aarch64 = git-iris-bin-2.0.0-aarch64::https://github.com/hyperb1iss/git-iris/releases/download/v2.0.0/git-iris-linux-arm64
+	sha256sums_x86_64 = SKIP
+	sha256sums_aarch64 = SKIP
+
+pkgname = git-iris-bin
