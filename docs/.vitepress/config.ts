@@ -32,6 +32,7 @@ export default defineConfig({
         text: 'Reference',
         items: [
           { text: 'CLI Reference', link: '/reference/cli' },
+          { text: 'GitHub Action', link: '/reference/github-action' },
           { text: 'Keybindings', link: '/reference/keybindings' },
           { text: 'Tokens', link: '/reference/tokens' },
           { text: 'Troubleshooting', link: '/reference/troubleshooting' },
@@ -151,6 +152,7 @@ export default defineConfig({
           text: 'Reference',
           items: [
             { text: 'CLI Commands', link: '/reference/cli' },
+            { text: 'GitHub Action', link: '/reference/github-action' },
             { text: 'Keybindings', link: '/reference/keybindings' },
             { text: 'Tokens', link: '/reference/tokens' },
             { text: 'Troubleshooting', link: '/reference/troubleshooting' },

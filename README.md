@@ -140,7 +140,7 @@ Automate release notes and changelogs in your CI/CD:
     output-file: RELEASE_NOTES.md
 ```
 
-See the [GitHub Action documentation](https://hyperb1iss.github.io/git-iris/reference/cli#github-action) for all options.
+See the [GitHub Action documentation](https://hyperb1iss.github.io/git-iris/reference/github-action) for all options.
 
 ## 📚 Documentation
 
