@@ -243,7 +243,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: git-iris-rpm-${{ matrix.arch_suffix }}
-          path: ./target/generate-rpm/git-iris-${{ steps.get_version.outputs.VERSION }}-1.${{ matrix.rpm_arch }}.rpm
+          path: ./target/${{ matrix.target }}/generate-rpm/git-iris-${{ steps.get_version.outputs.VERSION }}-1.${{ matrix.rpm_arch }}.rpm
           if-no-files-found: error
           retention-days: 1
 
