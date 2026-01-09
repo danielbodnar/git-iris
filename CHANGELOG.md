@@ -1,3 +1,41 @@
+## [2.0.4] - 2026-01-09
+
+This release improves **API key management** with config-based credential resolution, adds **Google/Gemini support** for parallel analysis subagents, and strengthens error handling across provider operations.
+
+### Added
+
+- ✨ Add Google/Gemini provider support for `parallel_analyze` subagents, enabling concurrent analysis with all three providers (14c27a9)
+- ✨ Add `api_key_if_set()` helper to `ProviderConfig` for cleaner empty-string handling when extracting keys
+- ✨ Add `ApiKeySource` enum to track API key resolution path (config → environment → client default) for debugging
+- ✨ Add `validate_api_key_format()` method to `Provider` for early detection of misconfigurations (prefix and length checks)
+- ✨ Expand OpenAI API key validation to accept both `sk-` and `sk-proj-` prefixes for project-scoped keys
+
+### Changed
+
+- 🔧 Pass API keys from config to provider builders instead of requiring environment variables for all clients (25e293b)
+- 🔧 Thread `api_key` through all agent builder paths including main agents, subagents, and debug agents
+- 🔧 Update `StatusMessageGenerator` to accept and use API keys from config
+- 🔧 Provider builder functions (`openai_builder`, `anthropic_builder`, `gemini_builder`) now accept optional API key parameters with environment fallback
+- 🔧 Make `resolve_api_key()` and `ApiKeySource` public in provider module for reuse across codebase
+
+### Fixed
+
+- 🐛 Remove silent fallback to OpenAI in `parallel_analyze` when requested provider fails—now returns clear error message (713a9fe)
+- 🐛 Handle errors in LLM builder functions with context-aware error returns using `anyhow` instead of panics (4019c3b)
+
+### Security
+
+- 🔒 Prevent API key exposure in error messages by sanitizing client creation errors (aeefd91)
+- 🔒 Remove key prefix display from validation errors, using generic "unexpected prefix" message
+- 🔒 Update test assertions to verify error messages don't contain key fragments
+
+### Metrics
+
+- Total Commits: 6
+- Files Changed: 7
+- Insertions: +548
+- Deletions: -53
+
 ## [2.0.3] - 2025-12-31
 
 Patch release fixing GitHub Action installation failures caused by asset naming mismatches.
