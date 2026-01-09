@@ -488,7 +488,7 @@ impl IrisAgentService {
     pub fn api_key(&self) -> Option<String> {
         self.config
             .get_provider_config(&self.provider)
-            .filter(|pc| !pc.api_key.is_empty())
-            .map(|pc| pc.api_key.clone())
+            .and_then(|pc| pc.api_key_if_set())
+            .map(String::from)
     }
 }

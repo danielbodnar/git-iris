@@ -66,22 +66,33 @@ impl Provider {
         }
     }
 
-    /// Expected API key prefix for basic format validation
+    /// Valid API key prefixes for format validation
     ///
-    /// Returns the expected prefix for the provider's API keys, if known.
-    /// This helps catch typos and misconfigurations early.
+    /// Returns the expected prefixes for the provider's API keys.
+    /// `OpenAI` has multiple valid prefixes (sk-, sk-proj-).
+    pub fn api_key_prefixes(&self) -> &'static [&'static str] {
+        match self {
+            Self::OpenAI => &["sk-", "sk-proj-"],
+            Self::Anthropic => &["sk-ant-"],
+            Self::Google => &[], // Google API keys don't have a consistent prefix
+        }
+    }
+
+    /// Expected API key prefix for basic format validation (primary prefix)
+    ///
+    /// Returns the primary expected prefix for display in error messages.
     pub const fn api_key_prefix(&self) -> Option<&'static str> {
         match self {
             Self::OpenAI => Some("sk-"),
             Self::Anthropic => Some("sk-ant-"),
-            Self::Google => None, // Google API keys don't have a consistent prefix
+            Self::Google => None,
         }
     }
 
     /// Validate API key format
     ///
     /// Performs basic validation to catch obvious misconfigurations:
-    /// - Checks for expected prefix (OpenAI: `sk-`, Anthropic: `sk-ant-`)
+    /// - Checks for expected prefix (`OpenAI`: `sk-` or `sk-proj-`, `Anthropic`: `sk-ant-`)
     /// - Ensures key is not suspiciously short
     ///
     /// Returns `Ok(())` if valid, or a warning message if potentially invalid.
@@ -97,15 +108,23 @@ impl Provider {
             ));
         }
 
-        // Check expected prefix
-        if let Some(prefix) = self.api_key_prefix() {
-            if !key.starts_with(prefix) {
-                return Err(format!(
-                    "{} API key should start with '{}' (key has unexpected prefix)",
-                    self.name(),
-                    prefix
-                ));
-            }
+        // Check expected prefixes
+        let prefixes = self.api_key_prefixes();
+        if !prefixes.is_empty() && !prefixes.iter().any(|p| key.starts_with(p)) {
+            let expected = if prefixes.len() == 1 {
+                format!("'{}'", prefixes[0])
+            } else {
+                prefixes
+                    .iter()
+                    .map(|p| format!("'{p}'"))
+                    .collect::<Vec<_>>()
+                    .join(" or ")
+            };
+            return Err(format!(
+                "{} API key should start with {} (key has unexpected prefix)",
+                self.name(),
+                expected
+            ));
         }
 
         Ok(())
@@ -210,6 +229,19 @@ impl ProviderConfig {
     pub fn has_api_key(&self) -> bool {
         !self.api_key.is_empty()
     }
+
+    /// Get API key if set (non-empty), otherwise None
+    ///
+    /// This is the canonical way to extract an API key for passing to
+    /// provider builders. Returns `None` for empty strings, allowing
+    /// fallback to environment variables.
+    pub fn api_key_if_set(&self) -> Option<&str> {
+        if self.api_key.is_empty() {
+            None
+        } else {
+            Some(&self.api_key)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -252,9 +284,40 @@ mod tests {
     }
 
     #[test]
+    fn test_api_key_if_set() {
+        // Non-empty key returns Some
+        let mut config = ProviderConfig::with_defaults(Provider::OpenAI);
+        config.api_key = "sk-test-key-12345678901234567890".to_string();
+        assert_eq!(
+            config.api_key_if_set(),
+            Some("sk-test-key-12345678901234567890")
+        );
+
+        // Empty key returns None
+        config.api_key = String::new();
+        assert_eq!(config.api_key_if_set(), None);
+    }
+
+    #[test]
+    fn test_api_key_prefixes() {
+        // OpenAI accepts multiple prefixes
+        assert_eq!(Provider::OpenAI.api_key_prefixes(), &["sk-", "sk-proj-"]);
+        assert_eq!(Provider::Anthropic.api_key_prefixes(), &["sk-ant-"]);
+        assert!(Provider::Google.api_key_prefixes().is_empty());
+    }
+
+    #[test]
     fn test_api_key_validation_valid_openai() {
         // Valid OpenAI key format (starts with sk-, long enough)
         let result = Provider::OpenAI.validate_api_key_format("sk-1234567890abcdefghijklmnop");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_api_key_validation_valid_openai_project_key() {
+        // Valid OpenAI project key format (starts with sk-proj-, long enough)
+        let result =
+            Provider::OpenAI.validate_api_key_format("sk-proj-1234567890abcdefghijklmnop");
         assert!(result.is_ok());
     }
 
@@ -287,6 +350,8 @@ mod tests {
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.contains("should start with"));
+        // Error should mention valid prefixes
+        assert!(err.contains("'sk-'") || err.contains("'sk-proj-'"));
         // Verify we don't expose the actual key prefix in error messages
         assert!(!err.contains("wrong-"));
     }

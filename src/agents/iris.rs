@@ -416,8 +416,7 @@ impl IrisAgent {
         self.config
             .as_ref()
             .and_then(|c| c.get_provider_config(&self.provider))
-            .map(|pc| pc.api_key.as_str())
-            .filter(|k| !k.is_empty())
+            .and_then(|pc| pc.api_key_if_set())
     }
 
     /// Build the actual agent for execution

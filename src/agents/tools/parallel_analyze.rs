@@ -8,7 +8,7 @@ use anyhow::Result;
 use rig::{
     client::{CompletionClient, ProviderClient},
     completion::{Prompt, ToolDefinition},
-    providers::{anthropic, openai},
+    providers::{anthropic, gemini, openai},
     tool::Tool,
 };
 use schemars::JsonSchema;
@@ -71,6 +71,10 @@ enum SubagentRunner {
         client: anthropic::Client,
         model: String,
     },
+    Gemini {
+        client: gemini::Client,
+        model: String,
+    },
 }
 
 impl SubagentRunner {
@@ -90,14 +94,21 @@ impl SubagentRunner {
                     model: model.to_string(),
                 })
             }
+            "google" | "gemini" => {
+                let client = Self::resolve_gemini_client(api_key)?;
+                Ok(Self::Gemini {
+                    client,
+                    model: model.to_string(),
+                })
+            }
             _ => Err(anyhow::anyhow!(
-                "Unsupported provider for parallel analysis: {}",
+                "Unsupported provider for parallel analysis: {}. Supported: openai, anthropic, google",
                 provider
             )),
         }
     }
 
-    /// Create OpenAI client using shared resolution logic
+    /// Create `OpenAI` client using shared resolution logic
     ///
     /// Uses `resolve_api_key` from provider module to maintain consistent
     /// resolution order: config → env var → client default
@@ -111,7 +122,7 @@ impl SubagentRunner {
         }
     }
 
-    /// Create Anthropic client using shared resolution logic
+    /// Create `Anthropic` client using shared resolution logic
     ///
     /// Uses `resolve_api_key` from provider module to maintain consistent
     /// resolution order: config → env var → client default
@@ -122,6 +133,20 @@ impl SubagentRunner {
                 // Sanitize error to avoid exposing key material
                 .map_err(|_| anyhow::anyhow!("Failed to create Anthropic client: authentication or configuration error")),
             None => Ok(anthropic::Client::from_env()),
+        }
+    }
+
+    /// Create `Gemini` client using shared resolution logic
+    ///
+    /// Uses `resolve_api_key` from provider module to maintain consistent
+    /// resolution order: config → env var → client default
+    fn resolve_gemini_client(api_key: Option<&str>) -> Result<gemini::Client> {
+        let (resolved_key, _source) = resolve_api_key(api_key, Provider::Google);
+        match resolved_key {
+            Some(key) => gemini::Client::new(&key)
+                // Sanitize error to avoid exposing key material
+                .map_err(|_| anyhow::anyhow!("Failed to create Gemini client: authentication or configuration error")),
+            None => Ok(gemini::Client::from_env()),
         }
     }
 
@@ -142,6 +167,11 @@ impl SubagentRunner {
                 agent.prompt(task).await
             }
             Self::Anthropic { client, model } => {
+                let builder = client.agent(model).preamble(preamble).max_tokens(4096);
+                let agent = crate::attach_core_tools!(builder).build();
+                agent.prompt(task).await
+            }
+            Self::Gemini { client, model } => {
                 let builder = client.agent(model).preamble(preamble).max_tokens(4096);
                 let agent = crate::attach_core_tools!(builder).build();
                 agent.prompt(task).await

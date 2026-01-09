@@ -3,7 +3,7 @@
 //! This module provides runtime provider selection using enum dispatch,
 //! allowing git-iris to work with any supported provider based on config.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use rig::{
     agent::{Agent, AgentBuilder, PromptResponse},
     client::{CompletionClient, ProviderClient},
@@ -95,16 +95,16 @@ fn validate_and_warn(key: &str, provider: Provider, source: &str) {
 /// in config while still supporting env-only setups.
 pub fn resolve_api_key(api_key: Option<&str>, provider: Provider) -> (Option<String>, ApiKeySource) {
     // If explicit key provided and non-empty, use it
-    if let Some(key) = api_key {
-        if !key.is_empty() {
-            tracing::trace!(
-                provider = %provider,
-                source = "config",
-                "Using API key from configuration"
-            );
-            validate_and_warn(key, provider, "config");
-            return (Some(key.to_string()), ApiKeySource::Config);
-        }
+    if let Some(key) = api_key
+        && !key.is_empty()
+    {
+        tracing::trace!(
+            provider = %provider,
+            source = "config",
+            "Using API key from configuration"
+        );
+        validate_and_warn(key, provider, "config");
+        return (Some(key.to_string()), ApiKeySource::Config);
     }
 
     // Fall back to environment variable
@@ -138,11 +138,17 @@ pub fn resolve_api_key(api_key: Option<&str>, provider: Provider) -> (Option<Str
 ///
 /// # Errors
 /// Returns an error if client creation fails (invalid credentials or missing env var).
+///
+/// # Security
+/// Error messages are sanitized to prevent potential API key exposure.
 pub fn openai_builder(model: &str, api_key: Option<&str>) -> Result<OpenAIBuilder> {
     let (resolved_key, _source) = resolve_api_key(api_key, Provider::OpenAI);
     let client = match resolved_key {
         Some(key) => openai::Client::new(&key)
-            .context("Failed to create OpenAI client with provided credentials")?,
+            // Sanitize error to prevent potential key exposure in error messages
+            .map_err(|_| anyhow::anyhow!(
+                "Failed to create OpenAI client: authentication or configuration error"
+            ))?,
         None => openai::Client::from_env(),
     };
     Ok(client.completions_api().agent(model))
@@ -159,11 +165,17 @@ pub fn openai_builder(model: &str, api_key: Option<&str>) -> Result<OpenAIBuilde
 ///
 /// # Errors
 /// Returns an error if client creation fails (invalid credentials or missing env var).
+///
+/// # Security
+/// Error messages are sanitized to prevent potential API key exposure.
 pub fn anthropic_builder(model: &str, api_key: Option<&str>) -> Result<AnthropicBuilder> {
     let (resolved_key, _source) = resolve_api_key(api_key, Provider::Anthropic);
     let client = match resolved_key {
         Some(key) => anthropic::Client::new(&key)
-            .context("Failed to create Anthropic client with provided credentials")?,
+            // Sanitize error to prevent potential key exposure in error messages
+            .map_err(|_| anyhow::anyhow!(
+                "Failed to create Anthropic client: authentication or configuration error"
+            ))?,
         None => anthropic::Client::from_env(),
     };
     Ok(client.agent(model))
@@ -180,11 +192,17 @@ pub fn anthropic_builder(model: &str, api_key: Option<&str>) -> Result<Anthropic
 ///
 /// # Errors
 /// Returns an error if client creation fails (invalid credentials or missing env var).
+///
+/// # Security
+/// Error messages are sanitized to prevent potential API key exposure.
 pub fn gemini_builder(model: &str, api_key: Option<&str>) -> Result<GeminiBuilder> {
     let (resolved_key, _source) = resolve_api_key(api_key, Provider::Google);
     let client = match resolved_key {
         Some(key) => gemini::Client::new(&key)
-            .context("Failed to create Gemini client with provided credentials")?,
+            // Sanitize error to prevent potential key exposure in error messages
+            .map_err(|_| anyhow::anyhow!(
+                "Failed to create Gemini client: authentication or configuration error"
+            ))?,
         None => gemini::Client::from_env(),
     };
     Ok(client.agent(model))
@@ -241,5 +259,36 @@ mod tests {
         assert_eq!(ApiKeySource::Environment, ApiKeySource::Environment);
         assert_eq!(ApiKeySource::ClientDefault, ApiKeySource::ClientDefault);
         assert_ne!(ApiKeySource::Config, ApiKeySource::Environment);
+    }
+
+    #[test]
+    fn test_resolve_api_key_all_providers() {
+        // Test that resolve_api_key works for all supported providers
+        for provider in Provider::ALL {
+            let (key, source) =
+                resolve_api_key(Some("test-key-123456789012345"), *provider);
+            assert_eq!(key, Some("test-key-123456789012345".to_string()));
+            assert_eq!(source, ApiKeySource::Config);
+        }
+    }
+
+    #[test]
+    fn test_resolve_api_key_config_precedence() {
+        // Even if env var is set, config should take precedence
+        // We can't easily mock env vars in unit tests, but we can verify
+        // that a provided config key is always used regardless of env state
+        let config_key = "sk-from-config-abcdef1234567890";
+        let (key, source) = resolve_api_key(Some(config_key), Provider::OpenAI);
+
+        assert_eq!(key.as_deref(), Some(config_key));
+        assert_eq!(source, ApiKeySource::Config);
+    }
+
+    #[test]
+    fn test_api_key_source_debug_impl() {
+        // Verify Debug is implemented for logging purposes
+        let source = ApiKeySource::Config;
+        let debug_str = format!("{:?}", source);
+        assert!(debug_str.contains("Config"));
     }
 }
