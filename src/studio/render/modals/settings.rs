@@ -8,6 +8,7 @@ use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 
 use crate::studio::state::{SettingsField, SettingsSection, SettingsState};
 use crate::theme;
+use crate::theme::names::{gradients, tokens};
 
 /// Unicode box drawing characters for visual polish
 const BOX_HORIZONTAL: &str = "─";
@@ -28,11 +29,11 @@ pub fn render(frame: &mut Frame, area: Rect, state: &SettingsState) {
         .title(title)
         .title_style(
             Style::default()
-                .fg(Color::from(t.color("text.primary")))
+                .fg(Color::from(t.color(tokens::TEXT_PRIMARY)))
                 .add_modifier(Modifier::BOLD),
         )
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::from(t.color("border.focused"))));
+        .border_style(Style::default().fg(Color::from(t.color(tokens::BORDER_FOCUSED))));
 
     let inner = block.inner(area);
     frame.render_widget(block, area);
@@ -70,12 +71,12 @@ fn render_settings_fields(frame: &mut Frame, area: Rect, state: &SettingsState) 
             lines.push(Line::from(Span::styled(
                 section_name,
                 Style::default()
-                    .fg(Color::from(t.color("accent.primary")))
+                    .fg(Color::from(t.color(tokens::ACCENT_PRIMARY)))
                     .add_modifier(Modifier::BOLD),
             )));
             lines.push(Line::from(Span::styled(
                 BOX_HORIZONTAL.repeat(section_name.len()),
-                Style::default().fg(Color::from(t.color("text.dim"))),
+                Style::default().fg(Color::from(t.color(tokens::TEXT_DIM))),
             )));
 
             current_section = Some(section);
@@ -88,18 +89,18 @@ fn render_settings_fields(frame: &mut Frame, area: Rect, state: &SettingsState) 
         let (label_style, value_style, row_style) = if is_selected {
             (
                 Style::default()
-                    .fg(Color::from(t.color("accent.secondary")))
+                    .fg(Color::from(t.color(tokens::ACCENT_SECONDARY)))
                     .add_modifier(Modifier::BOLD)
-                    .bg(Color::from(t.color("bg.highlight"))),
+                    .bg(Color::from(t.color(tokens::BG_HIGHLIGHT))),
                 Style::default()
-                    .fg(Color::from(t.color("text.primary")))
-                    .bg(Color::from(t.color("bg.highlight"))),
-                Style::default().bg(Color::from(t.color("bg.highlight"))),
+                    .fg(Color::from(t.color(tokens::TEXT_PRIMARY)))
+                    .bg(Color::from(t.color(tokens::BG_HIGHLIGHT))),
+                Style::default().bg(Color::from(t.color(tokens::BG_HIGHLIGHT))),
             )
         } else {
             (
-                Style::default().fg(Color::from(t.color("text.secondary"))),
-                Style::default().fg(Color::from(t.color("text.muted"))),
+                Style::default().fg(Color::from(t.color(tokens::TEXT_SECONDARY))),
+                Style::default().fg(Color::from(t.color(tokens::TEXT_MUTED))),
                 Style::default(),
             )
         };
@@ -146,7 +147,7 @@ fn render_settings_fields(frame: &mut Frame, area: Rect, state: &SettingsState) 
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled(
             format!("  {}", error),
-            Style::default().fg(Color::from(t.color("error"))),
+            Style::default().fg(Color::from(t.color(tokens::ERROR))),
         )));
     }
 
@@ -160,38 +161,38 @@ fn render_theme_strip(frame: &mut Frame, area: Rect) {
     // Compact preview: palette swatches + gradient on one line
     let mut spans = vec![
         Span::styled("  ", Style::default()),
-        Span::styled("██", Style::default().fg(Color::from(t.color("accent.primary")))),
+        Span::styled("██", Style::default().fg(Color::from(t.color(tokens::ACCENT_PRIMARY)))),
         Span::styled(" ", Style::default()),
         Span::styled(
             "██",
-            Style::default().fg(Color::from(t.color("accent.secondary"))),
+            Style::default().fg(Color::from(t.color(tokens::ACCENT_SECONDARY))),
         ),
         Span::styled(" ", Style::default()),
         Span::styled(
             "██",
-            Style::default().fg(Color::from(t.color("accent.tertiary"))),
+            Style::default().fg(Color::from(t.color(tokens::ACCENT_TERTIARY))),
         ),
         Span::styled(" ", Style::default()),
-        Span::styled("██", Style::default().fg(Color::from(t.color("success")))),
+        Span::styled("██", Style::default().fg(Color::from(t.color(tokens::SUCCESS)))),
         Span::styled(" ", Style::default()),
-        Span::styled("██", Style::default().fg(Color::from(t.color("warning")))),
+        Span::styled("██", Style::default().fg(Color::from(t.color(tokens::WARNING)))),
         Span::styled(" ", Style::default()),
-        Span::styled("██", Style::default().fg(Color::from(t.color("error")))),
-        Span::styled("  │  ", Style::default().fg(Color::from(t.color("text.dim")))),
+        Span::styled("██", Style::default().fg(Color::from(t.color(tokens::ERROR)))),
+        Span::styled("  │  ", Style::default().fg(Color::from(t.color(tokens::TEXT_DIM)))),
     ];
 
     // Add gradient
     let gradient_width = 24;
     for i in 0..gradient_width {
         let t_pos = i as f32 / (gradient_width - 1) as f32;
-        let color = Color::from(t.gradient("primary", t_pos));
+        let color = Color::from(t.gradient(gradients::PRIMARY, t_pos));
         spans.push(Span::styled("▀", Style::default().fg(color)));
     }
 
     let lines = vec![
         Line::from(Span::styled(
             BOX_HORIZONTAL.repeat(area.width as usize),
-            Style::default().fg(Color::from(t.color("text.dim"))),
+            Style::default().fg(Color::from(t.color(tokens::TEXT_DIM))),
         )),
         Line::from(spans),
     ];
@@ -204,54 +205,54 @@ fn render_footer(frame: &mut Frame, area: Rect, state: &SettingsState) {
 
     let separator = Line::from(Span::styled(
         BOX_HORIZONTAL.repeat(area.width as usize),
-        Style::default().fg(Color::from(t.color("text.dim"))),
+        Style::default().fg(Color::from(t.color(tokens::TEXT_DIM))),
     ));
 
     let hints = if state.editing {
         Line::from(vec![
-            Span::styled("  Enter", Style::default().fg(Color::from(t.color("success")))),
+            Span::styled("  Enter", Style::default().fg(Color::from(t.color(tokens::SUCCESS)))),
             Span::styled(
                 " confirm  ",
-                Style::default().fg(Color::from(t.color("text.muted"))),
+                Style::default().fg(Color::from(t.color(tokens::TEXT_MUTED))),
             ),
-            Span::styled("Esc", Style::default().fg(Color::from(t.color("warning")))),
+            Span::styled("Esc", Style::default().fg(Color::from(t.color(tokens::WARNING)))),
             Span::styled(
                 " cancel",
-                Style::default().fg(Color::from(t.color("text.muted"))),
+                Style::default().fg(Color::from(t.color(tokens::TEXT_MUTED))),
             ),
         ])
     } else {
         Line::from(vec![
             Span::styled(
                 "  ↑↓",
-                Style::default().fg(Color::from(t.color("accent.primary"))),
+                Style::default().fg(Color::from(t.color(tokens::ACCENT_PRIMARY))),
             ),
-            Span::styled(" nav  ", Style::default().fg(Color::from(t.color("text.muted")))),
-            Span::styled("←→", Style::default().fg(Color::from(t.color("accent.primary")))),
+            Span::styled(" nav  ", Style::default().fg(Color::from(t.color(tokens::TEXT_MUTED)))),
+            Span::styled("←→", Style::default().fg(Color::from(t.color(tokens::ACCENT_PRIMARY)))),
             Span::styled(
                 " cycle  ",
-                Style::default().fg(Color::from(t.color("text.muted"))),
+                Style::default().fg(Color::from(t.color(tokens::TEXT_MUTED))),
             ),
             Span::styled(
                 "Enter",
-                Style::default().fg(Color::from(t.color("accent.primary"))),
+                Style::default().fg(Color::from(t.color(tokens::ACCENT_PRIMARY))),
             ),
             Span::styled(
                 " edit  ",
-                Style::default().fg(Color::from(t.color("text.muted"))),
+                Style::default().fg(Color::from(t.color(tokens::TEXT_MUTED))),
             ),
             Span::styled(
                 "s",
                 Style::default()
-                    .fg(Color::from(t.color("success")))
+                    .fg(Color::from(t.color(tokens::SUCCESS)))
                     .add_modifier(Modifier::BOLD),
             ),
             Span::styled(
                 " save  ",
-                Style::default().fg(Color::from(t.color("text.muted"))),
+                Style::default().fg(Color::from(t.color(tokens::TEXT_MUTED))),
             ),
-            Span::styled("Esc", Style::default().fg(Color::from(t.color("warning")))),
-            Span::styled(" close", Style::default().fg(Color::from(t.color("text.muted")))),
+            Span::styled("Esc", Style::default().fg(Color::from(t.color(tokens::WARNING)))),
+            Span::styled(" close", Style::default().fg(Color::from(t.color(tokens::TEXT_MUTED)))),
         ])
     };
 

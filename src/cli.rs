@@ -3,6 +3,7 @@ use crate::common::CommonParams;
 use crate::log_debug;
 use crate::providers::Provider;
 use crate::theme;
+use crate::theme::names::tokens;
 use crate::ui;
 use clap::builder::{Styles, styling::AnsiColor};
 use clap::{CommandFactory, Parser, Subcommand, crate_version};
@@ -1150,7 +1151,7 @@ fn handle_themes() {
     let current_name = &current.meta.name;
 
     // Header
-    let header_color = theme::current().color("accent.primary");
+    let header_color = theme::current().color(tokens::ACCENT_PRIMARY);
     println!(
         "{}",
         "Available Themes:"
@@ -1164,12 +1165,12 @@ fn handle_themes() {
         let marker = if is_current { "● " } else { "  " };
 
         let name_color = if is_current {
-            theme::current().color("success")
+            theme::current().color(tokens::SUCCESS)
         } else {
-            theme::current().color("accent.secondary")
+            theme::current().color(tokens::ACCENT_SECONDARY)
         };
 
-        let desc_color = theme::current().color("text.secondary");
+        let desc_color = theme::current().color(tokens::TEXT_SECONDARY);
 
         print!(
             "{}{}",
@@ -1193,14 +1194,14 @@ fn handle_themes() {
             theme::ThemeVariant::Dark => "dark",
             theme::ThemeVariant::Light => "light",
         };
-        let dim_color = theme::current().color("text.dim");
+        let dim_color = theme::current().color(tokens::TEXT_DIM);
         print!(
             " [{}]",
             variant_str.truecolor(dim_color.r, dim_color.g, dim_color.b)
         );
 
         if is_current {
-            let active_color = theme::current().color("success");
+            let active_color = theme::current().color(tokens::SUCCESS);
             print!(
                 " {}",
                 "(active)".truecolor(active_color.r, active_color.g, active_color.b)
@@ -1213,7 +1214,7 @@ fn handle_themes() {
     println!();
 
     // Usage hint
-    let hint_color = theme::current().color("text.dim");
+    let hint_color = theme::current().color(tokens::TEXT_DIM);
     println!(
         "{}",
         "Use --theme <name> to override, or set 'theme' in config.toml".truecolor(

@@ -11,6 +11,7 @@ use std::time::Duration;
 
 use crate::theme;
 use crate::theme::gradient_string;
+use crate::theme::names::{gradients as gradient_names, tokens};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Theme-Based RGB Accessors for CLI Output
@@ -20,55 +21,56 @@ use crate::theme::gradient_string;
 /// All colors resolve from the current theme at runtime.
 pub mod rgb {
     use crate::theme;
+    use crate::theme::names::tokens;
 
     /// Get primary accent color (Electric Purple) RGB from theme
     pub fn accent_primary() -> (u8, u8, u8) {
-        theme::current().color("accent.primary").to_rgb_tuple()
+        theme::current().color(tokens::ACCENT_PRIMARY).to_rgb_tuple()
     }
 
     /// Get secondary accent color (Neon Cyan) RGB from theme
     pub fn accent_secondary() -> (u8, u8, u8) {
-        theme::current().color("accent.secondary").to_rgb_tuple()
+        theme::current().color(tokens::ACCENT_SECONDARY).to_rgb_tuple()
     }
 
     /// Get tertiary accent color (Coral) RGB from theme
     pub fn accent_tertiary() -> (u8, u8, u8) {
-        theme::current().color("accent.tertiary").to_rgb_tuple()
+        theme::current().color(tokens::ACCENT_TERTIARY).to_rgb_tuple()
     }
 
     /// Get warning color (Electric Yellow) RGB from theme
     pub fn warning() -> (u8, u8, u8) {
-        theme::current().color("warning").to_rgb_tuple()
+        theme::current().color(tokens::WARNING).to_rgb_tuple()
     }
 
     /// Get success color (Success Green) RGB from theme
     pub fn success() -> (u8, u8, u8) {
-        theme::current().color("success").to_rgb_tuple()
+        theme::current().color(tokens::SUCCESS).to_rgb_tuple()
     }
 
     /// Get error color (Error Red) RGB from theme
     pub fn error() -> (u8, u8, u8) {
-        theme::current().color("error").to_rgb_tuple()
+        theme::current().color(tokens::ERROR).to_rgb_tuple()
     }
 
     /// Get primary text color RGB from theme
     pub fn text_primary() -> (u8, u8, u8) {
-        theme::current().color("text.primary").to_rgb_tuple()
+        theme::current().color(tokens::TEXT_PRIMARY).to_rgb_tuple()
     }
 
     /// Get secondary text color RGB from theme
     pub fn text_secondary() -> (u8, u8, u8) {
-        theme::current().color("text.secondary").to_rgb_tuple()
+        theme::current().color(tokens::TEXT_SECONDARY).to_rgb_tuple()
     }
 
     /// Get muted text color RGB from theme
     pub fn text_muted() -> (u8, u8, u8) {
-        theme::current().color("text.muted").to_rgb_tuple()
+        theme::current().color(tokens::TEXT_MUTED).to_rgb_tuple()
     }
 
     /// Get dim text color RGB from theme
     pub fn text_dim() -> (u8, u8, u8) {
-        theme::current().color("text.dim").to_rgb_tuple()
+        theme::current().color(tokens::TEXT_DIM).to_rgb_tuple()
     }
 }
 
@@ -136,7 +138,7 @@ pub fn create_spinner(message: &str) -> ProgressBar {
 /// Print info message using theme colors
 pub fn print_info(message: &str) {
     if !is_quiet_mode() {
-        let color = theme::current().color("info");
+        let color = theme::current().color(tokens::INFO);
         println!("{}", message.truecolor(color.r, color.g, color.b).bold());
     }
 }
@@ -144,7 +146,7 @@ pub fn print_info(message: &str) {
 /// Print warning message using theme colors
 pub fn print_warning(message: &str) {
     if !is_quiet_mode() {
-        let color = theme::current().color("warning");
+        let color = theme::current().color(tokens::WARNING);
         println!("{}", message.truecolor(color.r, color.g, color.b).bold());
     }
 }
@@ -152,14 +154,14 @@ pub fn print_warning(message: &str) {
 /// Print error message using theme colors
 pub fn print_error(message: &str) {
     // Always print errors, even in quiet mode
-    let color = theme::current().color("error");
+    let color = theme::current().color(tokens::ERROR);
     eprintln!("{}", message.truecolor(color.r, color.g, color.b).bold());
 }
 
 /// Print success message using theme colors
 pub fn print_success(message: &str) {
     if !is_quiet_mode() {
-        let color = theme::current().color("success");
+        let color = theme::current().color(tokens::SUCCESS);
         println!("{}", message.truecolor(color.r, color.g, color.b).bold());
     }
 }
@@ -167,9 +169,9 @@ pub fn print_success(message: &str) {
 pub fn print_version(version: &str) {
     if !is_quiet_mode() {
         let t = theme::current();
-        let purple = t.color("accent.primary");
-        let cyan = t.color("accent.secondary");
-        let green = t.color("success");
+        let purple = t.color(tokens::ACCENT_PRIMARY);
+        let cyan = t.color(tokens::ACCENT_SECONDARY);
+        let green = t.color(tokens::SUCCESS);
 
         println!(
             "{} {} {}",
@@ -183,7 +185,7 @@ pub fn print_version(version: &str) {
 /// Print content with decorative borders
 pub fn print_bordered_content(content: &str) {
     if !is_quiet_mode() {
-        let color = theme::current().color("accent.primary");
+        let color = theme::current().color(tokens::ACCENT_PRIMARY);
         println!("{}", "━".repeat(50).truecolor(color.r, color.g, color.b));
         println!("{content}");
         println!("{}", "━".repeat(50).truecolor(color.r, color.g, color.b));
@@ -206,7 +208,7 @@ pub fn print_newline() {
 
 /// Create gradient text with `SilkCircuit` Electric Purple -> Neon Cyan
 pub fn create_gradient_text(text: &str) -> String {
-    if let Some(gradient) = theme::current().get_gradient("primary") {
+    if let Some(gradient) = theme::current().get_gradient(gradient_names::PRIMARY) {
         gradient_string(text, gradient)
     } else {
         // Fallback to legacy gradient
@@ -223,7 +225,7 @@ pub fn create_gradient_text(text: &str) -> String {
 
 /// Create secondary gradient with `SilkCircuit` Coral -> Electric Yellow
 pub fn create_secondary_gradient_text(text: &str) -> String {
-    if let Some(gradient) = theme::current().get_gradient("warm") {
+    if let Some(gradient) = theme::current().get_gradient(gradient_names::WARM) {
         gradient_string(text, gradient)
     } else {
         // Fallback to legacy gradient

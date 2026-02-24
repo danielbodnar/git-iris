@@ -14,39 +14,40 @@ use std::collections::HashMap;
 /// Helper to get themed colors for terminal output
 mod colors {
     use crate::theme;
+    use crate::theme::names::tokens;
 
     pub fn accent_primary() -> (u8, u8, u8) {
-        let c = theme::current().color("accent.primary");
+        let c = theme::current().color(tokens::ACCENT_PRIMARY);
         (c.r, c.g, c.b)
     }
 
     pub fn accent_secondary() -> (u8, u8, u8) {
-        let c = theme::current().color("accent.secondary");
+        let c = theme::current().color(tokens::ACCENT_SECONDARY);
         (c.r, c.g, c.b)
     }
 
     pub fn accent_tertiary() -> (u8, u8, u8) {
-        let c = theme::current().color("accent.tertiary");
+        let c = theme::current().color(tokens::ACCENT_TERTIARY);
         (c.r, c.g, c.b)
     }
 
     pub fn warning() -> (u8, u8, u8) {
-        let c = theme::current().color("warning");
+        let c = theme::current().color(tokens::WARNING);
         (c.r, c.g, c.b)
     }
 
     pub fn success() -> (u8, u8, u8) {
-        let c = theme::current().color("success");
+        let c = theme::current().color(tokens::SUCCESS);
         (c.r, c.g, c.b)
     }
 
     pub fn text_secondary() -> (u8, u8, u8) {
-        let c = theme::current().color("text.secondary");
+        let c = theme::current().color(tokens::TEXT_SECONDARY);
         (c.r, c.g, c.b)
     }
 
     pub fn text_dim() -> (u8, u8, u8) {
-        let c = theme::current().color("text.dim");
+        let c = theme::current().color(tokens::TEXT_DIM);
         (c.r, c.g, c.b)
     }
 }

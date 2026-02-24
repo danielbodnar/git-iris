@@ -1,4 +1,5 @@
 use crate::messages::ColoredMessage;
+use crate::theme::names::tokens;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -57,7 +58,7 @@ impl IrisStatus {
         Self {
             phase: IrisPhase::Initializing,
             message: "🤖 Initializing...".to_string(),
-            token: "accent.secondary",
+            token: tokens::ACCENT_SECONDARY,
             started_at: Instant::now(),
             current_step: 0,
             total_steps: None,
@@ -69,13 +70,13 @@ impl IrisStatus {
     /// Create a dynamic status with LLM-generated message (constrained to 80 chars)
     pub fn dynamic(phase: IrisPhase, message: String, step: usize, total: Option<usize>) -> Self {
         let token = match phase {
-            IrisPhase::Initializing | IrisPhase::PlanExpansion => "accent.secondary",
-            IrisPhase::Planning => "accent.deep",
-            IrisPhase::ToolExecution { .. } | IrisPhase::Completed => "success",
-            IrisPhase::Synthesis => "accent.tertiary",
-            IrisPhase::Analysis => "warning",
-            IrisPhase::Generation => "text.primary",
-            IrisPhase::Error(_) => "error",
+            IrisPhase::Initializing | IrisPhase::PlanExpansion => tokens::ACCENT_SECONDARY,
+            IrisPhase::Planning => tokens::ACCENT_DEEP,
+            IrisPhase::ToolExecution { .. } | IrisPhase::Completed => tokens::SUCCESS,
+            IrisPhase::Synthesis => tokens::ACCENT_TERTIARY,
+            IrisPhase::Analysis => tokens::WARNING,
+            IrisPhase::Generation => tokens::TEXT_PRIMARY,
+            IrisPhase::Error(_) => tokens::ERROR,
         };
 
         // Constrain message to 80 characters as requested
@@ -114,7 +115,7 @@ impl IrisStatus {
         Self {
             phase: IrisPhase::Generation,
             message: constrained_message,
-            token: "text.primary",
+            token: tokens::TEXT_PRIMARY,
             started_at: Instant::now(),
             current_step: step,
             total_steps: total,
@@ -148,7 +149,7 @@ impl IrisStatus {
         Self {
             phase: IrisPhase::Error(error.to_string()),
             message: constrained_message,
-            token: "error",
+            token: tokens::ERROR,
             started_at: Instant::now(),
             current_step: 0,
             total_steps: None,
@@ -162,7 +163,7 @@ impl IrisStatus {
         Self {
             phase: IrisPhase::Completed,
             message: "🎉 Done!".to_string(),
-            token: "success",
+            token: tokens::SUCCESS,
             started_at: Instant::now(),
             current_step: 0,
             total_steps: None,
