@@ -40,7 +40,7 @@ chrono = { version = "0.4.38", features = ["serde"] }
 clap = { version = "4.5.36", features = ["derive", "cargo"] }
 clap_complete = "4.5"
 colored = "3.0.0"
-crossterm = "0.28.1"
+crossterm = "0.29"
 dirs = "6.0.0"
 futures = "0.3.30"
 git2 = "0.20.1"
@@ -53,7 +53,8 @@ lru = "0.16.2"
 parking_lot = "0.12.1"
 pulldown-cmark = "0.13"
 rand = "0.9.0"
-ratatui = "0.29.0"
+opaline = { path = "../opaline", features = ["ratatui", "gradients", "global-state", "builtin-themes", "discovery", "cli"] }
+ratatui = "0.30.0"
 regex = "1.10.6"
 reqwest = { version = "0.12.15", features = ["json"] }
 rig-core = { version = "0.27.0", features = ["derive"] }
@@ -71,7 +72,7 @@ tokio-util = "0.7"
 toml = "0.9.10"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "fmt", "time", "json", "chrono"] }
-tui-textarea = "0.7.0"
+ratatui-textarea = "0.8.0"
 unicode-width = "0.2"
 url = "2.5.0"
 uuid = { version = "1.11.0", features = ["v4", "serde"] }

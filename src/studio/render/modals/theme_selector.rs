@@ -2,13 +2,12 @@
 
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::style::{Modifier, Style};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
 use crate::studio::state::ThemeOptionInfo;
 use crate::theme;
-use crate::theme::adapters::ratatui::ThemeColorExt;
 
 pub fn render(
     frame: &mut Frame,
@@ -24,11 +23,11 @@ pub fn render(
         .title(" Select Theme ")
         .title_style(
             Style::default()
-                .fg(t.ratatui_color("text.primary"))
+                .fg(Color::from(t.color("text.primary")))
                 .add_modifier(Modifier::BOLD),
         )
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(t.ratatui_color("accent.primary")));
+        .border_style(Style::default().fg(Color::from(t.color("accent.primary"))));
 
     let inner = block.inner(area);
     frame.render_widget(block, area);
@@ -74,12 +73,12 @@ fn render_theme_list(
         Line::from(vec![
             Span::styled(
                 "  Filter: ",
-                Style::default().fg(t.ratatui_color("text.muted")),
+                Style::default().fg(Color::from(t.color("text.muted"))),
             ),
-            Span::styled(input, Style::default().fg(t.ratatui_color("text.primary"))),
+            Span::styled(input, Style::default().fg(Color::from(t.color("text.primary")))),
             Span::styled(
                 if input.is_empty() { "│" } else { "█" },
-                Style::default().fg(t.ratatui_color("accent.secondary")),
+                Style::default().fg(Color::from(t.color("accent.secondary"))),
             ),
         ]),
         Line::from(""),
@@ -106,7 +105,7 @@ fn render_theme_list(
             lines.push(Line::from(Span::styled(
                 variant_label,
                 Style::default()
-                    .fg(t.ratatui_color("text.dim"))
+                    .fg(Color::from(t.color("text.dim")))
                     .add_modifier(Modifier::ITALIC),
             )));
             current_variant = Some(&theme.variant);
@@ -117,10 +116,10 @@ fn render_theme_list(
 
         let name_style = if is_selected {
             Style::default()
-                .fg(t.ratatui_color("accent.secondary"))
+                .fg(Color::from(t.color("accent.secondary")))
                 .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(t.ratatui_color("text.primary"))
+            Style::default().fg(Color::from(t.color("text.primary")))
         };
 
         let variant_icon = if theme.variant == "light" { " ☀" } else { "" };
@@ -130,7 +129,7 @@ fn render_theme_list(
             Span::styled(&theme.display_name, name_style),
             Span::styled(
                 variant_icon,
-                Style::default().fg(t.ratatui_color("warning")),
+                Style::default().fg(Color::from(t.color("warning"))),
             ),
         ]));
     }
@@ -138,7 +137,7 @@ fn render_theme_list(
     if filtered.is_empty() {
         lines.push(Line::from(Span::styled(
             "  No matching themes",
-            Style::default().fg(t.ratatui_color("text.muted")),
+            Style::default().fg(Color::from(t.color("text.muted"))),
         )));
     }
 
@@ -152,25 +151,25 @@ fn render_theme_list(
     lines.push(Line::from(vec![
         Span::styled(
             "  ↑↓",
-            Style::default().fg(t.ratatui_color("accent.primary")),
+            Style::default().fg(Color::from(t.color("accent.primary"))),
         ),
-        Span::styled(" nav  ", Style::default().fg(t.ratatui_color("text.muted"))),
+        Span::styled(" nav  ", Style::default().fg(Color::from(t.color("text.muted")))),
         Span::styled(
             "Enter",
-            Style::default().fg(t.ratatui_color("accent.primary")),
+            Style::default().fg(Color::from(t.color("accent.primary"))),
         ),
         Span::styled(
             " select  ",
-            Style::default().fg(t.ratatui_color("text.muted")),
+            Style::default().fg(Color::from(t.color("text.muted"))),
         ),
-        Span::styled("Esc", Style::default().fg(t.ratatui_color("warning"))),
+        Span::styled("Esc", Style::default().fg(Color::from(t.color("warning")))),
         Span::styled(
             " cancel",
-            Style::default().fg(t.ratatui_color("text.muted")),
+            Style::default().fg(Color::from(t.color("text.muted"))),
         ),
         Span::styled(
             scroll_hint,
-            Style::default().fg(t.ratatui_color("text.dim")),
+            Style::default().fg(Color::from(t.color("text.dim"))),
         ),
     ]));
 
@@ -192,7 +191,7 @@ fn render_theme_preview(
 
     let block = Block::default()
         .borders(Borders::LEFT)
-        .border_style(Style::default().fg(t.ratatui_color("text.dim")));
+        .border_style(Style::default().fg(Color::from(t.color("text.dim"))));
 
     let inner = block.inner(area);
     frame.render_widget(block, area);
@@ -202,29 +201,29 @@ fn render_theme_preview(
         Line::from(Span::styled(
             format!(" {}", theme_info.display_name),
             Style::default()
-                .fg(t.ratatui_color("accent.primary"))
+                .fg(Color::from(t.color("accent.primary")))
                 .add_modifier(Modifier::BOLD),
         )),
         // Author
         Line::from(vec![
-            Span::styled(" by ", Style::default().fg(t.ratatui_color("text.muted"))),
+            Span::styled(" by ", Style::default().fg(Color::from(t.color("text.muted")))),
             Span::styled(
                 &theme_info.author,
-                Style::default().fg(t.ratatui_color("text.secondary")),
+                Style::default().fg(Color::from(t.color("text.secondary"))),
             ),
         ]),
         Line::from(""),
         // Description
         Line::from(Span::styled(
             format!(" {}", theme_info.description),
-            Style::default().fg(t.ratatui_color("text.muted")),
+            Style::default().fg(Color::from(t.color("text.muted"))),
         )),
         Line::from(""),
         // Variant
         Line::from(vec![
             Span::styled(
                 " Variant: ",
-                Style::default().fg(t.ratatui_color("text.dim")),
+                Style::default().fg(Color::from(t.color("text.dim"))),
             ),
             Span::styled(
                 if theme_info.variant == "light" {
@@ -232,7 +231,7 @@ fn render_theme_preview(
                 } else {
                     "Dark"
                 },
-                Style::default().fg(t.ratatui_color("text.secondary")),
+                Style::default().fg(Color::from(t.color("text.secondary"))),
             ),
         ]),
         Line::from(""),
@@ -240,7 +239,7 @@ fn render_theme_preview(
         Line::from(Span::styled(
             " Preview",
             Style::default()
-                .fg(t.ratatui_color("text.dim"))
+                .fg(Color::from(t.color("text.dim")))
                 .add_modifier(Modifier::ITALIC),
         )),
     ];
@@ -248,23 +247,23 @@ fn render_theme_preview(
     // Color swatches (using current theme since we apply live preview)
     lines.push(Line::from(vec![
         Span::styled(" ", Style::default()),
-        Span::styled("██", Style::default().fg(t.ratatui_color("accent.primary"))),
+        Span::styled("██", Style::default().fg(Color::from(t.color("accent.primary")))),
         Span::raw(" "),
         Span::styled(
             "██",
-            Style::default().fg(t.ratatui_color("accent.secondary")),
+            Style::default().fg(Color::from(t.color("accent.secondary"))),
         ),
         Span::raw(" "),
         Span::styled(
             "██",
-            Style::default().fg(t.ratatui_color("accent.tertiary")),
+            Style::default().fg(Color::from(t.color("accent.tertiary"))),
         ),
         Span::raw(" "),
-        Span::styled("██", Style::default().fg(t.ratatui_color("success"))),
+        Span::styled("██", Style::default().fg(Color::from(t.color("success")))),
         Span::raw(" "),
-        Span::styled("██", Style::default().fg(t.ratatui_color("warning"))),
+        Span::styled("██", Style::default().fg(Color::from(t.color("warning")))),
         Span::raw(" "),
-        Span::styled("██", Style::default().fg(t.ratatui_color("error"))),
+        Span::styled("██", Style::default().fg(Color::from(t.color("error")))),
     ]));
 
     lines.push(Line::from(""));
@@ -273,9 +272,8 @@ fn render_theme_preview(
     let gradient_width = 18;
     let mut gradient_spans = vec![Span::styled(" ", Style::default())];
     for i in 0..gradient_width {
-        use crate::theme::adapters::ratatui::ToRatatuiColor;
         let t_pos = i as f32 / (gradient_width - 1) as f32;
-        let color = t.gradient("primary", t_pos).to_ratatui();
+        let color = Color::from(t.gradient("primary", t_pos));
         gradient_spans.push(Span::styled("▀", Style::default().fg(color)));
     }
     lines.push(Line::from(gradient_spans));

@@ -1,5 +1,4 @@
 use crate::theme;
-use crate::theme::adapters::ratatui::ToRatatuiColor;
 use rand::prelude::*;
 use ratatui::style::Color;
 use std::sync::LazyLock;
@@ -14,7 +13,7 @@ pub struct ColoredMessage {
 impl ColoredMessage {
     /// Get the resolved color from the current theme
     pub fn color(&self) -> Color {
-        theme::current().color(self.token).to_ratatui()
+        Color::from(theme::current().color(self.token))
     }
 }
 

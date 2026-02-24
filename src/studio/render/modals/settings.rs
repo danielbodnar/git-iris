@@ -2,13 +2,12 @@
 
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::style::{Modifier, Style};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 
 use crate::studio::state::{SettingsField, SettingsSection, SettingsState};
 use crate::theme;
-use crate::theme::adapters::ratatui::{ThemeColorExt, ToRatatuiColor};
 
 /// Unicode box drawing characters for visual polish
 const BOX_HORIZONTAL: &str = "─";
@@ -29,11 +28,11 @@ pub fn render(frame: &mut Frame, area: Rect, state: &SettingsState) {
         .title(title)
         .title_style(
             Style::default()
-                .fg(t.ratatui_color("text.primary"))
+                .fg(Color::from(t.color("text.primary")))
                 .add_modifier(Modifier::BOLD),
         )
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(t.ratatui_color("border.focused")));
+        .border_style(Style::default().fg(Color::from(t.color("border.focused"))));
 
     let inner = block.inner(area);
     frame.render_widget(block, area);
@@ -71,12 +70,12 @@ fn render_settings_fields(frame: &mut Frame, area: Rect, state: &SettingsState) 
             lines.push(Line::from(Span::styled(
                 section_name,
                 Style::default()
-                    .fg(t.ratatui_color("accent.primary"))
+                    .fg(Color::from(t.color("accent.primary")))
                     .add_modifier(Modifier::BOLD),
             )));
             lines.push(Line::from(Span::styled(
                 BOX_HORIZONTAL.repeat(section_name.len()),
-                Style::default().fg(t.ratatui_color("text.dim")),
+                Style::default().fg(Color::from(t.color("text.dim"))),
             )));
 
             current_section = Some(section);
@@ -89,18 +88,18 @@ fn render_settings_fields(frame: &mut Frame, area: Rect, state: &SettingsState) 
         let (label_style, value_style, row_style) = if is_selected {
             (
                 Style::default()
-                    .fg(t.ratatui_color("accent.secondary"))
+                    .fg(Color::from(t.color("accent.secondary")))
                     .add_modifier(Modifier::BOLD)
-                    .bg(t.ratatui_color("bg.highlight")),
+                    .bg(Color::from(t.color("bg.highlight"))),
                 Style::default()
-                    .fg(t.ratatui_color("text.primary"))
-                    .bg(t.ratatui_color("bg.highlight")),
-                Style::default().bg(t.ratatui_color("bg.highlight")),
+                    .fg(Color::from(t.color("text.primary")))
+                    .bg(Color::from(t.color("bg.highlight"))),
+                Style::default().bg(Color::from(t.color("bg.highlight"))),
             )
         } else {
             (
-                Style::default().fg(t.ratatui_color("text.secondary")),
-                Style::default().fg(t.ratatui_color("text.muted")),
+                Style::default().fg(Color::from(t.color("text.secondary"))),
+                Style::default().fg(Color::from(t.color("text.muted"))),
                 Style::default(),
             )
         };
@@ -147,7 +146,7 @@ fn render_settings_fields(frame: &mut Frame, area: Rect, state: &SettingsState) 
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled(
             format!("  {}", error),
-            Style::default().fg(t.ratatui_color("error")),
+            Style::default().fg(Color::from(t.color("error"))),
         )));
     }
 
@@ -161,38 +160,38 @@ fn render_theme_strip(frame: &mut Frame, area: Rect) {
     // Compact preview: palette swatches + gradient on one line
     let mut spans = vec![
         Span::styled("  ", Style::default()),
-        Span::styled("██", Style::default().fg(t.ratatui_color("accent.primary"))),
+        Span::styled("██", Style::default().fg(Color::from(t.color("accent.primary")))),
         Span::styled(" ", Style::default()),
         Span::styled(
             "██",
-            Style::default().fg(t.ratatui_color("accent.secondary")),
+            Style::default().fg(Color::from(t.color("accent.secondary"))),
         ),
         Span::styled(" ", Style::default()),
         Span::styled(
             "██",
-            Style::default().fg(t.ratatui_color("accent.tertiary")),
+            Style::default().fg(Color::from(t.color("accent.tertiary"))),
         ),
         Span::styled(" ", Style::default()),
-        Span::styled("██", Style::default().fg(t.ratatui_color("success"))),
+        Span::styled("██", Style::default().fg(Color::from(t.color("success")))),
         Span::styled(" ", Style::default()),
-        Span::styled("██", Style::default().fg(t.ratatui_color("warning"))),
+        Span::styled("██", Style::default().fg(Color::from(t.color("warning")))),
         Span::styled(" ", Style::default()),
-        Span::styled("██", Style::default().fg(t.ratatui_color("error"))),
-        Span::styled("  │  ", Style::default().fg(t.ratatui_color("text.dim"))),
+        Span::styled("██", Style::default().fg(Color::from(t.color("error")))),
+        Span::styled("  │  ", Style::default().fg(Color::from(t.color("text.dim")))),
     ];
 
     // Add gradient
     let gradient_width = 24;
     for i in 0..gradient_width {
         let t_pos = i as f32 / (gradient_width - 1) as f32;
-        let color = t.gradient("primary", t_pos).to_ratatui();
+        let color = Color::from(t.gradient("primary", t_pos));
         spans.push(Span::styled("▀", Style::default().fg(color)));
     }
 
     let lines = vec![
         Line::from(Span::styled(
             BOX_HORIZONTAL.repeat(area.width as usize),
-            Style::default().fg(t.ratatui_color("text.dim")),
+            Style::default().fg(Color::from(t.color("text.dim"))),
         )),
         Line::from(spans),
     ];
@@ -205,54 +204,54 @@ fn render_footer(frame: &mut Frame, area: Rect, state: &SettingsState) {
 
     let separator = Line::from(Span::styled(
         BOX_HORIZONTAL.repeat(area.width as usize),
-        Style::default().fg(t.ratatui_color("text.dim")),
+        Style::default().fg(Color::from(t.color("text.dim"))),
     ));
 
     let hints = if state.editing {
         Line::from(vec![
-            Span::styled("  Enter", Style::default().fg(t.ratatui_color("success"))),
+            Span::styled("  Enter", Style::default().fg(Color::from(t.color("success")))),
             Span::styled(
                 " confirm  ",
-                Style::default().fg(t.ratatui_color("text.muted")),
+                Style::default().fg(Color::from(t.color("text.muted"))),
             ),
-            Span::styled("Esc", Style::default().fg(t.ratatui_color("warning"))),
+            Span::styled("Esc", Style::default().fg(Color::from(t.color("warning")))),
             Span::styled(
                 " cancel",
-                Style::default().fg(t.ratatui_color("text.muted")),
+                Style::default().fg(Color::from(t.color("text.muted"))),
             ),
         ])
     } else {
         Line::from(vec![
             Span::styled(
                 "  ↑↓",
-                Style::default().fg(t.ratatui_color("accent.primary")),
+                Style::default().fg(Color::from(t.color("accent.primary"))),
             ),
-            Span::styled(" nav  ", Style::default().fg(t.ratatui_color("text.muted"))),
-            Span::styled("←→", Style::default().fg(t.ratatui_color("accent.primary"))),
+            Span::styled(" nav  ", Style::default().fg(Color::from(t.color("text.muted")))),
+            Span::styled("←→", Style::default().fg(Color::from(t.color("accent.primary")))),
             Span::styled(
                 " cycle  ",
-                Style::default().fg(t.ratatui_color("text.muted")),
+                Style::default().fg(Color::from(t.color("text.muted"))),
             ),
             Span::styled(
                 "Enter",
-                Style::default().fg(t.ratatui_color("accent.primary")),
+                Style::default().fg(Color::from(t.color("accent.primary"))),
             ),
             Span::styled(
                 " edit  ",
-                Style::default().fg(t.ratatui_color("text.muted")),
+                Style::default().fg(Color::from(t.color("text.muted"))),
             ),
             Span::styled(
                 "s",
                 Style::default()
-                    .fg(t.ratatui_color("success"))
+                    .fg(Color::from(t.color("success")))
                     .add_modifier(Modifier::BOLD),
             ),
             Span::styled(
                 " save  ",
-                Style::default().fg(t.ratatui_color("text.muted")),
+                Style::default().fg(Color::from(t.color("text.muted"))),
             ),
-            Span::styled("Esc", Style::default().fg(t.ratatui_color("warning"))),
-            Span::styled(" close", Style::default().fg(t.ratatui_color("text.muted"))),
+            Span::styled("Esc", Style::default().fg(Color::from(t.color("warning")))),
+            Span::styled(" close", Style::default().fg(Color::from(t.color("text.muted")))),
         ])
     };
 

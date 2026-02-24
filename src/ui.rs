@@ -10,7 +10,7 @@ use std::fmt::Write;
 use std::time::Duration;
 
 use crate::theme;
-use crate::theme::adapters::cli::gradient_string;
+use crate::theme::gradient_string;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Theme-Based RGB Accessors for CLI Output
@@ -20,56 +20,55 @@ use crate::theme::adapters::cli::gradient_string;
 /// All colors resolve from the current theme at runtime.
 pub mod rgb {
     use crate::theme;
-    use crate::theme::adapters::cli::ToColoredRgb;
 
     /// Get primary accent color (Electric Purple) RGB from theme
     pub fn accent_primary() -> (u8, u8, u8) {
-        theme::current().color("accent.primary").to_rgb()
+        theme::current().color("accent.primary").to_rgb_tuple()
     }
 
     /// Get secondary accent color (Neon Cyan) RGB from theme
     pub fn accent_secondary() -> (u8, u8, u8) {
-        theme::current().color("accent.secondary").to_rgb()
+        theme::current().color("accent.secondary").to_rgb_tuple()
     }
 
     /// Get tertiary accent color (Coral) RGB from theme
     pub fn accent_tertiary() -> (u8, u8, u8) {
-        theme::current().color("accent.tertiary").to_rgb()
+        theme::current().color("accent.tertiary").to_rgb_tuple()
     }
 
     /// Get warning color (Electric Yellow) RGB from theme
     pub fn warning() -> (u8, u8, u8) {
-        theme::current().color("warning").to_rgb()
+        theme::current().color("warning").to_rgb_tuple()
     }
 
     /// Get success color (Success Green) RGB from theme
     pub fn success() -> (u8, u8, u8) {
-        theme::current().color("success").to_rgb()
+        theme::current().color("success").to_rgb_tuple()
     }
 
     /// Get error color (Error Red) RGB from theme
     pub fn error() -> (u8, u8, u8) {
-        theme::current().color("error").to_rgb()
+        theme::current().color("error").to_rgb_tuple()
     }
 
     /// Get primary text color RGB from theme
     pub fn text_primary() -> (u8, u8, u8) {
-        theme::current().color("text.primary").to_rgb()
+        theme::current().color("text.primary").to_rgb_tuple()
     }
 
     /// Get secondary text color RGB from theme
     pub fn text_secondary() -> (u8, u8, u8) {
-        theme::current().color("text.secondary").to_rgb()
+        theme::current().color("text.secondary").to_rgb_tuple()
     }
 
     /// Get muted text color RGB from theme
     pub fn text_muted() -> (u8, u8, u8) {
-        theme::current().color("text.muted").to_rgb()
+        theme::current().color("text.muted").to_rgb_tuple()
     }
 
     /// Get dim text color RGB from theme
     pub fn text_dim() -> (u8, u8, u8) {
-        theme::current().color("text.dim").to_rgb()
+        theme::current().color("text.dim").to_rgb_tuple()
     }
 }
 

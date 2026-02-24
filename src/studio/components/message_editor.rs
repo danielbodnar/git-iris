@@ -11,7 +11,7 @@ use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
-use tui_textarea::TextArea;
+use ratatui_textarea::TextArea;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Message Editor State
