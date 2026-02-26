@@ -2096,7 +2096,9 @@ dependencies = [
 
 [[package]]
 name = "opaline"
-version = "0.1.0"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b063df79c0c85dfd94aca72b43d90dbcb2f32f229c6ae5e8ad09fc43ecb54e1d"
 dependencies = [
  "colored",
  "dirs",
