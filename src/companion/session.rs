@@ -102,7 +102,7 @@ impl SessionState {
     /// Get files ordered by most recently touched
     pub fn recent_files(&self) -> Vec<&FileActivity> {
         let mut files: Vec<_> = self.files_touched.values().collect();
-        files.sort_by(|a, b| b.last_touched.cmp(&a.last_touched));
+        files.sort_by_key(|f| std::cmp::Reverse(f.last_touched));
         files
     }
 

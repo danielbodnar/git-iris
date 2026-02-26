@@ -117,7 +117,11 @@ impl SubagentRunner {
         match resolved_key {
             Some(key) => openai::Client::new(&key)
                 // Sanitize error to avoid exposing key material
-                .map_err(|_| anyhow::anyhow!("Failed to create OpenAI client: authentication or configuration error")),
+                .map_err(|_| {
+                    anyhow::anyhow!(
+                        "Failed to create OpenAI client: authentication or configuration error"
+                    )
+                }),
             None => Ok(openai::Client::from_env()),
         }
     }
@@ -131,7 +135,11 @@ impl SubagentRunner {
         match resolved_key {
             Some(key) => anthropic::Client::new(&key)
                 // Sanitize error to avoid exposing key material
-                .map_err(|_| anyhow::anyhow!("Failed to create Anthropic client: authentication or configuration error")),
+                .map_err(|_| {
+                    anyhow::anyhow!(
+                        "Failed to create Anthropic client: authentication or configuration error"
+                    )
+                }),
             None => Ok(anthropic::Client::from_env()),
         }
     }
@@ -145,7 +153,11 @@ impl SubagentRunner {
         match resolved_key {
             Some(key) => gemini::Client::new(&key)
                 // Sanitize error to avoid exposing key material
-                .map_err(|_| anyhow::anyhow!("Failed to create Gemini client: authentication or configuration error")),
+                .map_err(|_| {
+                    anyhow::anyhow!(
+                        "Failed to create Gemini client: authentication or configuration error"
+                    )
+                }),
             None => Ok(gemini::Client::from_env()),
         }
     }

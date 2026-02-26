@@ -161,7 +161,10 @@ fn render_theme_strip(frame: &mut Frame, area: Rect) {
     // Compact preview: palette swatches + gradient on one line
     let mut spans = vec![
         Span::styled("  ", Style::default()),
-        Span::styled("██", Style::default().fg(Color::from(t.color(tokens::ACCENT_PRIMARY)))),
+        Span::styled(
+            "██",
+            Style::default().fg(Color::from(t.color(tokens::ACCENT_PRIMARY))),
+        ),
         Span::styled(" ", Style::default()),
         Span::styled(
             "██",
@@ -173,12 +176,24 @@ fn render_theme_strip(frame: &mut Frame, area: Rect) {
             Style::default().fg(Color::from(t.color(tokens::ACCENT_TERTIARY))),
         ),
         Span::styled(" ", Style::default()),
-        Span::styled("██", Style::default().fg(Color::from(t.color(tokens::SUCCESS)))),
+        Span::styled(
+            "██",
+            Style::default().fg(Color::from(t.color(tokens::SUCCESS))),
+        ),
         Span::styled(" ", Style::default()),
-        Span::styled("██", Style::default().fg(Color::from(t.color(tokens::WARNING)))),
+        Span::styled(
+            "██",
+            Style::default().fg(Color::from(t.color(tokens::WARNING))),
+        ),
         Span::styled(" ", Style::default()),
-        Span::styled("██", Style::default().fg(Color::from(t.color(tokens::ERROR)))),
-        Span::styled("  │  ", Style::default().fg(Color::from(t.color(tokens::TEXT_DIM)))),
+        Span::styled(
+            "██",
+            Style::default().fg(Color::from(t.color(tokens::ERROR))),
+        ),
+        Span::styled(
+            "  │  ",
+            Style::default().fg(Color::from(t.color(tokens::TEXT_DIM))),
+        ),
     ];
 
     // Add gradient
@@ -210,12 +225,18 @@ fn render_footer(frame: &mut Frame, area: Rect, state: &SettingsState) {
 
     let hints = if state.editing {
         Line::from(vec![
-            Span::styled("  Enter", Style::default().fg(Color::from(t.color(tokens::SUCCESS)))),
+            Span::styled(
+                "  Enter",
+                Style::default().fg(Color::from(t.color(tokens::SUCCESS))),
+            ),
             Span::styled(
                 " confirm  ",
                 Style::default().fg(Color::from(t.color(tokens::TEXT_MUTED))),
             ),
-            Span::styled("Esc", Style::default().fg(Color::from(t.color(tokens::WARNING)))),
+            Span::styled(
+                "Esc",
+                Style::default().fg(Color::from(t.color(tokens::WARNING))),
+            ),
             Span::styled(
                 " cancel",
                 Style::default().fg(Color::from(t.color(tokens::TEXT_MUTED))),
@@ -227,8 +248,14 @@ fn render_footer(frame: &mut Frame, area: Rect, state: &SettingsState) {
                 "  ↑↓",
                 Style::default().fg(Color::from(t.color(tokens::ACCENT_PRIMARY))),
             ),
-            Span::styled(" nav  ", Style::default().fg(Color::from(t.color(tokens::TEXT_MUTED)))),
-            Span::styled("←→", Style::default().fg(Color::from(t.color(tokens::ACCENT_PRIMARY)))),
+            Span::styled(
+                " nav  ",
+                Style::default().fg(Color::from(t.color(tokens::TEXT_MUTED))),
+            ),
+            Span::styled(
+                "←→",
+                Style::default().fg(Color::from(t.color(tokens::ACCENT_PRIMARY))),
+            ),
             Span::styled(
                 " cycle  ",
                 Style::default().fg(Color::from(t.color(tokens::TEXT_MUTED))),
@@ -251,8 +278,14 @@ fn render_footer(frame: &mut Frame, area: Rect, state: &SettingsState) {
                 " save  ",
                 Style::default().fg(Color::from(t.color(tokens::TEXT_MUTED))),
             ),
-            Span::styled("Esc", Style::default().fg(Color::from(t.color(tokens::WARNING)))),
-            Span::styled(" close", Style::default().fg(Color::from(t.color(tokens::TEXT_MUTED)))),
+            Span::styled(
+                "Esc",
+                Style::default().fg(Color::from(t.color(tokens::WARNING))),
+            ),
+            Span::styled(
+                " close",
+                Style::default().fg(Color::from(t.color(tokens::TEXT_MUTED))),
+            ),
         ])
     };
 

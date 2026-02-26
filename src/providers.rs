@@ -316,8 +316,7 @@ mod tests {
     #[test]
     fn test_api_key_validation_valid_openai_project_key() {
         // Valid OpenAI project key format (starts with sk-proj-, long enough)
-        let result =
-            Provider::OpenAI.validate_api_key_format("sk-proj-1234567890abcdefghijklmnop");
+        let result = Provider::OpenAI.validate_api_key_format("sk-proj-1234567890abcdefghijklmnop");
         assert!(result.is_ok());
     }
 

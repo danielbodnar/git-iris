@@ -1485,7 +1485,7 @@ impl StudioApp {
 
         tokio::spawn(async move {
             match tokio::time::timeout(
-                std::time::Duration::from_millis(2000),
+                std::time::Duration::from_secs(2),
                 status_gen.generate_completion(&context),
             )
             .await

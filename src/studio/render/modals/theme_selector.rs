@@ -76,7 +76,10 @@ fn render_theme_list(
                 "  Filter: ",
                 Style::default().fg(Color::from(t.color(tokens::TEXT_MUTED))),
             ),
-            Span::styled(input, Style::default().fg(Color::from(t.color(tokens::TEXT_PRIMARY)))),
+            Span::styled(
+                input,
+                Style::default().fg(Color::from(t.color(tokens::TEXT_PRIMARY))),
+            ),
             Span::styled(
                 if input.is_empty() { "│" } else { "█" },
                 Style::default().fg(Color::from(t.color(tokens::ACCENT_SECONDARY))),
@@ -154,7 +157,10 @@ fn render_theme_list(
             "  ↑↓",
             Style::default().fg(Color::from(t.color(tokens::ACCENT_PRIMARY))),
         ),
-        Span::styled(" nav  ", Style::default().fg(Color::from(t.color(tokens::TEXT_MUTED)))),
+        Span::styled(
+            " nav  ",
+            Style::default().fg(Color::from(t.color(tokens::TEXT_MUTED))),
+        ),
         Span::styled(
             "Enter",
             Style::default().fg(Color::from(t.color(tokens::ACCENT_PRIMARY))),
@@ -163,7 +169,10 @@ fn render_theme_list(
             " select  ",
             Style::default().fg(Color::from(t.color(tokens::TEXT_MUTED))),
         ),
-        Span::styled("Esc", Style::default().fg(Color::from(t.color(tokens::WARNING)))),
+        Span::styled(
+            "Esc",
+            Style::default().fg(Color::from(t.color(tokens::WARNING))),
+        ),
         Span::styled(
             " cancel",
             Style::default().fg(Color::from(t.color(tokens::TEXT_MUTED))),
@@ -207,7 +216,10 @@ fn render_theme_preview(
         )),
         // Author
         Line::from(vec![
-            Span::styled(" by ", Style::default().fg(Color::from(t.color(tokens::TEXT_MUTED)))),
+            Span::styled(
+                " by ",
+                Style::default().fg(Color::from(t.color(tokens::TEXT_MUTED))),
+            ),
             Span::styled(
                 &theme_info.author,
                 Style::default().fg(Color::from(t.color(tokens::TEXT_SECONDARY))),
@@ -248,7 +260,10 @@ fn render_theme_preview(
     // Color swatches (using current theme since we apply live preview)
     lines.push(Line::from(vec![
         Span::styled(" ", Style::default()),
-        Span::styled("██", Style::default().fg(Color::from(t.color(tokens::ACCENT_PRIMARY)))),
+        Span::styled(
+            "██",
+            Style::default().fg(Color::from(t.color(tokens::ACCENT_PRIMARY))),
+        ),
         Span::raw(" "),
         Span::styled(
             "██",
@@ -260,11 +275,20 @@ fn render_theme_preview(
             Style::default().fg(Color::from(t.color(tokens::ACCENT_TERTIARY))),
         ),
         Span::raw(" "),
-        Span::styled("██", Style::default().fg(Color::from(t.color(tokens::SUCCESS)))),
+        Span::styled(
+            "██",
+            Style::default().fg(Color::from(t.color(tokens::SUCCESS))),
+        ),
         Span::raw(" "),
-        Span::styled("██", Style::default().fg(Color::from(t.color(tokens::WARNING)))),
+        Span::styled(
+            "██",
+            Style::default().fg(Color::from(t.color(tokens::WARNING))),
+        ),
         Span::raw(" "),
-        Span::styled("██", Style::default().fg(Color::from(t.color(tokens::ERROR)))),
+        Span::styled(
+            "██",
+            Style::default().fg(Color::from(t.color(tokens::ERROR))),
+        ),
     ]));
 
     lines.push(Line::from(""));

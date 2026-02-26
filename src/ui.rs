@@ -25,17 +25,23 @@ pub mod rgb {
 
     /// Get primary accent color (Electric Purple) RGB from theme
     pub fn accent_primary() -> (u8, u8, u8) {
-        theme::current().color(tokens::ACCENT_PRIMARY).to_rgb_tuple()
+        theme::current()
+            .color(tokens::ACCENT_PRIMARY)
+            .to_rgb_tuple()
     }
 
     /// Get secondary accent color (Neon Cyan) RGB from theme
     pub fn accent_secondary() -> (u8, u8, u8) {
-        theme::current().color(tokens::ACCENT_SECONDARY).to_rgb_tuple()
+        theme::current()
+            .color(tokens::ACCENT_SECONDARY)
+            .to_rgb_tuple()
     }
 
     /// Get tertiary accent color (Coral) RGB from theme
     pub fn accent_tertiary() -> (u8, u8, u8) {
-        theme::current().color(tokens::ACCENT_TERTIARY).to_rgb_tuple()
+        theme::current()
+            .color(tokens::ACCENT_TERTIARY)
+            .to_rgb_tuple()
     }
 
     /// Get warning color (Electric Yellow) RGB from theme
@@ -60,7 +66,9 @@ pub mod rgb {
 
     /// Get secondary text color RGB from theme
     pub fn text_secondary() -> (u8, u8, u8) {
-        theme::current().color(tokens::TEXT_SECONDARY).to_rgb_tuple()
+        theme::current()
+            .color(tokens::TEXT_SECONDARY)
+            .to_rgb_tuple()
     }
 
     /// Get muted text color RGB from theme

@@ -93,7 +93,10 @@ fn validate_and_warn(key: &str, provider: Provider, source: &str) {
 /// Note: An empty string in config is treated as "not configured" and falls
 /// back to the environment variable. This allows users to override env vars
 /// in config while still supporting env-only setups.
-pub fn resolve_api_key(api_key: Option<&str>, provider: Provider) -> (Option<String>, ApiKeySource) {
+pub fn resolve_api_key(
+    api_key: Option<&str>,
+    provider: Provider,
+) -> (Option<String>, ApiKeySource) {
     // If explicit key provided and non-empty, use it
     if let Some(key) = api_key
         && !key.is_empty()
@@ -146,9 +149,11 @@ pub fn openai_builder(model: &str, api_key: Option<&str>) -> Result<OpenAIBuilde
     let client = match resolved_key {
         Some(key) => openai::Client::new(&key)
             // Sanitize error to prevent potential key exposure in error messages
-            .map_err(|_| anyhow::anyhow!(
-                "Failed to create OpenAI client: authentication or configuration error"
-            ))?,
+            .map_err(|_| {
+                anyhow::anyhow!(
+                    "Failed to create OpenAI client: authentication or configuration error"
+                )
+            })?,
         None => openai::Client::from_env(),
     };
     Ok(client.completions_api().agent(model))
@@ -173,9 +178,11 @@ pub fn anthropic_builder(model: &str, api_key: Option<&str>) -> Result<Anthropic
     let client = match resolved_key {
         Some(key) => anthropic::Client::new(&key)
             // Sanitize error to prevent potential key exposure in error messages
-            .map_err(|_| anyhow::anyhow!(
-                "Failed to create Anthropic client: authentication or configuration error"
-            ))?,
+            .map_err(|_| {
+                anyhow::anyhow!(
+                    "Failed to create Anthropic client: authentication or configuration error"
+                )
+            })?,
         None => anthropic::Client::from_env(),
     };
     Ok(client.agent(model))
@@ -200,9 +207,11 @@ pub fn gemini_builder(model: &str, api_key: Option<&str>) -> Result<GeminiBuilde
     let client = match resolved_key {
         Some(key) => gemini::Client::new(&key)
             // Sanitize error to prevent potential key exposure in error messages
-            .map_err(|_| anyhow::anyhow!(
-                "Failed to create Gemini client: authentication or configuration error"
-            ))?,
+            .map_err(|_| {
+                anyhow::anyhow!(
+                    "Failed to create Gemini client: authentication or configuration error"
+                )
+            })?,
         None => gemini::Client::from_env(),
     };
     Ok(client.agent(model))
@@ -215,8 +224,7 @@ mod tests {
     #[test]
     fn test_resolve_api_key_uses_config_when_provided() {
         // Config key takes precedence
-        let (key, source) =
-            resolve_api_key(Some("sk-config-key-1234567890"), Provider::OpenAI);
+        let (key, source) = resolve_api_key(Some("sk-config-key-1234567890"), Provider::OpenAI);
         assert_eq!(key, Some("sk-config-key-1234567890".to_string()));
         assert_eq!(source, ApiKeySource::Config);
     }
@@ -265,8 +273,7 @@ mod tests {
     fn test_resolve_api_key_all_providers() {
         // Test that resolve_api_key works for all supported providers
         for provider in Provider::ALL {
-            let (key, source) =
-                resolve_api_key(Some("test-key-123456789012345"), *provider);
+            let (key, source) = resolve_api_key(Some("test-key-123456789012345"), *provider);
             assert_eq!(key, Some("test-key-123456789012345".to_string()));
             assert_eq!(source, ApiKeySource::Config);
         }

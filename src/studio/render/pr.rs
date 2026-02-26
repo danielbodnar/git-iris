@@ -19,11 +19,9 @@ fn scrollable_title(base_title: &str, scroll: usize, total_lines: usize, visible
         format!(" {} ", base_title)
     } else {
         let max_scroll = total_lines.saturating_sub(visible);
-        let percent = if max_scroll == 0 {
-            100
-        } else {
-            ((scroll.min(max_scroll)) * 100) / max_scroll
-        };
+        let percent = ((scroll.min(max_scroll)) * 100)
+            .checked_div(max_scroll)
+            .unwrap_or(100);
         format!(
             " {} ({}/{}) {}% ",
             base_title,

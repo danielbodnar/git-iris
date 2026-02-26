@@ -212,7 +212,9 @@ pub fn mode_inactive() -> Style {
 /// Get a color for a gradient position (0.0 = start, 1.0 = end)
 /// Gradient goes from Electric Purple → Neon Cyan
 pub fn gradient_purple_cyan(position: f32) -> Color {
-    theme::current().gradient(gradients::PRIMARY, position).into()
+    theme::current()
+        .gradient(gradients::PRIMARY, position)
+        .into()
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

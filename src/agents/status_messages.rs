@@ -348,11 +348,8 @@ impl StatusMessageGenerator {
     async fn generate_completion_internal(&self, context: &StatusContext) -> Result<StatusMessage> {
         let prompt = Self::build_completion_prompt(context);
 
-        let agent = Self::build_status_agent(
-            &self.provider,
-            &self.fast_model,
-            self.api_key.as_deref(),
-        )?;
+        let agent =
+            Self::build_status_agent(&self.provider, &self.fast_model, self.api_key.as_deref())?;
         let response = agent.prompt(&prompt).await?;
         let message = capitalize_first(response.trim());
 

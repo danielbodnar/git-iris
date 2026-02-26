@@ -114,14 +114,12 @@ impl FileWatcherService {
                 for event in events {
                     // Check for git ref changes (HEAD, refs, index)
                     let is_git_ref_change = event.paths.iter().any(|p| {
-                        p.strip_prefix(repo_path)
-                            .map(|rel| {
-                                let rel_str = rel.to_string_lossy();
-                                rel_str == ".git/HEAD"
-                                    || rel_str.starts_with(".git/refs/")
-                                    || rel_str == ".git/index"
-                            })
-                            .unwrap_or(false)
+                        p.strip_prefix(repo_path).is_ok_and(|rel| {
+                            let rel_str = rel.to_string_lossy();
+                            rel_str == ".git/HEAD"
+                                || rel_str.starts_with(".git/refs/")
+                                || rel_str == ".git/index"
+                        })
                     });
 
                     if is_git_ref_change {
