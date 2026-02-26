@@ -27,8 +27,11 @@ async fn test_cli_with_remote_repository() -> Result<()> {
     // 1. Test ReleaseNotes command with repository URL
     let common = CommonParams {
         provider: Some("mock".to_string()), // Use mock provider to avoid real API calls
+        model: None,
         instructions: None,
         preset: None,
+        gitmoji_flag: false,
+        no_gitmoji: false,
         gitmoji: Some(false),
         repository_url: Some(repo_url.to_string()),
     };
@@ -37,11 +40,14 @@ async fn test_cli_with_remote_repository() -> Result<()> {
         common: common.clone(),
         from: "v1.0.0".to_string(), // Use a tag that's likely to exist in the repo
         to: Some("HEAD".to_string()),
+        raw: false,
+        update: false,
+        file: None,
         version_name: None,
     };
 
     // Just testing that it doesn't panic, we're not making actual API calls
-    let result = git_iris::cli::handle_command(release_notes_command, None, false).await;
+    let result = git_iris::cli::handle_command(release_notes_command, None).await;
     assert!(
         result.is_err(),
         "Command should fail because we're using a mock provider"
@@ -52,13 +58,14 @@ async fn test_cli_with_remote_repository() -> Result<()> {
         common: common.clone(),
         from: "v1.0.0".to_string(),
         to: Some("HEAD".to_string()),
+        raw: false,
         file: None,
         update: false,
         version_name: None,
     };
 
     // Just testing that it doesn't panic
-    let result = git_iris::cli::handle_command(changelog_command, None, false).await;
+    let result = git_iris::cli::handle_command(changelog_command, None).await;
     assert!(
         result.is_err(),
         "Command should fail because we're using a mock provider"
@@ -68,6 +75,7 @@ async fn test_cli_with_remote_repository() -> Result<()> {
     let review_command = Commands::Review {
         common: common.clone(),
         print: true,
+        raw: false,
         commit: None,
         include_unstaged: false,
         from: None,
@@ -75,7 +83,7 @@ async fn test_cli_with_remote_repository() -> Result<()> {
     };
 
     // Just testing that it doesn't panic
-    let result = git_iris::cli::handle_command(review_command, None, false).await;
+    let result = git_iris::cli::handle_command(review_command, None).await;
     assert!(
         result.is_err(),
         "Command should fail because we're using a mock provider"
@@ -85,13 +93,13 @@ async fn test_cli_with_remote_repository() -> Result<()> {
     let gen_command = Commands::Gen {
         common,
         auto_commit: false,
-        no_gitmoji: true,
         print: true,
         no_verify: true,
+        amend: false,
     };
 
     // Just testing that it doesn't panic
-    let result = git_iris::cli::handle_command(gen_command, None, false).await;
+    let result = git_iris::cli::handle_command(gen_command, None).await;
     assert!(
         result.is_err(),
         "Command should fail because we're using a mock provider"

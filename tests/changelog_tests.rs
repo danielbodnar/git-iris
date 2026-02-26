@@ -19,7 +19,7 @@ fn setup_test_repo() -> Result<(TempDir, Repository)> {
 #[test]
 fn test_markdown_changelog_format() {
     let changelog = MarkdownChangelog {
-        content: r#"## [1.0.0] - 2023-06-01
+        content: r"## [1.0.0] - 2023-06-01
 
 This release adds new features and fixes bugs.
 
@@ -42,7 +42,7 @@ This release adds new features and fixes bugs.
 - Files Changed: 12
 - Insertions: +245
 - Deletions: -87
-"#
+"
         .to_string(),
     };
 
@@ -114,7 +114,7 @@ fn test_markdown_release_notes_format() {
     use git_iris::types::MarkdownReleaseNotes;
 
     let release_notes = MarkdownReleaseNotes {
-        content: r#"# Release Notes v1.0.0
+        content: r"# Release Notes v1.0.0
 
 **Released:** 2023-06-01
 
@@ -133,7 +133,7 @@ A great new feature was added.
 ## Breaking Changes
 
 - API endpoint changed
-"#
+"
         .to_string(),
     };
 

@@ -1,6 +1,6 @@
 //! Tests for review functionality
 //!
-//! Note: Legacy GeneratedReview tests removed. MarkdownReview is now the active code path.
+//! Note: Legacy `GeneratedReview` tests removed. `MarkdownReview` is now the active code path.
 
 // Use our centralized test infrastructure
 #[path = "test_utils.rs"]

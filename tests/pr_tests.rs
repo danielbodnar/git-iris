@@ -45,7 +45,7 @@ fn test_format_pull_request() {
 #[test]
 fn test_format_pull_request_minimal() {
     let pr = MarkdownPullRequest {
-        content: r#"# Fix bug in user authentication
+        content: r"# Fix bug in user authentication
 
 ## Summary
 
@@ -58,7 +58,7 @@ This PR fixes an issue where users couldn't log in properly.
 ## Commits
 
 - `abc1234`: Fix authentication bug
-"#
+"
         .to_string(),
     };
 
@@ -166,7 +166,7 @@ async fn test_git_repo_pr_methods() -> Result<()> {
 #[test]
 fn test_format_pull_request_with_unicode() {
     let pr = MarkdownPullRequest {
-        content: r#"# 🚀 Add deployment automation
+        content: r"# 🚀 Add deployment automation
 
 ## Summary
 
@@ -194,7 +194,7 @@ Test with 🧪 test suite
 ## Notes
 
 Deployment requires 🔑 secrets
-"#
+"
         .to_string(),
     };
 

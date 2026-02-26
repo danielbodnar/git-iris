@@ -496,13 +496,22 @@ mod tests {
         });
 
         assert_eq!(batch.len(), 2);
-        assert_eq!(batch.current().unwrap().message, "First");
+        assert_eq!(
+            batch.current().expect("should have current").message,
+            "First"
+        );
 
         batch.next();
-        assert_eq!(batch.current().unwrap().message, "Second");
+        assert_eq!(
+            batch.current().expect("should have current").message,
+            "Second"
+        );
 
         batch.next();
-        assert_eq!(batch.current().unwrap().message, "First"); // Cycles back
+        assert_eq!(
+            batch.current().expect("should have current").message,
+            "First"
+        ); // Cycles back
     }
 
     #[test]
@@ -515,17 +524,17 @@ mod tests {
         assert!(prompt.contains("commit"));
         assert!(prompt.contains("analyzing staged changes"));
         assert!(prompt.contains("feature/awesome"));
-        assert!(prompt.contains("3"));
+        assert!(prompt.contains('3'));
     }
 
     /// Debug test to evaluate status message quality
-    /// Run with: cargo test debug_status_messages -- --ignored --nocapture
+    /// Run with: cargo test `debug_status_messages` -- --ignored --nocapture
     #[test]
-    #[ignore]
+    #[ignore = "manual debug test for evaluating status message quality"]
     fn debug_status_messages() {
         use tokio::runtime::Runtime;
 
-        let rt = Runtime::new().unwrap();
+        let rt = Runtime::new().expect("failed to create tokio runtime");
         rt.block_on(async {
             // Get provider/model from env or use defaults
             let provider =
@@ -543,7 +552,7 @@ mod tests {
             let generator = StatusMessageGenerator::new(&provider, &model, None);
 
             // Test scenarios
-            let scenarios = vec![
+            let scenarios = [
                 StatusContext::new("commit", "crafting commit message")
                     .with_branch("main")
                     .with_files(vec![
@@ -589,7 +598,7 @@ mod tests {
 
                 // Generate 5 messages for each scenario
                 for j in 1..=5 {
-                    let msg = generator.generate(&ctx).await;
+                    let msg = generator.generate(ctx).await;
                     println!("  {}: {}", j, msg.message);
                 }
                 println!();

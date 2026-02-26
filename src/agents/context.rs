@@ -300,7 +300,12 @@ mod tests {
     fn test_review_from_without_to_fails() {
         let result = TaskContext::for_review(None, Some("main".to_string()), None, false);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("--to"));
+        assert!(
+            result
+                .expect_err("should be err")
+                .to_string()
+                .contains("--to")
+        );
     }
 
     #[test]
@@ -315,7 +320,7 @@ mod tests {
         assert!(result.is_err());
         assert!(
             result
-                .unwrap_err()
+                .expect_err("should be err")
                 .to_string()
                 .contains("mutually exclusive")
         );
@@ -330,7 +335,12 @@ mod tests {
             true,
         );
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("include-unstaged"));
+        assert!(
+            result
+                .expect_err("should be err")
+                .to_string()
+                .contains("include-unstaged")
+        );
     }
 
     #[test]

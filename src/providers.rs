@@ -339,7 +339,7 @@ mod tests {
     fn test_api_key_validation_too_short() {
         let result = Provider::OpenAI.validate_api_key_format("sk-short");
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("too short"));
+        assert!(result.expect_err("should be err").contains("too short"));
     }
 
     #[test]
@@ -347,7 +347,7 @@ mod tests {
         // Long enough but wrong prefix
         let result = Provider::OpenAI.validate_api_key_format("wrong-prefix-1234567890abcdef");
         assert!(result.is_err());
-        let err = result.unwrap_err();
+        let err = result.expect_err("should be err");
         assert!(err.contains("should start with"));
         // Error should mention valid prefixes
         assert!(err.contains("'sk-'") || err.contains("'sk-proj-'"));
@@ -360,7 +360,7 @@ mod tests {
         // Has sk- but not sk-ant- (might be OpenAI key used for Anthropic)
         let result = Provider::Anthropic.validate_api_key_format("sk-1234567890abcdefghijklmnop");
         assert!(result.is_err());
-        let err = result.unwrap_err();
+        let err = result.expect_err("should be err");
         assert!(err.contains("sk-ant-"));
         // Verify we don't expose the actual key content
         assert!(err.contains("unexpected prefix"));

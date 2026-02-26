@@ -436,7 +436,7 @@ impl MockDataBuilder {
     /// Create a mock `MarkdownPullRequest`
     pub fn generated_pull_request() -> MarkdownPullRequest {
         MarkdownPullRequest {
-            content: r#"# Add JWT authentication with user registration
+            content: r"# Add JWT authentication with user registration
 
 ## Summary
 
@@ -473,7 +473,7 @@ Test user registration flow and verify JWT tokens are properly validated on prot
 ## Notes
 
 Requires JWT_SECRET environment variable to be set before deployment.
-"#.to_string(),
+".to_string(),
         }
     }
 
