@@ -1,5 +1,3 @@
-use chrono::Local;
-use log::{Level, LevelFilter, Metadata, Record};
 use parking_lot::Mutex;
 use std::fs::OpenOptions;
 use std::io::{self, Write};
@@ -10,9 +8,6 @@ use tracing_subscriber::{
     util::SubscriberInitExt,
 };
 
-struct GitIrisLogger;
-
-static LOGGER: GitIrisLogger = GitIrisLogger;
 static LOGGING_ENABLED: std::sync::LazyLock<Mutex<bool>> =
     std::sync::LazyLock::new(|| Mutex::new(false));
 static LOG_FILE: std::sync::LazyLock<Mutex<Option<std::fs::File>>> =
@@ -61,76 +56,7 @@ impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for UnifiedWriter {
     }
 }
 
-impl log::Log for GitIrisLogger {
-    fn enabled(&self, metadata: &Metadata) -> bool {
-        if !*LOGGING_ENABLED.lock() {
-            return false;
-        }
-
-        // Always allow our own logs
-        if metadata.target().starts_with("git_iris") {
-            return metadata.level() <= Level::Debug;
-        }
-
-        // Allow rig logs - they provide valuable LLM operation insights
-        if metadata.target().starts_with("rig") {
-            return metadata.level() <= Level::Info;
-        }
-
-        // Filter external library logs unless verbose logging is enabled
-        let verbose_enabled = *VERBOSE_LOGGING.lock();
-        if !verbose_enabled {
-            // Block common noisy external libraries
-            let target = metadata.target();
-            if target.starts_with("reqwest")
-                || target.starts_with("hyper")
-                || target.starts_with("h2")
-                || target.starts_with("rustls")
-                || target.starts_with("want")
-                || target.starts_with("mio")
-                || target.contains("anthropic")
-                || target.contains("openai")
-                || target.contains("completion")
-                || target.contains("connection")
-            {
-                return false;
-            }
-        }
-
-        metadata.level() <= Level::Debug
-    }
-
-    fn log(&self, record: &Record) {
-        if self.enabled(record.metadata()) {
-            let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S%.3f");
-            let target = if record.target().starts_with("rig") {
-                "🦀 rig"
-            } else {
-                record.target()
-            };
-            let message = format!(
-                "{} {} [{}] - {}\n",
-                timestamp,
-                record.level(),
-                target,
-                record.args()
-            );
-
-            if let Some(file) = LOG_FILE.lock().as_mut() {
-                let _ = file.write_all(message.as_bytes());
-                let _ = file.flush();
-            }
-
-            if *LOG_TO_STDOUT.lock() {
-                print!("{message}");
-            }
-        }
-    }
-
-    fn flush(&self) {}
-}
-
-/// Initialize unified logging system supporting both log and tracing
+/// Initialize unified logging system using tracing
 pub fn init() -> Result<(), Box<dyn std::error::Error>> {
     use std::sync::{Once, OnceLock};
     static INIT: Once = Once::new();
@@ -167,28 +93,11 @@ pub fn init() -> Result<(), Box<dyn std::error::Error>> {
             .with_span_events(FmtSpan::CLOSE)
             .with_writer(UnifiedWriter);
 
-        // Try to initialize tracing subscriber
-        let tracing_result = Registry::default()
+        let result = Registry::default()
             .with(env_filter)
             .with(fmt_layer)
-            .try_init();
-
-        // Try to initialize the log system for backwards compatibility
-        let log_result = log::set_logger(&LOGGER).map(|()| log::set_max_level(LevelFilter::Debug));
-
-        // Tracing handles the log facade automatically via its compatibility layer,
-        // so log::set_logger() will typically fail (which is fine)
-        let result = match tracing_result {
-            Ok(()) => Ok(()),
-            Err(tracing_err) => {
-                if log_result.is_ok() {
-                    // Fallback to log-only (tracing already initialized elsewhere)
-                    Ok(())
-                } else {
-                    Err(format!("Failed to initialize logging: {tracing_err}"))
-                }
-            }
-        };
+            .try_init()
+            .map_err(|e| format!("Failed to initialize logging: {e}"));
 
         let _ = INIT_RESULT.set(result);
     });
@@ -239,36 +148,36 @@ pub fn set_log_to_stdout(enabled: bool) {
     *log_to_stdout = enabled;
 }
 
-// Macros for git-iris logging (maintains compatibility)
+// All logging goes through tracing now
 #[macro_export]
 macro_rules! log_debug {
     ($($arg:tt)*) => {
-        log::debug!($($arg)*)
+        tracing::debug!($($arg)*)
     };
 }
 
 #[macro_export]
 macro_rules! log_error {
     ($($arg:tt)*) => {
-        log::error!($($arg)*)
+        tracing::error!($($arg)*)
     };
 }
 
 #[macro_export]
 macro_rules! log_info {
     ($($arg:tt)*) => {
-        log::info!($($arg)*)
+        tracing::info!($($arg)*)
     };
 }
 
 #[macro_export]
 macro_rules! log_warn {
     ($($arg:tt)*) => {
-        log::warn!($($arg)*)
+        tracing::warn!($($arg)*)
     };
 }
 
-// New tracing macros for enhanced logging (following Rig patterns)
+// Tracing macros for enhanced logging (following Rig patterns)
 #[macro_export]
 macro_rules! trace_debug {
     (target: $target:expr, $($arg:tt)*) => {
