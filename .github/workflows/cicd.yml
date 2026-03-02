@@ -208,6 +208,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: ./artifacts
+          pattern: git-iris-*
       - name: Prepare release assets
         run: |
           mkdir -p release-assets
