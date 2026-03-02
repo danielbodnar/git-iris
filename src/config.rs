@@ -13,7 +13,7 @@ use dirs::config_dir;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Project configuration filename
 pub const PROJECT_CONFIG_FILENAME: &str = ".irisconfig";
@@ -244,7 +244,8 @@ impl Config {
 
         let config_path = Self::get_config_path()?;
         let content = toml::to_string_pretty(self)?;
-        fs::write(config_path, content)?;
+        fs::write(&config_path, content)?;
+        Self::restrict_permissions(&config_path);
         log_debug!("Configuration saved");
         Ok(())
     }
@@ -262,8 +263,24 @@ impl Config {
         }
 
         let content = toml::to_string_pretty(&project_config)?;
-        fs::write(config_path, content)?;
+        fs::write(&config_path, content)?;
+        Self::restrict_permissions(&config_path);
         Ok(())
+    }
+
+    /// Restrict file permissions to owner-only on Unix (0o600).
+    /// Config files may contain API keys, so they shouldn't be world-readable.
+    #[cfg(unix)]
+    fn restrict_permissions(path: &Path) {
+        use std::os::unix::fs::PermissionsExt;
+        let perms = fs::Permissions::from_mode(0o600);
+        // Best-effort — don't fail the save if permission change fails
+        let _ = fs::set_permissions(path, perms);
+    }
+
+    #[cfg(not(unix))]
+    fn restrict_permissions(_path: &Path) {
+        // No-op on non-Unix platforms
     }
 
     /// Get path to personal config file

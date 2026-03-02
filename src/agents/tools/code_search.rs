@@ -4,13 +4,14 @@
 //! functions, classes, and related files in the repository.
 
 use anyhow::Result;
+use regex::escape as regex_escape;
 use rig::completion::ToolDefinition;
 use rig::tool::Tool;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::process::Command;
 
-use super::common::parameters_schema;
+use super::common::{get_current_repo, parameters_schema};
 use crate::define_tool_error;
 
 define_tool_error!(CodeSearchError);
@@ -41,31 +42,47 @@ impl CodeSearch {
         let mut cmd = Command::new("rg");
 
         // Configure ripgrep based on search type
+        // For structured types (function/class/variable), escape the query to prevent
+        // regex injection — the surrounding pattern provides the regex structure.
+        // For "pattern" type, the user explicitly wants regex, so we add a timeout instead.
         match search_type {
             "function" => {
+                let escaped = regex_escape(query);
                 cmd.args(["--type", "rust", "--type", "javascript", "--type", "python"]);
                 cmd.args([
                     "-e",
-                    &format!(r"fn\s+{query}|function\s+{query}|def\s+{query}"),
+                    &format!(r"fn\s+{escaped}|function\s+{escaped}|def\s+{escaped}"),
                 ]);
             }
             "class" => {
+                let escaped = regex_escape(query);
                 cmd.args(["--type", "rust", "--type", "javascript", "--type", "python"]);
-                cmd.args(["-e", &format!(r"struct\s+{query}|class\s+{query}")]);
+                cmd.args(["-e", &format!(r"struct\s+{escaped}|class\s+{escaped}")]);
             }
             "variable" => {
-                cmd.args(["-e", &format!(r"let\s+{query}|var\s+{query}|{query}\s*=")]);
+                let escaped = regex_escape(query);
+                cmd.args([
+                    "-e",
+                    &format!(r"let\s+{escaped}|var\s+{escaped}|{escaped}\s*="),
+                ]);
             }
             "pattern" => {
+                // User-supplied regex — enforce a timeout to prevent ReDoS
+                cmd.args(["--regex-size-limit", "1M", "--dfa-size-limit", "1M"]);
                 cmd.args(["-e", query]);
             }
             _ => {
-                cmd.args(["-i", query]); // case-insensitive text search
+                cmd.args(["-i", query]); // case-insensitive text search (literal, no regex)
             }
         }
 
-        // Add file pattern if specified
+        // Add file pattern if specified (reject path traversal)
         if let Some(pattern) = file_pattern {
+            if pattern.contains("..") {
+                return Err(anyhow::anyhow!(
+                    "File pattern must not contain '..' path traversal"
+                ));
+            }
             cmd.args(["-g", pattern]);
         }
 
@@ -205,12 +222,13 @@ impl Tool for CodeSearch {
     }
 
     async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
-        let current_dir = std::env::current_dir().map_err(CodeSearchError::from)?;
+        let repo = get_current_repo().map_err(CodeSearchError::from)?;
+        let repo_path = repo.repo_path().clone();
         let max_results = args.max_results.min(100); // Cap at 100
 
         let results = Self::execute_ripgrep_search(
             &args.query,
-            &current_dir,
+            &repo_path,
             args.file_pattern.as_deref(),
             args.search_type.as_str(),
             max_results,

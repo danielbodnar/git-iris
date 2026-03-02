@@ -172,7 +172,7 @@ pub enum ProviderError {
 }
 
 /// Per-provider configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub struct ProviderConfig {
     /// API key (loaded from env or config)
     #[serde(default, skip_serializing_if = "String::is_empty")]
@@ -189,6 +189,25 @@ pub struct ProviderConfig {
     /// Additional provider-specific params
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub additional_params: HashMap<String, String>,
+}
+
+impl fmt::Debug for ProviderConfig {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ProviderConfig")
+            .field(
+                "api_key",
+                if self.api_key.is_empty() {
+                    &"<empty>"
+                } else {
+                    &"[REDACTED]"
+                },
+            )
+            .field("model", &self.model)
+            .field("fast_model", &self.fast_model)
+            .field("token_limit", &self.token_limit)
+            .field("additional_params", &self.additional_params)
+            .finish()
+    }
 }
 
 impl ProviderConfig {
