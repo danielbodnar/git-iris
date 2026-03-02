@@ -2,12 +2,13 @@ use crate::theme;
 use crate::theme::names::tokens;
 use rand::prelude::*;
 use ratatui::style::Color;
+use std::borrow::Cow;
 use std::sync::LazyLock;
 
 /// A message with a theme-based color token
 #[derive(Clone)]
 pub struct ColoredMessage {
-    pub text: String,
+    pub text: Cow<'static, str>,
     pub token: &'static str,
 }
 
@@ -22,110 +23,110 @@ static WAITING_MESSAGES: LazyLock<Vec<ColoredMessage>> = LazyLock::new(|| {
     vec![
         // Cosmic vibes
         ColoredMessage {
-            text: "🔮 Consulting the commit oracle...".to_string(),
+            text: Cow::Borrowed("🔮 Consulting the commit oracle..."),
             token: tokens::ACCENT_DEEP,
         },
         ColoredMessage {
-            text: "✨ Weaving stardust into your message...".to_string(),
+            text: Cow::Borrowed("✨ Weaving stardust into your message..."),
             token: tokens::TEXT_PRIMARY,
         },
         ColoredMessage {
-            text: "🌌 Exploring the commit-verse...".to_string(),
+            text: Cow::Borrowed("🌌 Exploring the commit-verse..."),
             token: tokens::ACCENT_SECONDARY,
         },
         ColoredMessage {
-            text: "🔭 Peering through the code telescope...".to_string(),
+            text: Cow::Borrowed("🔭 Peering through the code telescope..."),
             token: tokens::ACCENT_SECONDARY,
         },
         ColoredMessage {
-            text: "⭐ Aligning the celestial diffs...".to_string(),
+            text: Cow::Borrowed("⭐ Aligning the celestial diffs..."),
             token: tokens::TEXT_PRIMARY,
         },
         ColoredMessage {
-            text: "🌙 Reading your changes by moonlight...".to_string(),
+            text: Cow::Borrowed("🌙 Reading your changes by moonlight..."),
             token: tokens::ACCENT_SECONDARY,
         },
         // Nerdy & clever
         ColoredMessage {
-            text: "🎲 Rolling for commit inspiration...".to_string(),
+            text: Cow::Borrowed("🎲 Rolling for commit inspiration..."),
             token: tokens::SUCCESS,
         },
         ColoredMessage {
-            text: "🧬 Decoding the DNA of your changes...".to_string(),
+            text: Cow::Borrowed("🧬 Decoding the DNA of your changes..."),
             token: tokens::ACCENT_TERTIARY,
         },
         ColoredMessage {
-            text: "🔬 Analyzing diff particles...".to_string(),
+            text: Cow::Borrowed("🔬 Analyzing diff particles..."),
             token: tokens::ACCENT_DEEP,
         },
         ColoredMessage {
-            text: "📡 Tuning into the commit frequency...".to_string(),
+            text: Cow::Borrowed("📡 Tuning into the commit frequency..."),
             token: tokens::ACCENT_SECONDARY,
         },
         ColoredMessage {
-            text: "🧪 Distilling the essence of your changes...".to_string(),
+            text: Cow::Borrowed("🧪 Distilling the essence of your changes..."),
             token: tokens::SUCCESS,
         },
         ColoredMessage {
-            text: "⚡ Parsing the diff matrix...".to_string(),
+            text: Cow::Borrowed("⚡ Parsing the diff matrix..."),
             token: tokens::WARNING,
         },
         // Warm & grounded
         ColoredMessage {
-            text: "☕ Brewing a fresh commit message...".to_string(),
+            text: Cow::Borrowed("☕ Brewing a fresh commit message..."),
             token: tokens::WARNING,
         },
         ColoredMessage {
-            text: "🎨 Painting your changes in prose...".to_string(),
+            text: Cow::Borrowed("🎨 Painting your changes in prose..."),
             token: tokens::ACCENT_TERTIARY,
         },
         ColoredMessage {
-            text: "🧩 Piecing together the story...".to_string(),
+            text: Cow::Borrowed("🧩 Piecing together the story..."),
             token: tokens::ACCENT_SECONDARY,
         },
         ColoredMessage {
-            text: "🎵 Composing a commit symphony...".to_string(),
+            text: Cow::Borrowed("🎵 Composing a commit symphony..."),
             token: tokens::ACCENT_DEEP,
         },
         ColoredMessage {
-            text: "💎 Polishing your commit to a shine...".to_string(),
+            text: Cow::Borrowed("💎 Polishing your commit to a shine..."),
             token: tokens::ACCENT_SECONDARY,
         },
         ColoredMessage {
-            text: "🌿 Growing ideas from your diff...".to_string(),
+            text: Cow::Borrowed("🌿 Growing ideas from your diff..."),
             token: tokens::SUCCESS,
         },
         // Playful
         ColoredMessage {
-            text: "🚀 Launching into commit space...".to_string(),
+            text: Cow::Borrowed("🚀 Launching into commit space..."),
             token: tokens::ERROR,
         },
         ColoredMessage {
-            text: "🗺️ Charting the diff territory...".to_string(),
+            text: Cow::Borrowed("🗺️ Charting the diff territory..."),
             token: tokens::WARNING,
         },
         ColoredMessage {
-            text: "🌊 Riding the code waves...".to_string(),
+            text: Cow::Borrowed("🌊 Riding the code waves..."),
             token: tokens::ACCENT_SECONDARY,
         },
         ColoredMessage {
-            text: "🦉 Consulting the git guardians...".to_string(),
+            text: Cow::Borrowed("🦉 Consulting the git guardians..."),
             token: tokens::ACCENT_SECONDARY,
         },
         ColoredMessage {
-            text: "🧭 Calibrating the commit compass...".to_string(),
+            text: Cow::Borrowed("🧭 Calibrating the commit compass..."),
             token: tokens::WARNING,
         },
         ColoredMessage {
-            text: "🔐 Unlocking the secrets of your diff...".to_string(),
+            text: Cow::Borrowed("🔐 Unlocking the secrets of your diff..."),
             token: tokens::ACCENT_DEEP,
         },
         ColoredMessage {
-            text: "🎁 Wrapping up your changes nicely...".to_string(),
+            text: Cow::Borrowed("🎁 Wrapping up your changes nicely..."),
             token: tokens::TEXT_PRIMARY,
         },
         ColoredMessage {
-            text: "🏄 Surfing the staged changes...".to_string(),
+            text: Cow::Borrowed("🏄 Surfing the staged changes..."),
             token: tokens::SUCCESS,
         },
     ]
@@ -135,110 +136,110 @@ static REVIEW_WAITING_MESSAGES: LazyLock<Vec<ColoredMessage>> = LazyLock::new(||
     vec![
         // Cosmic & mystical
         ColoredMessage {
-            text: "🔮 Gazing into the code quality crystal...".to_string(),
+            text: Cow::Borrowed("🔮 Gazing into the code quality crystal..."),
             token: tokens::ACCENT_DEEP,
         },
         ColoredMessage {
-            text: "✨ Illuminating the hidden corners...".to_string(),
+            text: Cow::Borrowed("✨ Illuminating the hidden corners..."),
             token: tokens::TEXT_PRIMARY,
         },
         ColoredMessage {
-            text: "🌟 Channeling review wisdom...".to_string(),
+            text: Cow::Borrowed("🌟 Channeling review wisdom..."),
             token: tokens::ACCENT_SECONDARY,
         },
         ColoredMessage {
-            text: "🌙 Meditating on your abstractions...".to_string(),
+            text: Cow::Borrowed("🌙 Meditating on your abstractions..."),
             token: tokens::ACCENT_SECONDARY,
         },
         ColoredMessage {
-            text: "🔭 Scanning the code horizon...".to_string(),
+            text: Cow::Borrowed("🔭 Scanning the code horizon..."),
             token: tokens::ACCENT_DEEP,
         },
         ColoredMessage {
-            text: "⭐ Reading the code constellations...".to_string(),
+            text: Cow::Borrowed("⭐ Reading the code constellations..."),
             token: tokens::TEXT_PRIMARY,
         },
         // Nerdy & technical
         ColoredMessage {
-            text: "🔬 Analyzing code under the microscope...".to_string(),
+            text: Cow::Borrowed("🔬 Analyzing code under the microscope..."),
             token: tokens::SUCCESS,
         },
         ColoredMessage {
-            text: "🧬 Sequencing your code genome...".to_string(),
+            text: Cow::Borrowed("🧬 Sequencing your code genome..."),
             token: tokens::ACCENT_TERTIARY,
         },
         ColoredMessage {
-            text: "📡 Scanning for code anomalies...".to_string(),
+            text: Cow::Borrowed("📡 Scanning for code anomalies..."),
             token: tokens::ACCENT_SECONDARY,
         },
         ColoredMessage {
-            text: "🧪 Running quality experiments...".to_string(),
+            text: Cow::Borrowed("🧪 Running quality experiments..."),
             token: tokens::SUCCESS,
         },
         ColoredMessage {
-            text: "⚡ Tracing the logic pathways...".to_string(),
+            text: Cow::Borrowed("⚡ Tracing the logic pathways..."),
             token: tokens::WARNING,
         },
         ColoredMessage {
-            text: "🎲 Rolling perception checks...".to_string(),
+            text: Cow::Borrowed("🎲 Rolling perception checks..."),
             token: tokens::WARNING,
         },
         // Exploratory
         ColoredMessage {
-            text: "🗺️ Mapping your code architecture...".to_string(),
+            text: Cow::Borrowed("🗺️ Mapping your code architecture..."),
             token: tokens::WARNING,
         },
         ColoredMessage {
-            text: "🔍 Hunting for hidden issues...".to_string(),
+            text: Cow::Borrowed("🔍 Hunting for hidden issues..."),
             token: tokens::ERROR,
         },
         ColoredMessage {
-            text: "🧭 Navigating your control flow...".to_string(),
+            text: Cow::Borrowed("🧭 Navigating your control flow..."),
             token: tokens::ACCENT_DEEP,
         },
         ColoredMessage {
-            text: "🏊 Diving into the logic depths...".to_string(),
+            text: Cow::Borrowed("🏊 Diving into the logic depths..."),
             token: tokens::ACCENT_SECONDARY,
         },
         ColoredMessage {
-            text: "⛏️ Mining for code gems...".to_string(),
+            text: Cow::Borrowed("⛏️ Mining for code gems..."),
             token: tokens::WARNING,
         },
         ColoredMessage {
-            text: "🌊 Flowing through your functions...".to_string(),
+            text: Cow::Borrowed("🌊 Flowing through your functions..."),
             token: tokens::ACCENT_SECONDARY,
         },
         // Warm & grounded
         ColoredMessage {
-            text: "☕ Taking a thoughtful look...".to_string(),
+            text: Cow::Borrowed("☕ Taking a thoughtful look..."),
             token: tokens::WARNING,
         },
         ColoredMessage {
-            text: "🎨 Appreciating your code craft...".to_string(),
+            text: Cow::Borrowed("🎨 Appreciating your code craft..."),
             token: tokens::ACCENT_TERTIARY,
         },
         ColoredMessage {
-            text: "🧩 Piecing together the full picture...".to_string(),
+            text: Cow::Borrowed("🧩 Piecing together the full picture..."),
             token: tokens::ACCENT_SECONDARY,
         },
         ColoredMessage {
-            text: "💎 Searching for rough edges to polish...".to_string(),
+            text: Cow::Borrowed("💎 Searching for rough edges to polish..."),
             token: tokens::ACCENT_SECONDARY,
         },
         ColoredMessage {
-            text: "🦉 Consulting the wise owl...".to_string(),
+            text: Cow::Borrowed("🦉 Consulting the wise owl..."),
             token: tokens::SUCCESS,
         },
         ColoredMessage {
-            text: "📜 Checking against best practices...".to_string(),
+            text: Cow::Borrowed("📜 Checking against best practices..."),
             token: tokens::WARNING,
         },
         ColoredMessage {
-            text: "🎵 Listening to your code's rhythm...".to_string(),
+            text: Cow::Borrowed("🎵 Listening to your code's rhythm..."),
             token: tokens::ACCENT_DEEP,
         },
         ColoredMessage {
-            text: "🌿 Tending the code garden...".to_string(),
+            text: Cow::Borrowed("🌿 Tending the code garden..."),
             token: tokens::SUCCESS,
         },
     ]
@@ -247,63 +248,63 @@ static REVIEW_WAITING_MESSAGES: LazyLock<Vec<ColoredMessage>> = LazyLock::new(||
 static USER_MESSAGES: LazyLock<Vec<ColoredMessage>> = LazyLock::new(|| {
     vec![
         ColoredMessage {
-            text: "🚀 Launching...".to_string(),
+            text: Cow::Borrowed("🚀 Launching..."),
             token: tokens::ERROR,
         },
         ColoredMessage {
-            text: "✨ Working magic...".to_string(),
+            text: Cow::Borrowed("✨ Working magic..."),
             token: tokens::TEXT_PRIMARY,
         },
         ColoredMessage {
-            text: "🔮 Divining...".to_string(),
+            text: Cow::Borrowed("🔮 Divining..."),
             token: tokens::ACCENT_DEEP,
         },
         ColoredMessage {
-            text: "⚡ Processing...".to_string(),
+            text: Cow::Borrowed("⚡ Processing..."),
             token: tokens::ACCENT_SECONDARY,
         },
         ColoredMessage {
-            text: "🌌 Exploring...".to_string(),
+            text: Cow::Borrowed("🌌 Exploring..."),
             token: tokens::ACCENT_SECONDARY,
         },
         ColoredMessage {
-            text: "🔬 Analyzing...".to_string(),
+            text: Cow::Borrowed("🔬 Analyzing..."),
             token: tokens::SUCCESS,
         },
         ColoredMessage {
-            text: "☕ Brewing...".to_string(),
+            text: Cow::Borrowed("☕ Brewing..."),
             token: tokens::WARNING,
         },
         ColoredMessage {
-            text: "🎨 Crafting...".to_string(),
+            text: Cow::Borrowed("🎨 Crafting..."),
             token: tokens::ACCENT_TERTIARY,
         },
         ColoredMessage {
-            text: "🧩 Piecing...".to_string(),
+            text: Cow::Borrowed("🧩 Piecing..."),
             token: tokens::ACCENT_SECONDARY,
         },
         ColoredMessage {
-            text: "💎 Polishing...".to_string(),
+            text: Cow::Borrowed("💎 Polishing..."),
             token: tokens::ACCENT_SECONDARY,
         },
         ColoredMessage {
-            text: "🎵 Composing...".to_string(),
+            text: Cow::Borrowed("🎵 Composing..."),
             token: tokens::ACCENT_DEEP,
         },
         ColoredMessage {
-            text: "🌊 Flowing...".to_string(),
+            text: Cow::Borrowed("🌊 Flowing..."),
             token: tokens::SUCCESS,
         },
         ColoredMessage {
-            text: "🔭 Scanning...".to_string(),
+            text: Cow::Borrowed("🔭 Scanning..."),
             token: tokens::WARNING,
         },
         ColoredMessage {
-            text: "🧪 Testing...".to_string(),
+            text: Cow::Borrowed("🧪 Testing..."),
             token: tokens::WARNING,
         },
         ColoredMessage {
-            text: "🌿 Growing...".to_string(),
+            text: Cow::Borrowed("🌿 Growing..."),
             token: tokens::SUCCESS,
         },
     ]
@@ -314,8 +315,8 @@ pub fn get_waiting_message() -> ColoredMessage {
     WAITING_MESSAGES
         .choose(&mut rng)
         .cloned()
-        .unwrap_or_else(|| ColoredMessage {
-            text: "Processing your request...".to_string(),
+        .unwrap_or(ColoredMessage {
+            text: Cow::Borrowed("Processing your request..."),
             token: tokens::WARNING,
         })
 }
@@ -325,8 +326,8 @@ pub fn get_review_waiting_message() -> ColoredMessage {
     REVIEW_WAITING_MESSAGES
         .choose(&mut rng)
         .cloned()
-        .unwrap_or_else(|| ColoredMessage {
-            text: "Analyzing your code quality...".to_string(),
+        .unwrap_or(ColoredMessage {
+            text: Cow::Borrowed("Analyzing your code quality..."),
             token: tokens::ACCENT_DEEP,
         })
 }
@@ -347,35 +348,35 @@ static PR_WAITING_MESSAGES: std::sync::LazyLock<Vec<ColoredMessage>> =
     std::sync::LazyLock::new(|| {
         vec![
             ColoredMessage {
-                text: "🔮 Crafting your PR narrative...".to_string(),
+                text: Cow::Borrowed("🔮 Crafting your PR narrative..."),
                 token: tokens::ACCENT_DEEP,
             },
             ColoredMessage {
-                text: "✨ Weaving your commits into a story...".to_string(),
+                text: Cow::Borrowed("✨ Weaving your commits into a story..."),
                 token: tokens::TEXT_PRIMARY,
             },
             ColoredMessage {
-                text: "📝 Summarizing your brilliant work...".to_string(),
+                text: Cow::Borrowed("📝 Summarizing your brilliant work..."),
                 token: tokens::ACCENT_SECONDARY,
             },
             ColoredMessage {
-                text: "🎯 Distilling the essence of your changes...".to_string(),
+                text: Cow::Borrowed("🎯 Distilling the essence of your changes..."),
                 token: tokens::ACCENT_SECONDARY,
             },
             ColoredMessage {
-                text: "🌟 Highlighting your contributions...".to_string(),
+                text: Cow::Borrowed("🌟 Highlighting your contributions..."),
                 token: tokens::SUCCESS,
             },
             ColoredMessage {
-                text: "📋 Building your PR description...".to_string(),
+                text: Cow::Borrowed("📋 Building your PR description..."),
                 token: tokens::WARNING,
             },
             ColoredMessage {
-                text: "🎨 Painting the PR picture...".to_string(),
+                text: Cow::Borrowed("🎨 Painting the PR picture..."),
                 token: tokens::ACCENT_TERTIARY,
             },
             ColoredMessage {
-                text: "🧵 Threading your commits together...".to_string(),
+                text: Cow::Borrowed("🧵 Threading your commits together..."),
                 token: tokens::WARNING,
             },
         ]
@@ -385,35 +386,35 @@ static CHANGELOG_WAITING_MESSAGES: std::sync::LazyLock<Vec<ColoredMessage>> =
     std::sync::LazyLock::new(|| {
         vec![
             ColoredMessage {
-                text: "📜 Chronicling your changes...".to_string(),
+                text: Cow::Borrowed("📜 Chronicling your changes..."),
                 token: tokens::ACCENT_DEEP,
             },
             ColoredMessage {
-                text: "✨ Cataloging your accomplishments...".to_string(),
+                text: Cow::Borrowed("✨ Cataloging your accomplishments..."),
                 token: tokens::TEXT_PRIMARY,
             },
             ColoredMessage {
-                text: "📖 Writing the history of your code...".to_string(),
+                text: Cow::Borrowed("📖 Writing the history of your code..."),
                 token: tokens::ACCENT_SECONDARY,
             },
             ColoredMessage {
-                text: "🏛️ Archiving your progress...".to_string(),
+                text: Cow::Borrowed("🏛️ Archiving your progress..."),
                 token: tokens::ACCENT_SECONDARY,
             },
             ColoredMessage {
-                text: "🔖 Tagging your milestones...".to_string(),
+                text: Cow::Borrowed("🔖 Tagging your milestones..."),
                 token: tokens::SUCCESS,
             },
             ColoredMessage {
-                text: "📝 Documenting the journey...".to_string(),
+                text: Cow::Borrowed("📝 Documenting the journey..."),
                 token: tokens::WARNING,
             },
             ColoredMessage {
-                text: "🗂️ Organizing your achievements...".to_string(),
+                text: Cow::Borrowed("🗂️ Organizing your achievements..."),
                 token: tokens::ACCENT_TERTIARY,
             },
             ColoredMessage {
-                text: "⚡ Capturing the deltas...".to_string(),
+                text: Cow::Borrowed("⚡ Capturing the deltas..."),
                 token: tokens::WARNING,
             },
         ]
@@ -423,35 +424,35 @@ static RELEASE_NOTES_WAITING_MESSAGES: std::sync::LazyLock<Vec<ColoredMessage>> 
     std::sync::LazyLock::new(|| {
         vec![
             ColoredMessage {
-                text: "🚀 Preparing launch notes...".to_string(),
+                text: Cow::Borrowed("🚀 Preparing launch notes..."),
                 token: tokens::ERROR,
             },
             ColoredMessage {
-                text: "✨ Polishing the release highlights...".to_string(),
+                text: Cow::Borrowed("✨ Polishing the release highlights..."),
                 token: tokens::TEXT_PRIMARY,
             },
             ColoredMessage {
-                text: "📣 Announcing your achievements...".to_string(),
+                text: Cow::Borrowed("📣 Announcing your achievements..."),
                 token: tokens::ACCENT_DEEP,
             },
             ColoredMessage {
-                text: "🎉 Celebrating the release...".to_string(),
+                text: Cow::Borrowed("🎉 Celebrating the release..."),
                 token: tokens::SUCCESS,
             },
             ColoredMessage {
-                text: "📦 Packaging the release story...".to_string(),
+                text: Cow::Borrowed("📦 Packaging the release story..."),
                 token: tokens::ACCENT_SECONDARY,
             },
             ColoredMessage {
-                text: "🌟 Showcasing new features...".to_string(),
+                text: Cow::Borrowed("🌟 Showcasing new features..."),
                 token: tokens::ACCENT_SECONDARY,
             },
             ColoredMessage {
-                text: "📢 Composing the release fanfare...".to_string(),
+                text: Cow::Borrowed("📢 Composing the release fanfare..."),
                 token: tokens::WARNING,
             },
             ColoredMessage {
-                text: "🎊 Wrapping up the release...".to_string(),
+                text: Cow::Borrowed("🎊 Wrapping up the release..."),
                 token: tokens::ACCENT_TERTIARY,
             },
         ]
@@ -462,8 +463,8 @@ fn get_pr_waiting_message() -> ColoredMessage {
     PR_WAITING_MESSAGES
         .choose(&mut rng)
         .cloned()
-        .unwrap_or_else(|| ColoredMessage {
-            text: "Building PR description...".to_string(),
+        .unwrap_or(ColoredMessage {
+            text: Cow::Borrowed("Building PR description..."),
             token: tokens::ACCENT_DEEP,
         })
 }
@@ -473,8 +474,8 @@ fn get_changelog_waiting_message() -> ColoredMessage {
     CHANGELOG_WAITING_MESSAGES
         .choose(&mut rng)
         .cloned()
-        .unwrap_or_else(|| ColoredMessage {
-            text: "Generating changelog...".to_string(),
+        .unwrap_or(ColoredMessage {
+            text: Cow::Borrowed("Generating changelog..."),
             token: tokens::ACCENT_SECONDARY,
         })
 }
@@ -484,8 +485,8 @@ fn get_release_notes_waiting_message() -> ColoredMessage {
     RELEASE_NOTES_WAITING_MESSAGES
         .choose(&mut rng)
         .cloned()
-        .unwrap_or_else(|| ColoredMessage {
-            text: "Creating release notes...".to_string(),
+        .unwrap_or(ColoredMessage {
+            text: Cow::Borrowed("Creating release notes..."),
             token: tokens::SUCCESS,
         })
 }
@@ -495,8 +496,8 @@ pub fn get_user_message() -> ColoredMessage {
     USER_MESSAGES
         .choose(&mut rng)
         .cloned()
-        .unwrap_or_else(|| ColoredMessage {
-            text: "What would you like to do?".to_string(),
+        .unwrap_or(ColoredMessage {
+            text: Cow::Borrowed("What would you like to do?"),
             token: tokens::ACCENT_SECONDARY,
         })
 }

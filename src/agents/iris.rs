@@ -14,6 +14,54 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
 
+/// Macro to build a streaming agent for any provider.
+///
+/// All three providers (`OpenAI`, `Anthropic`, `Gemini`) share identical setup logic —
+/// subagent creation, tool attachment, optional content update tools — differing
+/// only in the provider builder function. This macro eliminates that duplication.
+macro_rules! build_streaming_agent {
+    ($self:expr, $builder_fn:path, $fast_model:expr, $api_key:expr, $subagent_timeout:expr) => {{
+        use crate::agents::debug_tool::DebugTool;
+
+        // Build subagent
+        let sub_agent = crate::attach_core_tools!(
+            $builder_fn($fast_model, $api_key)?
+                .name("analyze_subagent")
+                .preamble("You are a specialized analysis sub-agent.")
+                .max_tokens(4096)
+        )
+        .build();
+
+        // Build main agent with tools
+        let builder = $builder_fn(&$self.model, $api_key)?
+            .preamble($self.preamble.as_deref().unwrap_or("You are Iris."))
+            .max_tokens(16384);
+
+        let builder = crate::attach_core_tools!(builder)
+            .tool(DebugTool::new(GitRepoInfo))
+            .tool(DebugTool::new($self.workspace.clone()))
+            .tool(DebugTool::new(ParallelAnalyze::with_timeout(
+                &$self.provider,
+                $fast_model,
+                $subagent_timeout,
+                $api_key,
+            )?))
+            .tool(sub_agent);
+
+        // Conditionally attach content update tools for chat mode
+        if let Some(sender) = &$self.content_update_sender {
+            use crate::agents::tools::{UpdateCommitTool, UpdatePRTool, UpdateReviewTool};
+            Ok(builder
+                .tool(DebugTool::new(UpdateCommitTool::new(sender.clone())))
+                .tool(DebugTool::new(UpdatePRTool::new(sender.clone())))
+                .tool(DebugTool::new(UpdateReviewTool::new(sender.clone())))
+                .build())
+        } else {
+            Ok(builder.build())
+        }
+    }};
+}
+
 // Embed capability TOML files at compile time so they're always available
 const CAPABILITY_COMMIT: &str = include_str!("capabilities/commit.toml");
 const CAPABILITY_PR: &str = include_str!("capabilities/pr.toml");
@@ -1041,56 +1089,30 @@ Guidelines:
         }
     }
 
-    /// Build `OpenAI` agent for streaming (with tools attached)
-    fn build_openai_agent_for_streaming(
-        &self,
-        _prompt: &str,
-    ) -> Result<rig::agent::Agent<provider::OpenAIModel>> {
-        use crate::agents::debug_tool::DebugTool;
-
+    /// Shared streaming agent configuration
+    fn streaming_agent_config(&self) -> (&str, Option<&str>, u64) {
         let fast_model = self.effective_fast_model();
         let api_key = self.get_api_key();
         let subagent_timeout = self
             .config
             .as_ref()
             .map_or(120, |c| c.subagent_timeout_secs);
+        (fast_model, api_key, subagent_timeout)
+    }
 
-        // Build subagent
-        let sub_agent = crate::attach_core_tools!(
-            provider::openai_builder(fast_model, api_key)?
-                .name("analyze_subagent")
-                .preamble("You are a specialized analysis sub-agent.")
-                .max_tokens(4096)
+    /// Build `OpenAI` agent for streaming (with tools attached)
+    fn build_openai_agent_for_streaming(
+        &self,
+        _prompt: &str,
+    ) -> Result<rig::agent::Agent<provider::OpenAIModel>> {
+        let (fast_model, api_key, subagent_timeout) = self.streaming_agent_config();
+        build_streaming_agent!(
+            self,
+            provider::openai_builder,
+            fast_model,
+            api_key,
+            subagent_timeout
         )
-        .build();
-
-        // Build main agent with tools
-        let builder = provider::openai_builder(&self.model, api_key)?
-            .preamble(self.preamble.as_deref().unwrap_or("You are Iris."))
-            .max_tokens(16384);
-
-        let builder = crate::attach_core_tools!(builder)
-            .tool(DebugTool::new(GitRepoInfo))
-            .tool(DebugTool::new(self.workspace.clone()))
-            .tool(DebugTool::new(ParallelAnalyze::with_timeout(
-                &self.provider,
-                fast_model,
-                subagent_timeout,
-                api_key,
-            )?))
-            .tool(sub_agent);
-
-        // Conditionally attach content update tools for chat mode
-        if let Some(sender) = &self.content_update_sender {
-            use crate::agents::tools::{UpdateCommitTool, UpdatePRTool, UpdateReviewTool};
-            Ok(builder
-                .tool(DebugTool::new(UpdateCommitTool::new(sender.clone())))
-                .tool(DebugTool::new(UpdatePRTool::new(sender.clone())))
-                .tool(DebugTool::new(UpdateReviewTool::new(sender.clone())))
-                .build())
-        } else {
-            Ok(builder.build())
-        }
     }
 
     /// Build Anthropic agent for streaming (with tools attached)
@@ -1098,51 +1120,14 @@ Guidelines:
         &self,
         _prompt: &str,
     ) -> Result<rig::agent::Agent<provider::AnthropicModel>> {
-        use crate::agents::debug_tool::DebugTool;
-
-        let fast_model = self.effective_fast_model();
-        let api_key = self.get_api_key();
-        let subagent_timeout = self
-            .config
-            .as_ref()
-            .map_or(120, |c| c.subagent_timeout_secs);
-
-        // Build subagent
-        let sub_agent = crate::attach_core_tools!(
-            provider::anthropic_builder(fast_model, api_key)?
-                .name("analyze_subagent")
-                .preamble("You are a specialized analysis sub-agent.")
-                .max_tokens(4096)
+        let (fast_model, api_key, subagent_timeout) = self.streaming_agent_config();
+        build_streaming_agent!(
+            self,
+            provider::anthropic_builder,
+            fast_model,
+            api_key,
+            subagent_timeout
         )
-        .build();
-
-        // Build main agent with tools
-        let builder = provider::anthropic_builder(&self.model, api_key)?
-            .preamble(self.preamble.as_deref().unwrap_or("You are Iris."))
-            .max_tokens(16384);
-
-        let builder = crate::attach_core_tools!(builder)
-            .tool(DebugTool::new(GitRepoInfo))
-            .tool(DebugTool::new(self.workspace.clone()))
-            .tool(DebugTool::new(ParallelAnalyze::with_timeout(
-                &self.provider,
-                fast_model,
-                subagent_timeout,
-                api_key,
-            )?))
-            .tool(sub_agent);
-
-        // Conditionally attach content update tools for chat mode
-        if let Some(sender) = &self.content_update_sender {
-            use crate::agents::tools::{UpdateCommitTool, UpdatePRTool, UpdateReviewTool};
-            Ok(builder
-                .tool(DebugTool::new(UpdateCommitTool::new(sender.clone())))
-                .tool(DebugTool::new(UpdatePRTool::new(sender.clone())))
-                .tool(DebugTool::new(UpdateReviewTool::new(sender.clone())))
-                .build())
-        } else {
-            Ok(builder.build())
-        }
     }
 
     /// Build Gemini agent for streaming (with tools attached)
@@ -1150,51 +1135,14 @@ Guidelines:
         &self,
         _prompt: &str,
     ) -> Result<rig::agent::Agent<provider::GeminiModel>> {
-        use crate::agents::debug_tool::DebugTool;
-
-        let fast_model = self.effective_fast_model();
-        let api_key = self.get_api_key();
-        let subagent_timeout = self
-            .config
-            .as_ref()
-            .map_or(120, |c| c.subagent_timeout_secs);
-
-        // Build subagent
-        let sub_agent = crate::attach_core_tools!(
-            provider::gemini_builder(fast_model, api_key)?
-                .name("analyze_subagent")
-                .preamble("You are a specialized analysis sub-agent.")
-                .max_tokens(4096)
+        let (fast_model, api_key, subagent_timeout) = self.streaming_agent_config();
+        build_streaming_agent!(
+            self,
+            provider::gemini_builder,
+            fast_model,
+            api_key,
+            subagent_timeout
         )
-        .build();
-
-        // Build main agent with tools
-        let builder = provider::gemini_builder(&self.model, api_key)?
-            .preamble(self.preamble.as_deref().unwrap_or("You are Iris."))
-            .max_tokens(16384);
-
-        let builder = crate::attach_core_tools!(builder)
-            .tool(DebugTool::new(GitRepoInfo))
-            .tool(DebugTool::new(self.workspace.clone()))
-            .tool(DebugTool::new(ParallelAnalyze::with_timeout(
-                &self.provider,
-                fast_model,
-                subagent_timeout,
-                api_key,
-            )?))
-            .tool(sub_agent);
-
-        // Conditionally attach content update tools for chat mode
-        if let Some(sender) = &self.content_update_sender {
-            use crate::agents::tools::{UpdateCommitTool, UpdatePRTool, UpdateReviewTool};
-            Ok(builder
-                .tool(DebugTool::new(UpdateCommitTool::new(sender.clone())))
-                .tool(DebugTool::new(UpdatePRTool::new(sender.clone())))
-                .tool(DebugTool::new(UpdateReviewTool::new(sender.clone())))
-                .build())
-        } else {
-            Ok(builder.build())
-        }
     }
 
     /// Load capability configuration from embedded TOML, returning both prompt and output type

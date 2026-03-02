@@ -1,5 +1,6 @@
 use crate::messages::ColoredMessage;
 use crate::theme::names::tokens;
+use std::borrow::Cow;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -271,7 +272,7 @@ impl IrisStatusTracker {
     pub fn get_for_spinner(&self) -> ColoredMessage {
         let status = self.get_current();
         ColoredMessage {
-            text: status.format_for_display(),
+            text: Cow::Owned(status.format_for_display()),
             token: status.token,
         }
     }

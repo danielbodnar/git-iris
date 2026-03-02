@@ -256,7 +256,7 @@ mod tests {
                 assert!(key.is_none());
             }
             ApiKeySource::Config => {
-                panic!("Should not return Config source when config is None");
+                unreachable!("Should not return Config source when config is None");
             }
         }
     }
