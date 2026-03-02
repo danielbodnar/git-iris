@@ -1,3 +1,53 @@
+## [2.0.6] - 2026-03-02
+
+This release migrates the **theme engine to the standalone Opaline library** (removing ~3,600 lines of code), adds **Google/Gemini support for parallel subagents**, and improves **API key security** with validation and sanitized error messages.
+
+### Added
+
+- ✨ Add **Google/Gemini provider support** to `parallel_analyze` subagents alongside OpenAI and Anthropic (14c27a9)
+- ✨ Expand OpenAI API key validation to accept both `sk-` and `sk-proj-` prefixes for project-scoped keys
+- ✨ Add `api_key_if_set()` helper to `ProviderConfig` for cleaner empty-string handling
+- ✨ Add content update tools (`UpdateCommitTool`, `UpdatePRTool`, `UpdateReviewTool`) to agent builders for chat mode (f241f14)
+
+### Changed
+
+- ♻️ Replace custom theme engine with **Opaline library** (`opaline = "0.2.0"`), removing entire `src/theme/` directory (~4,262 lines) (7f364d1)
+- ♻️ Replace hardcoded theme token strings with `opaline::names` constants for compile-time validation (4eeb8c3)
+- ⬆️ Upgrade dependencies: `ratatui` 0.29→0.30, `crossterm` 0.28→0.29, `tui-textarea`→`ratatui-textarea` 0.8.0
+- ♻️ Replace `DynClientBuilder` with explicit provider dispatch using `DynAgent` enum for rig-core 0.27+ compatibility (dfbd9c5)
+- ♻️ Switch Studio generation tasks from streaming to non-streaming execution for clean structured output parsing (228afda)
+- ♻️ Migrate CI/CD workflows to shared-workflows repository, reducing workflow files from 887→654 lines (1ff091d)
+- ⬆️ Bump GitHub Actions: `actions/checkout` v4→v6, `actions/setup-node` v4→v6, `docker/build-push-action` v5→v6
+- ♻️ Switch to **OIDC trusted publishing** for crates.io via `rust-lang/crates-io-auth-action`
+- ♻️ Apply Clippy suggestions: `sort_by_key`, `is_ok_and()`, `checked_div()` for idiomatic Rust patterns (d66dd2f)
+- ♻️ Replace `unwrap()` with `expect()` in tests for clearer failure diagnostics (5d5f81e)
+
+### Fixed
+
+- 🐛 Remove silent fallback to OpenAI when configured provider fails in `parallel_analyze`—now returns clear error (713a9fe)
+- 🐛 Fix state management: mark state dirty when opening settings modal, load file tree when switching to Explore mode (5dd47cd)
+- 🐛 Fix theme tests to handle parallel execution safely by removing global state assertions (be64764)
+- 🐛 Replace panicking `unwrap`/`expect` calls with proper error handling in `ParallelAnalyze`, `FileWatcherService`, and `GitRepo` (ee4a7df)
+
+### Security
+
+- 🔒️ **Prevent API key exposure in error messages**: sanitize client creation errors to avoid leaking key material (aeefd91)
+- 🔒️ Add `validate_api_key_format()` for format validation (prefix and length checks) to catch misconfigurations early (d2b02e6)
+- 🔒️ Make `resolve_api_key()` and `ApiKeySource` public for consistent resolution across codebase
+- 🔒️ Update test assertions to verify error messages don't contain key fragments
+
+### Removed
+
+- 🔥 Remove entire `src/theme/` directory (36 files): `color.rs`, `gradient.rs`, `schema.rs`, `loader.rs`, `resolver.rs`, adapters, and 13 builtin theme TOML files
+- 🔥 Remove unused dependencies: `once_cell`, `tiktoken-rs`, `tokio-retry`
+
+### Metrics
+
+- Total Commits: 14
+- Files Changed: 61
+- Insertions: +611
+- Deletions: -4,987
+
 ## [2.0.4] - 2026-01-09
 
 This release improves **API key management** with config-based credential resolution, adds **Google/Gemini support** for parallel analysis subagents, and strengthens error handling across provider operations.
