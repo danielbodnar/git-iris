@@ -704,3 +704,135 @@ pub fn handle_list_presets_command() -> Result<()> {
 
     Ok(())
 }
+
+/// Marker comment embedded in hooks installed by git-iris
+const HOOK_MARKER: &str = "# Installed by git-iris";
+
+/// Handle the `hook` command - install or uninstall the prepare-commit-msg hook
+pub fn handle_hook_command(action: &crate::cli::HookAction) -> Result<()> {
+    match action {
+        crate::cli::HookAction::Install { force } => handle_hook_install(*force),
+        crate::cli::HookAction::Uninstall => handle_hook_uninstall(),
+    }
+}
+
+/// Install the prepare-commit-msg hook
+fn handle_hook_install(force: bool) -> Result<()> {
+    use std::fs;
+
+    let hook_dir = find_git_hooks_dir()?;
+    let hook_path = hook_dir.join("prepare-commit-msg");
+
+    // Check for existing hook
+    if hook_path.exists() {
+        let existing = fs::read_to_string(&hook_path).context("Failed to read existing hook")?;
+
+        if existing.contains(HOOK_MARKER) {
+            let (r, g, b) = colors::success();
+            println!(
+                "{}",
+                "✨ Git-iris hook is already installed.".truecolor(r, g, b)
+            );
+            return Ok(());
+        }
+
+        if !force {
+            let (r, g, b) = colors::warning();
+            println!(
+                "{}",
+                "⚠️  A prepare-commit-msg hook already exists and was not installed by git-iris."
+                    .truecolor(r, g, b)
+            );
+            println!("{}", "   Use --force to overwrite it.".truecolor(r, g, b));
+            return Ok(());
+        }
+    }
+
+    let hook_content = format!(
+        "#!/bin/sh\n{HOOK_MARKER}\n# Generates an AI commit message using git-iris\nexec git-iris gen --print > \"$1\"\n"
+    );
+
+    fs::write(&hook_path, hook_content).context("Failed to write hook file")?;
+
+    // Make executable
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&hook_path, fs::Permissions::from_mode(0o755))
+            .context("Failed to set hook permissions")?;
+    }
+
+    let (r, g, b) = colors::success();
+    println!(
+        "{}",
+        "✨ prepare-commit-msg hook installed successfully!".truecolor(r, g, b)
+    );
+    println!(
+        "   {}",
+        format!("Hook path: {}", hook_path.display()).truecolor(r, g, b)
+    );
+    println!(
+        "   {}",
+        "AI commit messages will be generated automatically when you run 'git commit'."
+            .truecolor(r, g, b)
+    );
+
+    Ok(())
+}
+
+/// Uninstall the prepare-commit-msg hook
+fn handle_hook_uninstall() -> Result<()> {
+    use std::fs;
+
+    let hook_dir = find_git_hooks_dir()?;
+    let hook_path = hook_dir.join("prepare-commit-msg");
+
+    if !hook_path.exists() {
+        let (r, g, b) = colors::warning();
+        println!("{}", "No prepare-commit-msg hook found.".truecolor(r, g, b));
+        return Ok(());
+    }
+
+    let content = fs::read_to_string(&hook_path).context("Failed to read hook file")?;
+
+    if !content.contains(HOOK_MARKER) {
+        let (r, g, b) = colors::warning();
+        println!(
+            "{}",
+            "⚠️  The existing prepare-commit-msg hook was not installed by git-iris."
+                .truecolor(r, g, b)
+        );
+        println!(
+            "   {}",
+            "Refusing to remove it. Delete it manually if needed.".truecolor(r, g, b)
+        );
+        return Ok(());
+    }
+
+    fs::remove_file(&hook_path).context("Failed to remove hook file")?;
+
+    let (r, g, b) = colors::success();
+    println!(
+        "{}",
+        "✨ prepare-commit-msg hook uninstalled successfully.".truecolor(r, g, b)
+    );
+
+    Ok(())
+}
+
+/// Find the .git/hooks directory from the current repository
+fn find_git_hooks_dir() -> Result<std::path::PathBuf> {
+    use crate::git::GitRepo;
+
+    let repo_root = GitRepo::get_repo_root()
+        .context("Not in a Git repository. Run this command from within a Git repository.")?;
+
+    let hooks_dir = repo_root.join(".git").join("hooks");
+
+    // Create hooks dir if it doesn't exist
+    if !hooks_dir.exists() {
+        std::fs::create_dir_all(&hooks_dir).context("Failed to create .git/hooks directory")?;
+    }
+
+    Ok(hooks_dir)
+}

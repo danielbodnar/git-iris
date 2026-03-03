@@ -404,6 +404,32 @@ pub enum Commands {
         #[arg(value_enum)]
         shell: Shell,
     },
+
+    /// Manage Git hooks for automatic commit message generation
+    #[command(
+        about = "Install or uninstall the prepare-commit-msg Git hook",
+        long_about = "Install or uninstall a prepare-commit-msg Git hook that automatically generates commit messages using git-iris when you run 'git commit'."
+    )]
+    Hook {
+        /// Hook action to perform
+        #[command(subcommand)]
+        action: HookAction,
+    },
+}
+
+/// Hook management sub-commands
+#[derive(Subcommand)]
+pub enum HookAction {
+    /// Install the prepare-commit-msg hook
+    #[command(about = "Install the prepare-commit-msg hook")]
+    Install {
+        /// Overwrite an existing hook that wasn't installed by git-iris
+        #[arg(long, help = "Overwrite an existing hook not installed by git-iris")]
+        force: bool,
+    },
+    /// Uninstall the prepare-commit-msg hook
+    #[command(about = "Uninstall the prepare-commit-msg hook")]
+    Uninstall,
 }
 
 /// Define custom styles for Clap
@@ -1124,6 +1150,7 @@ pub async fn handle_command(
             handle_completions(shell);
             Ok(())
         }
+        Commands::Hook { action } => commands::handle_hook_command(&action),
         Commands::Pr {
             common,
             print,
