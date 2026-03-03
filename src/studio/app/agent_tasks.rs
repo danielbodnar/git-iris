@@ -9,6 +9,41 @@ use crate::studio::events::{BlameInfo, SemanticBlameResult, TaskType};
 
 impl StudioApp {
     // ═══════════════════════════════════════════════════════════════════════════════
+    // Generic Structured Task Spawner
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    /// Spawn a structured (non-streaming) agent task.
+    ///
+    /// Handles the common pattern shared by review, PR, changelog, and release notes:
+    /// agent availability check → status messages → `tokio::spawn` → result channel.
+    fn spawn_structured_task<F, Fut>(
+        &self,
+        task_type: TaskType,
+        agent_task: &super::super::events::AgentTask,
+        task_fn: F,
+    ) where
+        F: FnOnce(std::sync::Arc<crate::agents::IrisAgentService>) -> Fut + Send + 'static,
+        Fut: std::future::Future<Output = IrisTaskResult> + Send,
+    {
+        let Some(agent) = self.agent_service.clone() else {
+            let tx = self.iris_result_tx.clone();
+            let _ = tx.send(IrisTaskResult::Error {
+                task_type,
+                error: "Agent service not available".to_string(),
+            });
+            return;
+        };
+
+        self.spawn_status_messages(agent_task);
+        let tx = self.iris_result_tx.clone();
+
+        tokio::spawn(async move {
+            let result = task_fn(agent).await;
+            let _ = tx.send(result);
+        });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
     // Chat Query
     // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -293,53 +328,35 @@ Simply call the appropriate tool with the new content. Do NOT echo back the full
         use super::super::events::AgentTask;
         use crate::agents::{StructuredResponse, TaskContext};
 
-        let Some(agent) = self.agent_service.clone() else {
-            let tx = self.iris_result_tx.clone();
-            let _ = tx.send(IrisTaskResult::Error {
-                task_type: TaskType::Review,
-                error: "Agent service not available".to_string(),
-            });
-            return;
-        };
-
-        // Spawn dynamic status messages
         let task = AgentTask::Review {
             from_ref: from_ref.clone(),
             to_ref: to_ref.clone(),
         };
-        self.spawn_status_messages(&task);
 
-        let tx = self.iris_result_tx.clone();
-
-        tokio::spawn(async move {
-            // Use review context with specified refs
+        self.spawn_structured_task(TaskType::Review, &task, move |agent| async move {
             let context = match TaskContext::for_review(None, Some(from_ref), Some(to_ref), false) {
                 Ok(ctx) => ctx,
                 Err(e) => {
-                    let _ = tx.send(IrisTaskResult::Error {
+                    return IrisTaskResult::Error {
                         task_type: TaskType::Review,
-                        error: format!("Context error: {}", e),
-                    });
-                    return;
+                        error: format!("Context error: {e}"),
+                    };
                 }
             };
 
-            // Execute non-streaming for clean structured output
             match agent.execute_task("review", context).await {
                 Ok(response) => {
-                    let review_text = match response {
-                        StructuredResponse::MarkdownReview(review) => review.content,
-                        StructuredResponse::PlainText(text) => text,
+                    let text = match response {
+                        StructuredResponse::MarkdownReview(r) => r.content,
+                        StructuredResponse::PlainText(t) => t,
                         other => other.to_string(),
                     };
-                    let _ = tx.send(IrisTaskResult::ReviewContent(review_text));
+                    IrisTaskResult::ReviewContent(text)
                 }
-                Err(e) => {
-                    let _ = tx.send(IrisTaskResult::Error {
-                        task_type: TaskType::Review,
-                        error: format!("Review error: {}", e),
-                    });
-                }
+                Err(e) => IrisTaskResult::Error {
+                    task_type: TaskType::Review,
+                    error: format!("Review error: {e}"),
+                },
             }
         });
     }
@@ -353,44 +370,27 @@ Simply call the appropriate tool with the new content. Do NOT echo back the full
         use super::super::events::AgentTask;
         use crate::agents::{StructuredResponse, TaskContext};
 
-        let Some(agent) = self.agent_service.clone() else {
-            let tx = self.iris_result_tx.clone();
-            let _ = tx.send(IrisTaskResult::Error {
-                task_type: TaskType::PR,
-                error: "Agent service not available".to_string(),
-            });
-            return;
-        };
-
-        // Spawn dynamic status messages
         let task = AgentTask::PR {
             base_branch: base_branch.clone(),
             to_ref: to_ref.to_string(),
         };
-        self.spawn_status_messages(&task);
 
-        let tx = self.iris_result_tx.clone();
-
-        tokio::spawn(async move {
-            // Build context for PR (comparing current branch to base)
+        self.spawn_structured_task(TaskType::PR, &task, move |agent| async move {
             let context = TaskContext::for_pr(Some(base_branch), None);
 
-            // Execute non-streaming for clean structured output
             match agent.execute_task("pr", context).await {
                 Ok(response) => {
-                    let pr_text = match response {
+                    let text = match response {
                         StructuredResponse::PullRequest(pr) => pr.content,
-                        StructuredResponse::PlainText(text) => text,
+                        StructuredResponse::PlainText(t) => t,
                         other => other.to_string(),
                     };
-                    let _ = tx.send(IrisTaskResult::PRContent(pr_text));
+                    IrisTaskResult::PRContent(text)
                 }
-                Err(e) => {
-                    let _ = tx.send(IrisTaskResult::Error {
-                        task_type: TaskType::PR,
-                        error: format!("PR error: {}", e),
-                    });
-                }
+                Err(e) => IrisTaskResult::Error {
+                    task_type: TaskType::PR,
+                    error: format!("PR error: {e}"),
+                },
             }
         });
     }
@@ -404,44 +404,27 @@ Simply call the appropriate tool with the new content. Do NOT echo back the full
         use super::super::events::AgentTask;
         use crate::agents::{StructuredResponse, TaskContext};
 
-        let Some(agent) = self.agent_service.clone() else {
-            let tx = self.iris_result_tx.clone();
-            let _ = tx.send(IrisTaskResult::Error {
-                task_type: TaskType::Changelog,
-                error: "Agent service not available".to_string(),
-            });
-            return;
-        };
-
-        // Spawn dynamic status messages
         let task = AgentTask::Changelog {
             from_ref: from_ref.clone(),
             to_ref: to_ref.clone(),
         };
-        self.spawn_status_messages(&task);
 
-        let tx = self.iris_result_tx.clone();
-
-        tokio::spawn(async move {
-            // Build context for changelog (comparing two refs, date auto-set to today)
+        self.spawn_structured_task(TaskType::Changelog, &task, move |agent| async move {
             let context = TaskContext::for_changelog(from_ref, Some(to_ref), None, None);
 
-            // Execute non-streaming for clean structured output
             match agent.execute_task("changelog", context).await {
                 Ok(response) => {
-                    let changelog_text = match response {
+                    let text = match response {
                         StructuredResponse::Changelog(cl) => cl.content,
-                        StructuredResponse::PlainText(text) => text,
+                        StructuredResponse::PlainText(t) => t,
                         other => other.to_string(),
                     };
-                    let _ = tx.send(IrisTaskResult::ChangelogContent(changelog_text));
+                    IrisTaskResult::ChangelogContent(text)
                 }
-                Err(e) => {
-                    let _ = tx.send(IrisTaskResult::Error {
-                        task_type: TaskType::Changelog,
-                        error: format!("Changelog error: {}", e),
-                    });
-                }
+                Err(e) => IrisTaskResult::Error {
+                    task_type: TaskType::Changelog,
+                    error: format!("Changelog error: {e}"),
+                },
             }
         });
     }
@@ -455,44 +438,27 @@ Simply call the appropriate tool with the new content. Do NOT echo back the full
         use super::super::events::AgentTask;
         use crate::agents::{StructuredResponse, TaskContext};
 
-        let Some(agent) = self.agent_service.clone() else {
-            let tx = self.iris_result_tx.clone();
-            let _ = tx.send(IrisTaskResult::Error {
-                task_type: TaskType::ReleaseNotes,
-                error: "Agent service not available".to_string(),
-            });
-            return;
-        };
-
-        // Spawn dynamic status messages
         let task = AgentTask::ReleaseNotes {
             from_ref: from_ref.clone(),
             to_ref: to_ref.clone(),
         };
-        self.spawn_status_messages(&task);
 
-        let tx = self.iris_result_tx.clone();
-
-        tokio::spawn(async move {
-            // Build context for release notes (comparing two refs, date auto-set to today)
+        self.spawn_structured_task(TaskType::ReleaseNotes, &task, move |agent| async move {
             let context = TaskContext::for_changelog(from_ref, Some(to_ref), None, None);
 
-            // Execute non-streaming for clean structured output
             match agent.execute_task("release_notes", context).await {
                 Ok(response) => {
-                    let release_notes_text = match response {
+                    let text = match response {
                         StructuredResponse::ReleaseNotes(rn) => rn.content,
-                        StructuredResponse::PlainText(text) => text,
+                        StructuredResponse::PlainText(t) => t,
                         other => other.to_string(),
                     };
-                    let _ = tx.send(IrisTaskResult::ReleaseNotesContent(release_notes_text));
+                    IrisTaskResult::ReleaseNotesContent(text)
                 }
-                Err(e) => {
-                    let _ = tx.send(IrisTaskResult::Error {
-                        task_type: TaskType::ReleaseNotes,
-                        error: format!("Release notes error: {}", e),
-                    });
-                }
+                Err(e) => IrisTaskResult::Error {
+                    task_type: TaskType::ReleaseNotes,
+                    error: format!("Release notes error: {e}"),
+                },
             }
         });
     }

@@ -2145,20 +2145,67 @@ impl StudioApp {
         }
     }
 
-    /// Update PR mode data - load commits and diff between refs
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Shared Data Loading Helpers
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /// Load diff between two refs and return parsed diffs.
+    fn load_diff_between_refs(
+        &mut self,
+        repo: &crate::git::GitRepo,
+        from: &str,
+        to: &str,
+    ) -> Option<Vec<FileDiff>> {
+        match repo.get_ref_diff_full(from, to) {
+            Ok(diff_text) => Some(parse_diff(&diff_text)),
+            Err(e) => {
+                self.state
+                    .notify(Notification::warning(format!("Could not load diff: {e}")));
+                None
+            }
+        }
+    }
+
+    /// Load commits between two refs as `ChangelogCommit`.
+    fn load_changelog_commits(
+        &mut self,
+        repo: &crate::git::GitRepo,
+        from: &str,
+        to: &str,
+    ) -> Option<Vec<super::state::ChangelogCommit>> {
+        use super::state::ChangelogCommit;
+        match repo.get_commits_between_with_callback(from, to, |commit| {
+            Ok(ChangelogCommit {
+                hash: commit.hash[..7.min(commit.hash.len())].to_string(),
+                message: commit.message.lines().next().unwrap_or("").to_string(),
+                author: commit.author.clone(),
+            })
+        }) {
+            Ok(commits) => Some(commits),
+            Err(e) => {
+                self.state.notify(Notification::warning(format!(
+                    "Could not load commits: {e}"
+                )));
+                None
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Mode-Specific Data Updates
+    // ═══════════════════════════════════════════════════════════════════════════
+
     pub fn update_pr_data(&mut self, from_ref: Option<String>, to_ref: Option<String>) {
         use super::state::PrCommit;
 
-        // Clone the Arc to avoid borrow conflicts with self.state mutations
         let Some(repo) = self.state.repo.clone() else {
             return;
         };
 
-        // Use provided refs or fall back to state
         let base = from_ref.unwrap_or_else(|| self.state.modes.pr.base_branch.clone());
         let to = to_ref.unwrap_or_else(|| self.state.modes.pr.to_ref.clone());
 
-        // Load commits between the refs
+        // Load commits (PrCommit has same shape as ChangelogCommit)
         match repo.get_commits_between_with_callback(&base, &to, |commit| {
             Ok(PrCommit {
                 hash: commit.hash[..7.min(commit.hash.len())].to_string(),
@@ -2173,22 +2220,13 @@ impl StudioApp {
             }
             Err(e) => {
                 self.state.notify(Notification::warning(format!(
-                    "Could not load commits: {}",
-                    e
+                    "Could not load commits: {e}"
                 )));
             }
         }
 
-        // Load diff between the refs
-        match repo.get_ref_diff_full(&base, &to) {
-            Ok(diff_text) => {
-                let diffs = parse_diff(&diff_text);
-                self.state.modes.pr.diff_view.set_diffs(diffs);
-            }
-            Err(e) => {
-                self.state
-                    .notify(Notification::warning(format!("Could not load diff: {}", e)));
-            }
+        if let Some(diffs) = self.load_diff_between_refs(&repo, &base, &to) {
+            self.state.modes.pr.diff_view.set_diffs(diffs);
         }
 
         self.state.mark_dirty();
@@ -2196,38 +2234,27 @@ impl StudioApp {
 
     /// Update Review mode data - load diff between `from_ref` and `to_ref`
     pub fn update_review_data(&mut self, from_ref: Option<String>, to_ref: Option<String>) {
-        // Clone the Arc to avoid borrow conflicts with self.state mutations
         let Some(repo) = self.state.repo.clone() else {
             return;
         };
 
-        // Use provided refs or fall back to state
         let from = from_ref.unwrap_or_else(|| self.state.modes.review.from_ref.clone());
         let to = to_ref.unwrap_or_else(|| self.state.modes.review.to_ref.clone());
 
-        // Load diff between the refs
-        match repo.get_ref_diff_full(&from, &to) {
-            Ok(diff_text) => {
-                let diffs = parse_diff(&diff_text);
-                self.state.modes.review.diff_view.set_diffs(diffs.clone());
-
-                // Also update file tree from the diff files
-                let files: Vec<std::path::PathBuf> = diffs
-                    .iter()
-                    .map(|d| std::path::PathBuf::from(&d.path))
-                    .collect();
-                let statuses: Vec<_> = files
-                    .iter()
-                    .map(|p| (p.clone(), FileGitStatus::Modified))
-                    .collect();
-                let tree_state = super::components::FileTreeState::from_paths(&files, &statuses);
-                self.state.modes.review.file_tree = tree_state;
-                self.state.modes.review.file_tree.expand_all();
-            }
-            Err(e) => {
-                self.state
-                    .notify(Notification::warning(format!("Could not load diff: {}", e)));
-            }
+        if let Some(diffs) = self.load_diff_between_refs(&repo, &from, &to) {
+            // Update file tree from the diff files
+            let files: Vec<std::path::PathBuf> = diffs
+                .iter()
+                .map(|d| std::path::PathBuf::from(&d.path))
+                .collect();
+            let statuses: Vec<_> = files
+                .iter()
+                .map(|p| (p.clone(), FileGitStatus::Modified))
+                .collect();
+            let tree_state = super::components::FileTreeState::from_paths(&files, &statuses);
+            self.state.modes.review.file_tree = tree_state;
+            self.state.modes.review.file_tree.expand_all();
+            self.state.modes.review.diff_view.set_diffs(diffs);
         }
 
         self.state.mark_dirty();
@@ -2235,48 +2262,21 @@ impl StudioApp {
 
     /// Update Changelog mode data - load commits and diff between `from_ref` and `to_ref`
     pub fn update_changelog_data(&mut self, from_ref: Option<String>, to_ref: Option<String>) {
-        use super::state::ChangelogCommit;
-
-        // Clone the Arc to avoid borrow conflicts with self.state mutations
         let Some(repo) = self.state.repo.clone() else {
             return;
         };
 
-        // Use provided refs or fall back to state
         let from = from_ref.unwrap_or_else(|| self.state.modes.changelog.from_ref.clone());
         let to = to_ref.unwrap_or_else(|| self.state.modes.changelog.to_ref.clone());
 
-        // Load commits between the refs
-        match repo.get_commits_between_with_callback(&from, &to, |commit| {
-            Ok(ChangelogCommit {
-                hash: commit.hash[..7.min(commit.hash.len())].to_string(),
-                message: commit.message.lines().next().unwrap_or("").to_string(),
-                author: commit.author.clone(),
-            })
-        }) {
-            Ok(commits) => {
-                self.state.modes.changelog.commits = commits;
-                self.state.modes.changelog.selected_commit = 0;
-                self.state.modes.changelog.commit_scroll = 0;
-            }
-            Err(e) => {
-                self.state.notify(Notification::warning(format!(
-                    "Could not load commits: {}",
-                    e
-                )));
-            }
+        if let Some(commits) = self.load_changelog_commits(&repo, &from, &to) {
+            self.state.modes.changelog.commits = commits;
+            self.state.modes.changelog.selected_commit = 0;
+            self.state.modes.changelog.commit_scroll = 0;
         }
 
-        // Load diff between the refs
-        match repo.get_ref_diff_full(&from, &to) {
-            Ok(diff_text) => {
-                let diffs = parse_diff(&diff_text);
-                self.state.modes.changelog.diff_view.set_diffs(diffs);
-            }
-            Err(e) => {
-                self.state
-                    .notify(Notification::warning(format!("Could not load diff: {}", e)));
-            }
+        if let Some(diffs) = self.load_diff_between_refs(&repo, &from, &to) {
+            self.state.modes.changelog.diff_view.set_diffs(diffs);
         }
 
         self.state.mark_dirty();
@@ -2284,48 +2284,21 @@ impl StudioApp {
 
     /// Update release notes mode data when refs change
     pub fn update_release_notes_data(&mut self, from_ref: Option<String>, to_ref: Option<String>) {
-        use super::state::ChangelogCommit;
-
-        // Clone the Arc to avoid borrow conflicts with self.state mutations
         let Some(repo) = self.state.repo.clone() else {
             return;
         };
 
-        // Use provided refs or fall back to state
         let from = from_ref.unwrap_or_else(|| self.state.modes.release_notes.from_ref.clone());
         let to = to_ref.unwrap_or_else(|| self.state.modes.release_notes.to_ref.clone());
 
-        // Load commits between the refs
-        match repo.get_commits_between_with_callback(&from, &to, |commit| {
-            Ok(ChangelogCommit {
-                hash: commit.hash[..7.min(commit.hash.len())].to_string(),
-                message: commit.message.lines().next().unwrap_or("").to_string(),
-                author: commit.author.clone(),
-            })
-        }) {
-            Ok(commits) => {
-                self.state.modes.release_notes.commits = commits;
-                self.state.modes.release_notes.selected_commit = 0;
-                self.state.modes.release_notes.commit_scroll = 0;
-            }
-            Err(e) => {
-                self.state.notify(Notification::warning(format!(
-                    "Could not load commits: {}",
-                    e
-                )));
-            }
+        if let Some(commits) = self.load_changelog_commits(&repo, &from, &to) {
+            self.state.modes.release_notes.commits = commits;
+            self.state.modes.release_notes.selected_commit = 0;
+            self.state.modes.release_notes.commit_scroll = 0;
         }
 
-        // Load diff between the refs
-        match repo.get_ref_diff_full(&from, &to) {
-            Ok(diff_text) => {
-                let diffs = parse_diff(&diff_text);
-                self.state.modes.release_notes.diff_view.set_diffs(diffs);
-            }
-            Err(e) => {
-                self.state
-                    .notify(Notification::warning(format!("Could not load diff: {}", e)));
-            }
+        if let Some(diffs) = self.load_diff_between_refs(&repo, &from, &to) {
+            self.state.modes.release_notes.diff_view.set_diffs(diffs);
         }
 
         self.state.mark_dirty();
