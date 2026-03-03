@@ -469,6 +469,11 @@ pub async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
+    // Initialize logger with appropriate filter level — must happen before any log calls
+    if let Err(e) = crate::logger::init(cli.log) {
+        eprintln!("Warning: Failed to initialize logging: {e}");
+    }
+
     if cli.log {
         crate::logger::enable_logging();
         crate::logger::set_log_to_stdout(true);
@@ -739,9 +744,13 @@ fn handle_config(
     subagent_timeout: Option<u64>,
 ) -> anyhow::Result<()> {
     log_debug!(
-        "Handling 'config' command with common: {:?}, api_key: {:?}, model: {:?}, token_limit: {:?}, param: {:?}, subagent_timeout: {:?}",
+        "Handling 'config' command with common: {:?}, api_key: {}, model: {:?}, token_limit: {:?}, param: {:?}, subagent_timeout: {:?}",
         common,
-        api_key,
+        if api_key.is_some() {
+            "[REDACTED]"
+        } else {
+            "<none>"
+        },
         model,
         token_limit,
         param,

@@ -56,8 +56,12 @@ impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for UnifiedWriter {
     }
 }
 
-/// Initialize unified logging system using tracing
-pub fn init() -> Result<(), Box<dyn std::error::Error>> {
+/// Initialize unified logging system using tracing.
+///
+/// `debug` enables debug-level output for git-iris and rig crates. When false,
+/// only warnings and errors pass through the tracing filter. This must be called
+/// after CLI flags are parsed so `--log` can raise the level.
+pub fn init(debug: bool) -> Result<(), Box<dyn std::error::Error>> {
     use std::sync::{Once, OnceLock};
     static INIT: Once = Once::new();
     static INIT_RESULT: OnceLock<Result<(), String>> = OnceLock::new();
@@ -67,7 +71,9 @@ pub fn init() -> Result<(), Box<dyn std::error::Error>> {
         let verbose_from_env = std::env::var("GIT_IRIS_VERBOSE").is_ok()
             || std::env::var("RUST_LOG").is_ok_and(|v| v.contains("debug") || v.contains("trace"));
 
-        if verbose_from_env {
+        let verbose = debug || verbose_from_env;
+
+        if verbose {
             set_verbose_logging(true);
             set_log_to_stdout(true);
         }
@@ -76,9 +82,8 @@ pub fn init() -> Result<(), Box<dyn std::error::Error>> {
         enable_logging();
 
         // Set up tracing subscriber with unified writer (for Rig logs)
-        // Default: only warnings/errors. Debug requires RUST_LOG or --log flag
         let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-            if verbose_from_env {
+            if verbose {
                 "git_iris=debug,iris=debug,rig=info,warn".into()
             } else {
                 // Silent by default - no debug spam

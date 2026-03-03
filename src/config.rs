@@ -244,8 +244,7 @@ impl Config {
 
         let config_path = Self::get_config_path()?;
         let content = toml::to_string_pretty(self)?;
-        fs::write(&config_path, content)?;
-        Self::restrict_permissions(&config_path);
+        Self::write_config_file(&config_path, &content)?;
         log_debug!("Configuration saved");
         Ok(())
     }
@@ -263,24 +262,38 @@ impl Config {
         }
 
         let content = toml::to_string_pretty(&project_config)?;
-        fs::write(&config_path, content)?;
-        Self::restrict_permissions(&config_path);
+        Self::write_config_file(&config_path, &content)?;
         Ok(())
     }
 
-    /// Restrict file permissions to owner-only on Unix (0o600).
-    /// Config files may contain API keys, so they shouldn't be world-readable.
-    #[cfg(unix)]
-    fn restrict_permissions(path: &Path) {
-        use std::os::unix::fs::PermissionsExt;
-        let perms = fs::Permissions::from_mode(0o600);
-        // Best-effort — don't fail the save if permission change fails
-        let _ = fs::set_permissions(path, perms);
-    }
+    /// Write content to a config file with restricted permissions.
+    ///
+    /// On Unix, creates a temp file with 0o600 permissions first, writes content,
+    /// then renames into place — so the target path is never world-readable.
+    /// Warns (via stderr) if permission hardening fails rather than silently ignoring.
+    fn write_config_file(path: &Path, content: &str) -> Result<()> {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
 
-    #[cfg(not(unix))]
-    fn restrict_permissions(_path: &Path) {
-        // No-op on non-Unix platforms
+            // Write to a sibling temp file so rename is atomic on the same filesystem
+            let tmp_path = path.with_extension("tmp");
+            fs::write(&tmp_path, content)?;
+            if let Err(e) = fs::set_permissions(&tmp_path, fs::Permissions::from_mode(0o600)) {
+                eprintln!(
+                    "Warning: Could not restrict config permissions on {}: {e}",
+                    tmp_path.display()
+                );
+            }
+            fs::rename(&tmp_path, path)?;
+        }
+
+        #[cfg(not(unix))]
+        {
+            fs::write(path, content)?;
+        }
+
+        Ok(())
     }
 
     /// Get path to personal config file

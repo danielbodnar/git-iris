@@ -4,9 +4,7 @@ use git_iris::cli;
 /// Main entry point for the application
 #[tokio::main]
 async fn main() -> Result<()> {
-    if let Err(e) = git_iris::logger::init() {
-        eprintln!("Warning: Failed to initialize logging: {e}");
-    }
+    // Logger init is deferred to cli::main() so --log flag can raise the tracing level
     match cli::main().await {
         Ok(()) => Ok(()),
         Err(e) => {

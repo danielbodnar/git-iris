@@ -72,7 +72,8 @@ impl CodeSearch {
                 cmd.args(["-e", query]);
             }
             _ => {
-                cmd.args(["-i", query]); // case-insensitive text search (literal, no regex)
+                // Fixed-string literal search — -F disables regex interpretation
+                cmd.args(["-F", "-i", query]);
             }
         }
 

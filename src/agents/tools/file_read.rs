@@ -175,12 +175,19 @@ impl Tool for FileRead {
             ));
         }
 
-        // Guard against excessively large files (10 MB)
+        // Guard against excessively large files (10 MB) for full reads.
+        // Partial reads (start_line/num_lines specified) are allowed — the line-based
+        // slicing below limits memory regardless of file size.
+        // Open once to avoid TOCTOU between metadata check and read.
         const MAX_FILE_SIZE: u64 = 10 * 1024 * 1024;
-        let metadata = fs::metadata(&canonical_file).map_err(|e| FileReadError(e.to_string()))?;
-        if metadata.len() > MAX_FILE_SIZE {
+        let is_partial_read = args.start_line.is_some() || args.num_lines.is_some();
+        let file_len = fs::metadata(&canonical_file)
+            .map_err(|e| FileReadError(e.to_string()))?
+            .len();
+
+        if !is_partial_read && file_len > MAX_FILE_SIZE {
             #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
-            let size_mb = metadata.len() as f64 / (1024.0 * 1024.0);
+            let size_mb = file_len as f64 / (1024.0 * 1024.0);
             return Err(FileReadError(format!(
                 "File too large ({size_mb:.1} MB). Max is 10 MB. Use start_line/num_lines for partial reads.",
             )));

@@ -204,9 +204,13 @@ pub fn handle_config_command(
     subagent_timeout: Option<u64>,
 ) -> anyhow::Result<()> {
     log_debug!(
-        "Starting 'config' command with common: {:?}, api_key: {:?}, model: {:?}, token_limit: {:?}, param: {:?}, subagent_timeout: {:?}",
+        "Starting 'config' command with common: {:?}, api_key: {}, model: {:?}, token_limit: {:?}, param: {:?}, subagent_timeout: {:?}",
         common,
-        api_key,
+        if api_key.is_some() {
+            "[REDACTED]"
+        } else {
+            "<none>"
+        },
         model,
         token_limit,
         param,
@@ -723,6 +727,17 @@ fn handle_hook_install(force: bool) -> Result<()> {
     let hook_dir = find_git_hooks_dir()?;
     let hook_path = hook_dir.join("prepare-commit-msg");
 
+    // Reject symlinks to prevent redirect attacks
+    if hook_path
+        .symlink_metadata()
+        .is_ok_and(|m| m.file_type().is_symlink())
+    {
+        anyhow::bail!(
+            "Hook path is a symlink — refusing to write. Remove it manually: {}",
+            hook_path.display()
+        );
+    }
+
     // Check for existing hook
     if hook_path.exists() {
         let existing = fs::read_to_string(&hook_path).context("Failed to read existing hook")?;
@@ -787,6 +802,17 @@ fn handle_hook_uninstall() -> Result<()> {
     let hook_dir = find_git_hooks_dir()?;
     let hook_path = hook_dir.join("prepare-commit-msg");
 
+    // Reject symlinks to prevent redirect attacks
+    if hook_path
+        .symlink_metadata()
+        .is_ok_and(|m| m.file_type().is_symlink())
+    {
+        anyhow::bail!(
+            "Hook path is a symlink — refusing to remove. Delete it manually: {}",
+            hook_path.display()
+        );
+    }
+
     if !hook_path.exists() {
         let (r, g, b) = colors::warning();
         println!("{}", "No prepare-commit-msg hook found.".truecolor(r, g, b));
@@ -820,18 +846,29 @@ fn handle_hook_uninstall() -> Result<()> {
     Ok(())
 }
 
-/// Find the .git/hooks directory from the current repository
+/// Find the hooks directory using libgit2.
+///
+/// Uses `repo.path()` which resolves correctly for both normal repos and
+/// worktrees (where `.git` is a file, not a directory). Also respects
+/// `core.hooksPath` when configured.
 fn find_git_hooks_dir() -> Result<std::path::PathBuf> {
     use crate::git::GitRepo;
 
     let repo_root = GitRepo::get_repo_root()
         .context("Not in a Git repository. Run this command from within a Git repository.")?;
 
-    let hooks_dir = repo_root.join(".git").join("hooks");
+    let repo = git2::Repository::open(&repo_root).context("Failed to open Git repository")?;
+
+    // Check for core.hooksPath override first
+    let hooks_dir = repo
+        .config()
+        .ok()
+        .and_then(|cfg| cfg.get_path("core.hooksPath").ok())
+        .unwrap_or_else(|| repo.path().join("hooks"));
 
     // Create hooks dir if it doesn't exist
     if !hooks_dir.exists() {
-        std::fs::create_dir_all(&hooks_dir).context("Failed to create .git/hooks directory")?;
+        std::fs::create_dir_all(&hooks_dir).context("Failed to create hooks directory")?;
     }
 
     Ok(hooks_dir)
