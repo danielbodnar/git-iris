@@ -9,6 +9,11 @@ use ratatui::style::{Color, Style};
 
 use crate::theme;
 use crate::theme::names::{gradients, styles, tokens};
+use crate::theme::{
+    STYLE_AUTHOR, STYLE_COMMIT_HASH, STYLE_DIFF_ADDED, STYLE_DIFF_CONTEXT, STYLE_DIFF_HUNK,
+    STYLE_DIFF_REMOVED, STYLE_FILE_PATH, STYLE_GIT_DELETED, STYLE_GIT_MODIFIED,
+    STYLE_GIT_STAGED, STYLE_GIT_UNTRACKED, STYLE_MODE_INACTIVE, STYLE_TIMESTAMP,
+};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Semantic Styles
@@ -16,12 +21,12 @@ use crate::theme::names::{gradients, styles, tokens};
 
 /// Style for commit hashes
 pub fn commit_hash() -> Style {
-    theme::current().style(styles::COMMIT_HASH).into()
+    theme::current().style(STYLE_COMMIT_HASH).into()
 }
 
 /// Style for file paths
 pub fn file_path() -> Style {
-    theme::current().style(styles::FILE_PATH).into()
+    theme::current().style(STYLE_FILE_PATH).into()
 }
 
 /// Style for keywords and important markers
@@ -66,12 +71,12 @@ pub fn warning() -> Style {
 
 /// Style for timestamps
 pub fn timestamp() -> Style {
-    theme::current().style(styles::TIMESTAMP).into()
+    theme::current().style(STYLE_TIMESTAMP).into()
 }
 
 /// Style for author names
 pub fn author() -> Style {
-    theme::current().style(styles::AUTHOR).into()
+    theme::current().style(STYLE_AUTHOR).into()
 }
 
 /// Style for dimmed/secondary text
@@ -90,22 +95,22 @@ pub fn inline_code() -> Style {
 
 /// Style for git staged files
 pub fn git_staged() -> Style {
-    theme::current().style(styles::GIT_STAGED).into()
+    theme::current().style(STYLE_GIT_STAGED).into()
 }
 
 /// Style for git modified files
 pub fn git_modified() -> Style {
-    theme::current().style(styles::GIT_MODIFIED).into()
+    theme::current().style(STYLE_GIT_MODIFIED).into()
 }
 
 /// Style for git untracked files
 pub fn git_untracked() -> Style {
-    theme::current().style(styles::GIT_UNTRACKED).into()
+    theme::current().style(STYLE_GIT_UNTRACKED).into()
 }
 
 /// Style for git deleted files
 pub fn git_deleted() -> Style {
-    theme::current().style(styles::GIT_DELETED).into()
+    theme::current().style(STYLE_GIT_DELETED).into()
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -114,22 +119,22 @@ pub fn git_deleted() -> Style {
 
 /// Style for added lines in diff
 pub fn diff_added() -> Style {
-    theme::current().style(styles::DIFF_ADDED).into()
+    theme::current().style(STYLE_DIFF_ADDED).into()
 }
 
 /// Style for removed lines in diff
 pub fn diff_removed() -> Style {
-    theme::current().style(styles::DIFF_REMOVED).into()
+    theme::current().style(STYLE_DIFF_REMOVED).into()
 }
 
 /// Style for diff hunk headers
 pub fn diff_hunk() -> Style {
-    theme::current().style(styles::DIFF_HUNK).into()
+    theme::current().style(STYLE_DIFF_HUNK).into()
 }
 
 /// Style for diff context lines
 pub fn diff_context() -> Style {
-    theme::current().style(styles::DIFF_CONTEXT).into()
+    theme::current().style(STYLE_DIFF_CONTEXT).into()
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -202,7 +207,7 @@ pub fn bg_selection_color() -> Color {
 
 /// Style for inactive mode tab
 pub fn mode_inactive() -> Style {
-    theme::current().style(styles::MODE_INACTIVE).into()
+    theme::current().style(STYLE_MODE_INACTIVE).into()
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

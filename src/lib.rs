@@ -30,7 +30,7 @@ pub mod output;
 pub mod providers;
 pub mod services;
 pub mod studio;
-pub use opaline as theme;
+pub mod theme;
 pub mod types;
 pub mod ui;
 
