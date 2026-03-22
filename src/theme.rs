@@ -53,11 +53,26 @@ fn derive_iris_theme(theme: &mut Theme) {
     theme.register_default_token(TOKEN_CODE_HASH, theme.color(tokens::ACCENT_TERTIARY));
     theme.register_default_token(TOKEN_CODE_PATH, theme.color(tokens::ACCENT_SECONDARY));
 
-    theme.register_default_style(STYLE_COMMIT_HASH, OpalineStyle::fg(theme.color(TOKEN_CODE_HASH)));
-    theme.register_default_style(STYLE_FILE_PATH, OpalineStyle::fg(theme.color(TOKEN_CODE_PATH)));
-    theme.register_default_style(STYLE_TIMESTAMP, OpalineStyle::fg(theme.color(tokens::WARNING)));
-    theme.register_default_style(STYLE_AUTHOR, OpalineStyle::fg(theme.color(tokens::TEXT_PRIMARY)));
-    theme.register_default_style(STYLE_GIT_STAGED, OpalineStyle::fg(theme.color(TOKEN_GIT_STAGED)));
+    theme.register_default_style(
+        STYLE_COMMIT_HASH,
+        OpalineStyle::fg(theme.color(TOKEN_CODE_HASH)),
+    );
+    theme.register_default_style(
+        STYLE_FILE_PATH,
+        OpalineStyle::fg(theme.color(TOKEN_CODE_PATH)),
+    );
+    theme.register_default_style(
+        STYLE_TIMESTAMP,
+        OpalineStyle::fg(theme.color(tokens::WARNING)),
+    );
+    theme.register_default_style(
+        STYLE_AUTHOR,
+        OpalineStyle::fg(theme.color(tokens::TEXT_PRIMARY)),
+    );
+    theme.register_default_style(
+        STYLE_GIT_STAGED,
+        OpalineStyle::fg(theme.color(TOKEN_GIT_STAGED)),
+    );
     theme.register_default_style(
         STYLE_GIT_MODIFIED,
         OpalineStyle::fg(theme.color(TOKEN_GIT_MODIFIED)),
@@ -70,12 +85,18 @@ fn derive_iris_theme(theme: &mut Theme) {
         STYLE_GIT_DELETED,
         OpalineStyle::fg(theme.color(TOKEN_GIT_DELETED)),
     );
-    theme.register_default_style(STYLE_DIFF_ADDED, OpalineStyle::fg(theme.color(TOKEN_DIFF_ADDED)));
+    theme.register_default_style(
+        STYLE_DIFF_ADDED,
+        OpalineStyle::fg(theme.color(TOKEN_DIFF_ADDED)),
+    );
     theme.register_default_style(
         STYLE_DIFF_REMOVED,
         OpalineStyle::fg(theme.color(TOKEN_DIFF_REMOVED)),
     );
-    theme.register_default_style(STYLE_DIFF_HUNK, OpalineStyle::fg(theme.color(TOKEN_DIFF_HUNK)));
+    theme.register_default_style(
+        STYLE_DIFF_HUNK,
+        OpalineStyle::fg(theme.color(TOKEN_DIFF_HUNK)),
+    );
     theme.register_default_style(
         STYLE_DIFF_CONTEXT,
         OpalineStyle::fg(theme.color(TOKEN_DIFF_CONTEXT)),

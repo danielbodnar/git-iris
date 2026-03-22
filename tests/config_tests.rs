@@ -6,11 +6,17 @@ use std::env;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
+use std::sync::{Mutex, MutexGuard, OnceLock};
 
 // Use our centralized test infrastructure
 #[path = "test_utils.rs"]
 mod test_utils;
 use test_utils::{MockDataBuilder, setup_git_repo};
+
+fn cwd_lock() -> MutexGuard<'static, ()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(())).lock().expect("lock")
+}
 
 // Helper to verify git repo status
 fn is_git_repo(dir: &Path) -> bool {
@@ -25,6 +31,7 @@ fn is_git_repo(dir: &Path) -> bool {
 
 #[test]
 fn test_project_config_security() {
+    let _guard = cwd_lock();
     // Set up a git repository using our centralized infrastructure
     let (temp_dir, _git_repo) = setup_git_repo();
 

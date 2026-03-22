@@ -12,7 +12,13 @@ use git_iris::{
     git::GitRepo,
 };
 use std::env;
+use std::sync::{Mutex, MutexGuard, OnceLock};
 use tempfile::TempDir;
+
+fn cwd_lock() -> MutexGuard<'static, ()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(())).lock().expect("lock")
+}
 
 fn create_test_context() -> (AgentContext, TempDir) {
     let temp_dir = TempDir::new().expect("Failed to create temporary directory");
@@ -141,6 +147,7 @@ async fn test_agent_setup_service_creation() {
 
 #[tokio::test]
 async fn test_agent_setup_service_from_temp_dir() {
+    let _guard = cwd_lock();
     let temp_dir = TempDir::new().expect("Failed to create temporary directory");
     let repo_path = temp_dir.path().to_path_buf();
 
@@ -199,6 +206,7 @@ async fn test_complete_agent_setup_workflow() {
         return;
     }
 
+    let _guard = cwd_lock();
     let temp_dir = TempDir::new().expect("Failed to create temporary directory");
     let repo_path = temp_dir.path().to_path_buf();
 
