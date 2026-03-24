@@ -114,7 +114,7 @@ impl Default for Config {
 impl Config {
     /// Load configuration (personal + project overlay)
     pub fn load() -> Result<Self> {
-        let config_path = Self::get_config_path()?;
+        let config_path = Self::get_personal_config_path()?;
         let mut config = if config_path.exists() {
             let content = fs::read_to_string(&config_path)?;
             let config: Self = toml::from_str(&content)?;
@@ -242,7 +242,7 @@ impl Config {
             return Ok(());
         }
 
-        let config_path = Self::get_config_path()?;
+        let config_path = Self::get_personal_config_path()?;
         let content = toml::to_string_pretty(self)?;
         Self::write_config_file(&config_path, &content)?;
         log_debug!("Configuration saved");
@@ -297,7 +297,7 @@ impl Config {
     }
 
     /// Get path to personal config file
-    fn get_config_path() -> Result<PathBuf> {
+    pub fn get_personal_config_path() -> Result<PathBuf> {
         let mut path =
             config_dir().ok_or_else(|| anyhow!("Unable to determine config directory"))?;
         path.push("git-iris");

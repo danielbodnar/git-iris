@@ -518,8 +518,6 @@ fn display_project_config_result(
 fn print_configuration(config: &Config) {
     let purple = colors::accent_primary();
     let cyan = colors::accent_secondary();
-    let coral = colors::accent_tertiary();
-    let yellow = colors::warning();
     let green = colors::success();
     let dim = colors::text_secondary();
     let dim_sep = colors::text_dim();
@@ -539,6 +537,11 @@ fn print_configuration(config: &Config) {
     print_section_header("GLOBAL");
 
     print_config_row("Provider", &config.default_provider, cyan, true);
+
+    // Theme
+    let theme = crate::theme::current();
+    print_config_row("Theme", &theme.meta.name, purple, false);
+
     print_config_row(
         "Gitmoji",
         if config.use_gitmoji {
@@ -549,79 +552,197 @@ fn print_configuration(config: &Config) {
         if config.use_gitmoji { green } else { dim },
         false,
     );
-    print_config_row("Preset", &config.instruction_preset, yellow, false);
+    print_config_row("Preset", &config.instruction_preset, dim, false);
     print_config_row(
-        "Subagent Timeout",
+        "Timeout",
         &format!("{}s", config.subagent_timeout_secs),
-        coral,
+        dim,
         false,
     );
+
+    // Config file paths
+    if let Ok(config_path) = Config::get_personal_config_path() {
+        let home = dirs::home_dir()
+            .map(|h| h.to_string_lossy().to_string())
+            .unwrap_or_default();
+        let path_str = config_path.to_string_lossy().to_string();
+        let path_display = if home.is_empty() {
+            path_str
+        } else {
+            path_str.replace(&home, "~")
+        };
+        print_config_row("Config", &path_display, dim, false);
+    }
+
+    // Project config status
+    if let Ok(project_path) = Config::get_project_config_path()
+        && project_path.exists()
+    {
+        print_config_row("Project", ".irisconfig ✓", green, false);
+    }
 
     // Custom Instructions (if any)
     if !config.instructions.is_empty() {
         println!();
         print_section_header("INSTRUCTIONS");
-        for line in config.instructions.lines() {
-            println!("  {}", line.truecolor(dim.0, dim.1, dim.2).italic());
+        // Truncate long instructions for display
+        let preview: String = config.instructions.lines().take(3).collect::<Vec<_>>().join("\n");
+        for line in preview.lines() {
+            println!("    {}", line.truecolor(dim.0, dim.1, dim.2).italic());
+        }
+        let total_lines = config.instructions.lines().count();
+        if total_lines > 3 {
+            println!(
+                "    {}",
+                format!("… ({} more lines)", total_lines - 3)
+                    .truecolor(dim_sep.0, dim_sep.1, dim_sep.2)
+                    .italic()
+            );
         }
     }
 
-    // Show all configured providers
-    // For personal configs: show only those with API keys
-    // For project configs: show all providers (they never have API keys)
-    let mut providers: Vec<_> = config
-        .providers
-        .iter()
-        .filter(|(_, cfg)| config.is_project_config || !cfg.api_key.is_empty())
-        .collect();
-    providers.sort_by_key(|(name, _)| name.as_str());
+    // Show ALL providers — active provider first, then rest alphabetically
+    let mut provider_names: Vec<String> = Provider::ALL.iter().map(|p| p.name().to_string()).collect();
+    provider_names.sort();
+    // Move active provider to front
+    if let Some(pos) = provider_names.iter().position(|n| n == &config.default_provider) {
+        let active = provider_names.remove(pos);
+        provider_names.insert(0, active);
+    }
 
-    for (provider_name, provider_config) in providers {
+    for provider_name in &provider_names {
         println!();
-        let is_active = provider_name == &config.default_provider;
-        let header = if is_active {
-            format!("{} ✦", provider_name.to_uppercase())
-        } else {
-            provider_name.to_uppercase()
-        };
-        print_section_header(&header);
-
-        // Model
-        print_config_row("Model", &provider_config.model, cyan, true);
-
-        // Fast Model
-        let fast_model = provider_config.fast_model.as_deref().unwrap_or("(default)");
-        print_config_row("Fast Model", fast_model, cyan, false);
-
-        // Token Limit
-        if let Some(limit) = provider_config.token_limit {
-            print_config_row("Token Limit", &limit.to_string(), coral, false);
-        }
-
-        // Additional Parameters
-        if !provider_config.additional_params.is_empty() {
-            println!(
-                "  {} {}",
-                "Params".truecolor(dim.0, dim.1, dim.2),
-                "─".truecolor(dim_sep.0, dim_sep.1, dim_sep.2)
-            );
-            for (key, value) in &provider_config.additional_params {
-                println!(
-                    "    {} {} {}",
-                    key.truecolor(cyan.0, cyan.1, cyan.2),
-                    "→".truecolor(dim_sep.0, dim_sep.1, dim_sep.2),
-                    value.truecolor(dim.0, dim.1, dim.2)
-                );
-            }
-        }
+        print_provider_section(config, provider_name);
     }
 
     println!();
     println!(
         "{}",
-        "─".repeat(40).truecolor(dim_sep.0, dim_sep.1, dim_sep.2)
+        "─".repeat(44).truecolor(dim_sep.0, dim_sep.1, dim_sep.2)
     );
     println!();
+}
+
+/// Print a single provider section with all its details
+fn print_provider_section(config: &Config, provider_name: &str) {
+    let cyan = colors::accent_secondary();
+    let coral = colors::accent_tertiary();
+    let yellow = colors::warning();
+    let green = colors::success();
+    let dim = colors::text_secondary();
+    let error_red: (u8, u8, u8) = (255, 99, 99);
+
+    let is_active = provider_name == config.default_provider;
+    let provider: Option<Provider> = provider_name.parse().ok();
+
+    let header = if is_active {
+        format!("{} ✦", provider_name.to_uppercase())
+    } else {
+        provider_name.to_uppercase()
+    };
+    print_section_header(&header);
+
+    let provider_config = config.providers.get(provider_name);
+
+    // Model (resolve effective model)
+    let model = provider_config
+        .and_then(|pc| provider.map(|p| pc.effective_model(p).to_string()))
+        .or_else(|| provider.map(|p| p.default_model().to_string()))
+        .unwrap_or_default();
+    print_config_row("Model", &model, cyan, is_active);
+
+    // Fast Model (resolve effective)
+    let fast_model = provider_config
+        .and_then(|pc| provider.map(|p| pc.effective_fast_model(p).to_string()))
+        .or_else(|| provider.map(|p| p.default_fast_model().to_string()))
+        .unwrap_or_default();
+    print_config_row("Fast Model", &fast_model, dim, false);
+
+    // Context window
+    if let Some(p) = provider {
+        let effective_limit = provider_config
+            .map_or_else(|| p.context_window(), |pc| pc.effective_token_limit(p));
+        let limit_str = format_token_count(effective_limit);
+        let is_custom = provider_config.and_then(|pc| pc.token_limit).is_some();
+        if is_custom {
+            print_config_row("Context", &format!("{limit_str} (custom)"), coral, false);
+        } else {
+            print_config_row("Context", &limit_str, dim, false);
+        }
+    }
+
+    // API Key status
+    if let Some(p) = provider {
+        let has_config_key = provider_config.is_some_and(ProviderConfig::has_api_key);
+        let has_env_key = std::env::var(p.api_key_env()).is_ok();
+        let env_var = p.api_key_env();
+
+        let (status, status_color) = if has_config_key {
+            // Safe: has_config_key guarantees provider_config is Some with a key
+            let key = &provider_config.expect("checked above").api_key;
+            let masked = mask_api_key(key);
+            (format!("✓ {masked}"), green)
+        } else if has_env_key {
+            (format!("✓ ${env_var}"), green)
+        } else {
+            (format!("✗ not set  →  ${env_var}"), error_red)
+        };
+        print_config_row("API Key", &status, status_color, false);
+
+        // Show format warning if key exists but has bad format
+        let key_value = if has_config_key {
+            provider_config.map(|pc| pc.api_key.clone())
+        } else if has_env_key {
+            std::env::var(p.api_key_env()).ok()
+        } else {
+            None
+        };
+        if let Some(ref key) = key_value
+            && let Err(warning) = p.validate_api_key_format(key)
+        {
+            println!(
+                "              {}",
+                format!("⚠ {warning}").truecolor(yellow.0, yellow.1, yellow.2)
+            );
+        }
+    }
+
+    // Additional Parameters
+    if let Some(pc) = provider_config
+        && !pc.additional_params.is_empty()
+    {
+        for (key, value) in &pc.additional_params {
+            print_config_row(key, value, dim, false);
+        }
+    }
+}
+
+/// Format a token count in human-readable form (128K, 200K, 1M)
+fn format_token_count(count: usize) -> String {
+    if count >= 1_000_000 && count.is_multiple_of(1_000_000) {
+        format!("{}M tokens", count / 1_000_000)
+    } else if count >= 1_000 {
+        format!("{}K tokens", count / 1_000)
+    } else {
+        format!("{count} tokens")
+    }
+}
+
+/// Mask an API key for display, showing only prefix and last 4 chars
+fn mask_api_key(key: &str) -> String {
+    if key.len() <= 8 {
+        return "••••".to_string();
+    }
+    // Show the prefix (e.g. "sk-ant-") and last 4 chars
+    let prefix_end = key.find('-').map_or(4, |i| {
+        // Find the last hyphen in the prefix portion (first 12 chars)
+        key[..12.min(key.len())]
+            .rfind('-')
+            .map_or(i + 1, |j| j + 1)
+    });
+    let prefix = &key[..prefix_end.min(key.len())];
+    let suffix = &key[key.len() - 4..];
+    format!("{prefix}••••{suffix}")
 }
 
 /// Print a section header in `SilkCircuit` style
