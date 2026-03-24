@@ -676,7 +676,7 @@ Guidelines:
         timer.finish();
 
         // Extract usage stats for debug output
-        let usage = &prompt_response.total_usage;
+        let usage = &prompt_response.usage;
         debug::debug_context_management(
             "Token usage",
             &format!(
@@ -1011,7 +1011,7 @@ Guidelines:
                             on_chunk(&text.text, &aggregated_text);
                         }
                         Ok(MultiTurnStreamItem::StreamAssistantItem(
-                            StreamedAssistantContent::ToolCall(tool_call),
+                            StreamedAssistantContent::ToolCall { tool_call, .. },
                         )) => {
                             let tool_name = &tool_call.function.name;
                             let reason = format!("Calling {}", tool_name);

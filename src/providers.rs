@@ -33,8 +33,8 @@ impl Provider {
     /// Default model for complex analysis tasks
     pub const fn default_model(&self) -> &'static str {
         match self {
-            Self::OpenAI => "gpt-5.1",
-            Self::Anthropic => "claude-sonnet-4-5-20250929",
+            Self::OpenAI => "gpt-5.4",
+            Self::Anthropic => "claude-opus-4-6",
             Self::Google => "gemini-3-pro-preview",
         }
     }
@@ -280,7 +280,7 @@ mod tests {
 
     #[test]
     fn test_provider_defaults() {
-        assert_eq!(Provider::OpenAI.default_model(), "gpt-5.1");
+        assert_eq!(Provider::OpenAI.default_model(), "gpt-5.4");
         assert_eq!(Provider::Anthropic.context_window(), 200_000);
         assert_eq!(Provider::Google.api_key_env(), "GOOGLE_API_KEY");
     }
@@ -288,7 +288,7 @@ mod tests {
     #[test]
     fn test_provider_config_defaults() {
         let config = ProviderConfig::with_defaults(Provider::Anthropic);
-        assert_eq!(config.model, "claude-sonnet-4-5-20250929");
+        assert_eq!(config.model, "claude-opus-4-6");
         assert_eq!(
             config.fast_model.as_deref(),
             Some("claude-haiku-4-5-20251001")

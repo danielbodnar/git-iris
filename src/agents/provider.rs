@@ -43,9 +43,9 @@ impl DynAgent {
     /// Multi-turn prompt with specified depth for tool calling
     pub async fn prompt_multi_turn(&self, msg: &str, depth: usize) -> Result<String, PromptError> {
         match self {
-            Self::OpenAI(a) => a.prompt(msg).multi_turn(depth).await,
-            Self::Anthropic(a) => a.prompt(msg).multi_turn(depth).await,
-            Self::Gemini(a) => a.prompt(msg).multi_turn(depth).await,
+            Self::OpenAI(a) => a.prompt(msg).max_turns(depth).await,
+            Self::Anthropic(a) => a.prompt(msg).max_turns(depth).await,
+            Self::Gemini(a) => a.prompt(msg).max_turns(depth).await,
         }
     }
 
@@ -56,9 +56,9 @@ impl DynAgent {
         depth: usize,
     ) -> Result<PromptResponse, PromptError> {
         match self {
-            Self::OpenAI(a) => a.prompt(msg).multi_turn(depth).extended_details().await,
-            Self::Anthropic(a) => a.prompt(msg).multi_turn(depth).extended_details().await,
-            Self::Gemini(a) => a.prompt(msg).multi_turn(depth).extended_details().await,
+            Self::OpenAI(a) => a.prompt(msg).max_turns(depth).extended_details().await,
+            Self::Anthropic(a) => a.prompt(msg).max_turns(depth).extended_details().await,
+            Self::Gemini(a) => a.prompt(msg).max_turns(depth).extended_details().await,
         }
     }
 }

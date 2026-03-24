@@ -389,8 +389,8 @@ git-iris config --provider anthropic --model claude-sonnet-4-5-20250929
 
 | Provider  | Default Model              | Fast Model                | Context |
 | --------- | -------------------------- | ------------------------- | ------- |
-| openai    | gpt-5.1                    | gpt-5.1-mini              | 128K    |
-| anthropic | claude-sonnet-4-5-20250929 | claude-haiku-4-5-20251001 | 200K    |
+| openai    | gpt-5.4                    | gpt-5.1-mini              | 128K    |
+| anthropic | claude-opus-4-6            | claude-haiku-4-5-20251001 | 200K    |
 | google    | gemini-3-pro-preview       | gemini-2.5-flash          | 1M      |
 
 ## Key Design Decisions
