@@ -582,20 +582,23 @@ Guidelines:
     where
         M: CompletionModel,
     {
-        if self.provider == "openai" && Self::requires_reasoning_effort(&self.model) {
+        if self.provider == "openai" && Self::supports_reasoning_effort(&self.model) {
+            // Chat Completions API uses top-level "reasoning_effort" (not nested "reasoning.effort")
             builder.additional_params(json!({
-                "reasoning": {
-                    "effort": "low"
-                }
+                "reasoning_effort": "medium"
             }))
         } else {
             builder
         }
     }
 
-    fn requires_reasoning_effort(model: &str) -> bool {
+    fn supports_reasoning_effort(model: &str) -> bool {
         let model = model.to_lowercase();
-        model.starts_with("gpt-5") || model.starts_with("gpt-4.1") || model.starts_with("o1")
+        model.starts_with("gpt-5")
+            || model.starts_with("gpt-4.1")
+            || model.starts_with("o1")
+            || model.starts_with("o3")
+            || model.starts_with("o4")
     }
 
     /// Execute task using agent with tools and parse structured JSON response
