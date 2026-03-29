@@ -9,7 +9,7 @@ use git_iris::context::{ChangeType, CommitContext, RecentCommit, StagedFile};
 use git_iris::git::GitRepo;
 use git_iris::providers::ProviderConfig;
 use git_iris::types::{ChangeMetrics, MarkdownPullRequest};
-use git2::Repository;
+use git2::{BranchType, Repository};
 
 use anyhow::Result;
 use std::fs;
@@ -54,31 +54,45 @@ pub fn setup_git_repo() -> (TempDir, GitRepo) {
     )
     .expect("Failed to commit");
 
-    // Ensure the default branch is named 'main' for consistency across environments
-    {
-        let head_commit = repo
-            .head()
-            .expect("Failed to get HEAD")
-            .peel_to_commit()
-            .expect("Failed to peel HEAD to commit");
-        let current_branch = repo
-            .head()
-            .ok()
-            .and_then(|h| h.shorthand().map(std::string::ToString::to_string))
-            .unwrap_or_default();
-        if current_branch != "main" {
-            // Create or update the 'main' branch pointing to the current HEAD commit
-            repo.branch("main", &head_commit, true)
-                .expect("Failed to create 'main' branch");
-            repo.set_head("refs/heads/main")
-                .expect("Failed to set HEAD to 'main' branch");
-            repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))
-                .expect("Failed to checkout 'main' branch");
-        }
-    }
+    // Normalize the primary branch to `main` so tests do not depend on the
+    // Git version or runner-wide init.defaultBranch configuration.
+    ensure_primary_branch(&repo, "main");
 
     let git_repo = GitRepo::new(temp_dir.path()).expect("Failed to create GitRepo");
     (temp_dir, git_repo)
+}
+
+fn ensure_primary_branch(repo: &Repository, target_branch: &str) {
+    let current_branch = repo
+        .head()
+        .ok()
+        .and_then(|head| head.shorthand().map(std::string::ToString::to_string))
+        .unwrap_or_default();
+    if current_branch == target_branch {
+        return;
+    }
+
+    let head_commit = repo
+        .head()
+        .expect("Failed to get HEAD")
+        .peel_to_commit()
+        .expect("Failed to peel HEAD to commit");
+
+    repo.branch(target_branch, &head_commit, true)
+        .expect("Failed to create target branch");
+    repo.set_head(&format!("refs/heads/{target_branch}"))
+        .expect("Failed to set HEAD to target branch");
+    repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))
+        .expect("Failed to checkout target branch");
+
+    if !current_branch.is_empty()
+        && current_branch != target_branch
+        && let Ok(mut branch) = repo.find_branch(&current_branch, BranchType::Local)
+    {
+        branch
+            .delete()
+            .expect("Failed to delete original primary branch");
+    }
 }
 
 /// Creates a Git repository with tags for changelog/release notes testing

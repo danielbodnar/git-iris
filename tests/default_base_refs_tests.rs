@@ -23,10 +23,13 @@ fn rename_main_to_trunk(repo: &Repository) {
     repo.checkout_head(Some(CheckoutBuilder::default().force()))
         .expect("should check out trunk");
 
-    let mut main_branch = repo
-        .find_branch("main", BranchType::Local)
-        .expect("main branch should exist");
-    main_branch.delete().expect("should delete main branch");
+    for legacy_branch in ["main", "master"] {
+        if let Ok(mut branch) = repo.find_branch(legacy_branch, BranchType::Local) {
+            branch
+                .delete()
+                .expect("should delete legacy primary branch");
+        }
+    }
 }
 
 fn create_and_checkout_branch(repo: &Repository, name: &str) {
