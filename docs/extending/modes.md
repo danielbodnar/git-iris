@@ -18,16 +18,16 @@ Each mode has:
 2. **Handler** — Input processing logic
 3. **Renderer** — UI drawing code
 
-## Architecture: Pure Reducer Pattern
+## Architecture: Reducer-Centric Event Flow
 
-Studio uses a predictable state management pattern:
+Studio uses a predictable reducer-centered state management pattern:
 
 ```
 Input Event
     ↓
 Handler (maps input → StudioEvent)
     ↓
-Reducer (pure function: state + event → new state + side effects)
+Reducer (central state/event layer)
     ↓
 Side Effects (spawn agent, load data, etc.)
     ↓
@@ -36,7 +36,9 @@ State Updated
 Renderer (draw UI from state)
 ```
 
-**Key principle**: State transitions are pure functions. Side effects are returned as data, not executed directly.
+**Key principle**: The reducer remains the shared event-processing core, but Studio is not a fully
+pure reducer architecture end-to-end. Handlers and `StudioApp` still apply some immediate UI and
+coordination updates directly, while reducer-driven flows return explicit side effects as data.
 
 ## Step-by-Step: Adding a New Mode
 

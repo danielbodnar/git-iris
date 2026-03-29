@@ -107,9 +107,11 @@ The LLM makes intelligent decisions—avoid hardcoded heuristics. Let Iris explo
 
 Tools should be focused and composable. Each tool does one thing well. Iris orchestrates them.
 
-### 3. Pure Reducer Pattern (Studio)
+### 3. Reducer-Centric Event Flow (Studio)
 
-State transitions are pure functions: `(state, event) → (state, effects)`. Side effects are data, not execution.
+Studio still uses a central reducer for shared workflows and explicit side effects, but it is not a
+fully pure reducer architecture end-to-end. Handlers and `StudioApp` also perform some direct UI
+and coordination updates.
 
 ### 4. Structured Output
 
