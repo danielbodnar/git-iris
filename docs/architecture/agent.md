@@ -92,8 +92,8 @@ Tools are attached when the agent is built:
 fn build_agent(&self) -> Result<Agent<impl CompletionModel + 'static>> {
     let agent_builder = DynClientBuilder::new()
         .agent(&self.provider, &self.model)?
-        .preamble(preamble)
-        .max_tokens(16384);
+        .preamble(preamble);
+    let agent_builder = self.apply_completion_params(agent_builder, &self.model, 16_384)?;
 
     // Core tools (shared with subagents)
     let agent_builder = attach_core_tools!(agent_builder)
@@ -287,7 +287,7 @@ fn inject_style_instructions(&self, system_prompt: &mut String, capability: &str
     if gitmoji_enabled && capability == "commit" {
         system_prompt.push_str("\n\n=== GITMOJI INSTRUCTIONS ===\n");
         system_prompt.push_str("Set the 'emoji' field to a relevant gitmoji...");
-        system_prompt.push_str(&get_gitmoji_list());
+        system_prompt.push_str(&get_gitmoji_prompt_guide());
     }
 }
 ```
@@ -303,8 +303,8 @@ let sub_agent_builder = client_builder
     .agent(&self.provider, fast_model)
     .name("analyze_subagent")
     .description("Delegate focused analysis tasks to a sub-agent...")
-    .preamble("You are a specialized analysis sub-agent...")
-    .max_tokens(4096);
+    .preamble("You are a specialized analysis sub-agent...");
+let sub_agent_builder = self.apply_completion_params(sub_agent_builder, fast_model, 4_096)?;
 
 let sub_agent = attach_core_tools!(sub_agent_builder).build();
 ```
@@ -313,7 +313,7 @@ let sub_agent = attach_core_tools!(sub_agent_builder).build();
 
 - Uses **fast model** for cost efficiency
 - Has **core tools** (git, file read) but no delegation tools (no recursion)
-- **Smaller token limit** (4096 vs 16384)
+- **Smaller token limit** (4096 vs 16384), applied through provider-aware completion params
 - **Focused preamble** — "Complete the task, return concise summary"
 
 The sub-agent is attached as a **tool**, allowing Iris to delegate:

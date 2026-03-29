@@ -288,8 +288,8 @@ git-iris config --provider openai --token-limit 8000
 
 # Additional parameters
 git-iris config --provider openai \
-  --param temperature=0.7 \
-  --param max_tokens=4096
+  --param reasoning='{"effort":"medium"}' \
+  --param text='{"verbosity":"low"}'
 ```
 
 ---

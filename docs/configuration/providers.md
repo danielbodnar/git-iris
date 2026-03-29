@@ -115,9 +115,13 @@ git-iris review --provider google
 Provider-specific parameters can be set using `--param`:
 
 ```bash
-git-iris config --provider openai --param temperature=0.7
-git-iris config --provider openai --param max_tokens=4096
+git-iris config --provider openai --param reasoning='{"effort":"medium"}'
+git-iris config --provider openai --param text='{"verbosity":"low"}'
 ```
+
+Git-Iris parses valid JSON values here, so nested provider options work without extra config
+files. For OpenAI reasoning models, use `--token-limit` to control output-token budgets; Git-Iris
+maps that to the provider's current completion-token setting automatically.
 
 In TOML:
 
@@ -126,8 +130,8 @@ In TOML:
 api_key = "sk-..."
 
   [providers.openai.additional_params]
-  temperature = "0.7"
-  max_tokens = "4096"
+  reasoning = '{"effort":"medium"}'
+  text = '{"verbosity":"low"}'
 ```
 
 ## Token Limits

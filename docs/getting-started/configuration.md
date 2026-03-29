@@ -131,8 +131,13 @@ These combine with presets—your custom instructions are applied **in addition 
 Set provider-specific parameters:
 
 ```bash
-git-iris config --provider openai --param temperature=0.7 --param max_tokens=150
+git-iris config --provider openai \
+  --param reasoning='{"effort":"medium"}' \
+  --param text='{"verbosity":"low"}'
 ```
+
+For OpenAI reasoning models, prefer `--token-limit` for output-token budgets instead of manually
+setting legacy token params in `--param`.
 
 ## Project Configuration
 
