@@ -98,6 +98,22 @@ fn studio_state_keeps_primary_branch_review_on_last_commit() {
 }
 
 #[test]
+fn studio_branch_picker_prioritizes_the_resolved_primary_branch() {
+    let (temp_dir, _) = setup_git_repo();
+    let repo = Repository::open(temp_dir.path()).expect("should open temp repo");
+
+    rename_main_to_trunk(&repo);
+    create_and_checkout_branch(&repo, "feature/neon");
+
+    let git_repo = Arc::new(GitRepo::new(temp_dir.path()).expect("should create GitRepo"));
+    let state = StudioState::new(Config::default(), Some(git_repo));
+    let refs = state.get_branch_refs();
+
+    assert_eq!(refs.first().map(String::as_str), Some("trunk"));
+    assert!(refs.iter().any(|reference| reference == "feature/neon"));
+}
+
+#[test]
 fn task_context_custom_base_overrides_main_defaults() {
     let review = TaskContext::for_review_with_base(
         None,

@@ -150,9 +150,21 @@ impl GitRepo {
             .next()
             .ok_or_else(|| anyhow!("No remote found"))?;
 
-        // Fetch updates from the remote
         let mut remote = repo.find_remote(remote_name)?;
-        remote.fetch(&["master", "main"], None, None)?;
+        let fetch_refspec_storage: Vec<String> = remote
+            .fetch_refspecs()?
+            .iter()
+            .flatten()
+            .map(std::string::ToString::to_string)
+            .collect();
+        let fetch_refspecs: Vec<&str> = fetch_refspec_storage
+            .iter()
+            .map(std::string::String::as_str)
+            .collect();
+
+        // Fetch using the remote's configured refspecs so non-main primary
+        // branches (for example `trunk`) update correctly too.
+        remote.fetch(&fetch_refspecs, None, None)?;
 
         log_debug!("Successfully updated remote repository");
         Ok(())

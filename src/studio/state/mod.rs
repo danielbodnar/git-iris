@@ -1264,13 +1264,23 @@ impl StudioState {
 
     /// Get list of branch refs for selection
     pub fn get_branch_refs(&self) -> Vec<String> {
+        let fallback_refs = || {
+            vec![
+                "main".to_string(),
+                "master".to_string(),
+                "trunk".to_string(),
+                "develop".to_string(),
+            ]
+        };
+
         let Some(git_repo) = &self.repo else {
-            return vec!["main".to_string(), "master".to_string()];
+            return fallback_refs();
         };
 
         let Ok(repo) = git_repo.open_repo() else {
-            return vec!["main".to_string(), "master".to_string()];
+            return fallback_refs();
         };
+        let default_base_ref = git_repo.get_default_base_ref().ok();
 
         let mut refs = Vec::new();
 
@@ -1297,21 +1307,18 @@ impl StudioState {
 
         // Sort with common branches first
         refs.sort_by(|a, b| {
-            let priority = |s: &str| -> i32 {
-                match s {
-                    "main" => 0,
-                    "master" => 1,
-                    s if s.starts_with("origin/main") => 2,
-                    s if s.starts_with("origin/master") => 3,
-                    s if s.starts_with("origin/") => 5,
-                    _ => 4,
-                }
-            };
-            priority(a).cmp(&priority(b)).then(a.cmp(b))
+            branch_ref_priority(a, default_base_ref.as_deref())
+                .cmp(&branch_ref_priority(b, default_base_ref.as_deref()))
+                .then(a.cmp(b))
         });
+        refs.dedup();
 
         if refs.is_empty() {
-            refs.push("main".to_string());
+            if let Some(default_base_ref) = default_base_ref {
+                refs.push(default_base_ref);
+            } else {
+                refs = fallback_refs();
+            }
         }
 
         refs
@@ -1514,4 +1521,23 @@ fn same_branch_ref(left: Option<&str>, right: Option<&str>) -> bool {
 
 fn normalize_branch_ref(value: &str) -> &str {
     value.strip_prefix("origin/").unwrap_or(value)
+}
+
+fn branch_ref_priority(candidate: &str, default_base_ref: Option<&str>) -> i32 {
+    if same_branch_ref(Some(candidate), default_base_ref) {
+        if default_base_ref == Some(candidate) {
+            return 0;
+        }
+        return 1;
+    }
+
+    if !candidate.contains('/') {
+        return 2;
+    }
+
+    if candidate.starts_with("origin/") {
+        return 3;
+    }
+
+    4
 }

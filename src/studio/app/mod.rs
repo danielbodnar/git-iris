@@ -821,7 +821,8 @@ impl StudioApp {
         let repo_path = repo.repo_path().clone();
         let branch = repo
             .get_current_branch()
-            .unwrap_or_else(|_| "main".to_string());
+            .or_else(|_| repo.get_default_base_ref())
+            .unwrap_or_else(|_| "HEAD".to_string());
 
         let handle = tokio::spawn(async move {
             let result = tokio::task::spawn_blocking(move || {
