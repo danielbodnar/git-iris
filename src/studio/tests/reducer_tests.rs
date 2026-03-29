@@ -2,7 +2,8 @@
 
 use crate::config::Config;
 use crate::studio::events::{
-    AgentResult, AgentTask, NotificationLevel, SideEffect, StudioEvent, TaskType,
+    AgentResult, AgentTask, ContentPayload, ContentType, NotificationLevel, SideEffect,
+    StudioEvent, TaskType,
 };
 use crate::studio::history::History;
 use crate::studio::reducer::reduce;
@@ -233,6 +234,29 @@ fn test_generate_commit_produces_agent_effect() {
             task: AgentTask::Commit { .. }
         }
     )));
+}
+
+#[test]
+fn test_update_content_clears_stale_streaming_review_buffer() {
+    let mut state = test_state();
+    let mut history = History::new();
+    state.active_mode = Mode::Review;
+    state.modes.review.streaming_content = Some("{ raw streamed review }".to_string());
+
+    let _ = reduce(
+        &mut state,
+        StudioEvent::UpdateContent {
+            content_type: ContentType::CodeReview,
+            content: ContentPayload::Markdown("## Final Review\n\nLooks good.".to_string()),
+        },
+        &mut history,
+    );
+
+    assert_eq!(state.modes.review.streaming_content, None);
+    assert_eq!(
+        state.modes.review.review_content,
+        "## Final Review\n\nLooks good."
+    );
 }
 
 #[test]
