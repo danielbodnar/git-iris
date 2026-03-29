@@ -36,7 +36,8 @@ You can configure Git-Iris using environment variables:
 docker run --rm --user $(id -u):$(id -g) -v "$(pwd):/git-repo" \
   -e GITIRIS_PROVIDER="openai" \
   -e GITIRIS_API_KEY="your-api-key" \
-  -e GITIRIS_MODEL="gpt-5.4-mini" \
+  -e GITIRIS_MODEL="gpt-5.4" \
+  -e GITIRIS_FAST_MODEL="gpt-5.4-mini" \
   -e GITIRIS_PRESET="conventional" \
   -e GITIRIS_GITMOJI="true" \
   -e GIT_USER_NAME="Your Name" \
@@ -50,7 +51,8 @@ docker run --rm --user $(id -u):$(id -g) -v "$(pwd):/git-repo" \
 | -------------------------- | ------------------------------------------------------------------------------------------------- |
 | `GITIRIS_PROVIDER`         | LLM provider name (e.g., openai, anthropic, google)                                               |
 | `GITIRIS_API_KEY`          | API key for the provider                                                                          |
-| `GITIRIS_MODEL`            | Model to use (provider-specific)                                                                  |
+| `GITIRIS_MODEL`            | Primary model to use (provider-specific)                                                          |
+| `GITIRIS_FAST_MODEL`       | Fast model for status updates and simple tasks                                                    |
 | `GITIRIS_TOKEN_LIMIT`      | Token limit for the specified provider                                                            |
 | `GITIRIS_DEFAULT_PROVIDER` | Optional default provider override after provider-specific config is applied                       |
 | `GITIRIS_PRESET`           | Instruction preset name                                                                           |
@@ -68,6 +70,7 @@ docker run --rm --user $(id -u):$(id -g) -v "$(pwd):/git-repo" \
   -e GITIRIS_PROVIDER="anthropic" \
   -e GITIRIS_API_KEY="your-api-key" \
   -e GITIRIS_MODEL="claude-opus-4-6" \
+  -e GITIRIS_FAST_MODEL="claude-haiku-4-5-20251001" \
   -e GITIRIS_TOKEN_LIMIT="200000" \
   -e GITIRIS_PRESET="detailed" \
   -e GITIRIS_INSTRUCTIONS="Always include the ticket number and highlight performance impacts" \

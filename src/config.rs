@@ -366,11 +366,24 @@ impl Config {
         Ok(())
     }
 
+    fn resolve_personal_config_dir(
+        xdg_config_home: Option<PathBuf>,
+        platform_config_dir: Option<PathBuf>,
+    ) -> Result<PathBuf> {
+        let base_dir = xdg_config_home
+            .filter(|path| !path.as_os_str().is_empty())
+            .or(platform_config_dir)
+            .ok_or_else(|| anyhow!("Unable to determine config directory"))?;
+
+        Ok(base_dir.join("git-iris"))
+    }
+
     /// Get path to personal config file
     pub fn get_personal_config_path() -> Result<PathBuf> {
-        let mut path =
-            config_dir().ok_or_else(|| anyhow!("Unable to determine config directory"))?;
-        path.push("git-iris");
+        let mut path = Self::resolve_personal_config_dir(
+            std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from),
+            config_dir(),
+        )?;
         fs::create_dir_all(&path)?;
         path.push("config.toml");
         Ok(path)

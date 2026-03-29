@@ -4,7 +4,7 @@ set -euo pipefail
 # If the first argument starts with a dash or is a known subcommand, prepend git-iris.
 first_arg="${1:-}"
 case "$first_arg" in
-    ""|-*|gen|review|pr|changelog|release-notes|studio|config|project-config|list-presets|themes|completions|hook)
+    ""|-*|gen|commit|review|pr|changelog|release-notes|studio|config|project-config|list-presets|themes|completions|hook|help)
         set -- git-iris "$@"
         ;;
 esac
@@ -42,6 +42,11 @@ if [ -n "${GITIRIS_PROVIDER:-}" ]; then
     # Model for the provider (if provided)
     if [ -n "${GITIRIS_MODEL:-}" ]; then
         CONFIG_ARGS+=(--model "$GITIRIS_MODEL")
+    fi
+
+    # Fast model for the provider (if provided)
+    if [ -n "${GITIRIS_FAST_MODEL:-}" ]; then
+        CONFIG_ARGS+=(--fast-model "$GITIRIS_FAST_MODEL")
     fi
 
     # Token limit for the provider (if provided)
