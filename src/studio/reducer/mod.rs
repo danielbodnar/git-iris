@@ -494,8 +494,22 @@ pub fn reduce(
                 && let Ok(new_branch) = repo.get_current_branch()
                 && new_branch != state.git_status.branch
             {
+                state.git_status.branch = new_branch.clone();
+
                 // Branch switched! Load branch memory and check for welcome
                 if let Some(ref companion) = state.companion {
+                    {
+                        let mut session = companion.session().write();
+                        session.set_branch(new_branch.clone());
+                    }
+
+                    if let Err(e) = companion.save_session() {
+                        tracing::warn!(
+                            "Failed to save companion session after branch switch: {}",
+                            e
+                        );
+                    }
+
                     let mut branch_mem = companion
                         .load_branch_memory(&new_branch)
                         .ok()
@@ -509,7 +523,9 @@ pub fn reduce(
                     branch_mem.record_visit();
 
                     // Save updated branch memory
-                    let _ = companion.save_branch_memory(&branch_mem);
+                    if let Err(e) = companion.save_branch_memory(&branch_mem) {
+                        tracing::warn!("Failed to save branch memory after branch switch: {}", e);
+                    }
 
                     // Update display with welcome timing
                     if let Some(msg) = welcome {
@@ -519,6 +535,7 @@ pub fn reduce(
                 }
 
                 tracing::info!("Branch switched to: {}", new_branch);
+                state.mark_dirty();
             }
 
             state.update_companion_display();

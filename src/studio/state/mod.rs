@@ -1395,10 +1395,12 @@ impl StudioState {
             self.companion_display.duration = duration_str;
             self.companion_display.last_touched_file = last_touched;
             self.companion_display.watcher_active = companion.has_watcher();
+            self.companion_display.branch = session.branch.clone();
+        } else {
+            self.companion_display.branch = self.git_status.branch.clone();
         }
 
         // Update git info from repo and git_status
-        self.companion_display.branch = self.git_status.branch.clone();
         self.companion_display.staged_count = self.git_status.staged_count;
         self.companion_display.unstaged_count =
             self.git_status.modified_count + self.git_status.untracked_count;

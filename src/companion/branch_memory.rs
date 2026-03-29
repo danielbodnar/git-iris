@@ -57,7 +57,7 @@ impl BranchMemory {
             last_visited: now,
             last_focus: None,
             notes: Vec::new(),
-            session_count: 1,
+            session_count: 0,
             total_commits: 0,
         }
     }
@@ -95,7 +95,7 @@ impl BranchMemory {
 
     /// Check if this is a returning visit (visited before more than 5 minutes ago)
     pub fn is_returning_visit(&self) -> bool {
-        self.session_count > 1 && self.time_since_last_visit() > chrono::Duration::minutes(5)
+        self.session_count > 0 && self.time_since_last_visit() > chrono::Duration::minutes(5)
     }
 
     /// Generate a welcome message if returning

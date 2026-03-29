@@ -42,11 +42,27 @@ impl CompanionService {
         // Initialize storage
         let storage = CompanionStorage::new(&repo_path)?;
 
-        // Try to load existing session or create new one
-        let session = storage
-            .load_session()?
-            .filter(|s| s.branch == branch) // Only restore if same branch
-            .unwrap_or_else(|| SessionState::new(repo_path.clone(), branch.to_owned()));
+        // Try to load existing session or create new one.
+        // Session data should never block companion startup.
+        let session = match storage.load_session() {
+            Ok(Some(mut session)) if session.branch == branch => {
+                session.repo_path = repo_path.clone();
+                session
+            }
+            Ok(Some(session)) => {
+                tracing::info!(
+                    "Ignoring session data for branch {} while starting on {}",
+                    session.branch,
+                    branch
+                );
+                SessionState::new(repo_path.clone(), branch.to_owned())
+            }
+            Ok(None) => SessionState::new(repo_path.clone(), branch.to_owned()),
+            Err(e) => {
+                tracing::warn!("Failed to load companion session; starting fresh: {}", e);
+                SessionState::new(repo_path.clone(), branch.to_owned())
+            }
+        };
 
         let session = Arc::new(parking_lot::RwLock::new(session));
 
@@ -132,3 +148,6 @@ impl Drop for CompanionService {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;
