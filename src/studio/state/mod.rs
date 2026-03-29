@@ -153,9 +153,9 @@ pub struct GitStatus {
 }
 
 impl GitStatus {
-    /// Check if we're on the main/master branch
-    pub fn is_main_branch(&self) -> bool {
-        self.branch == "main" || self.branch == "master"
+    /// Check if the current branch matches the repository primary branch.
+    pub fn is_primary_branch(&self, primary_branch: Option<&str>) -> bool {
+        same_branch_ref(Some(self.branch.as_str()), primary_branch)
     }
 
     /// Check if there are any changes
@@ -1024,16 +1024,20 @@ impl StudioState {
     /// Suggest the best initial mode based on repo state
     pub fn suggest_initial_mode(&self) -> Mode {
         let status = &self.git_status;
+        let default_base_ref = self
+            .repo
+            .as_ref()
+            .and_then(|repo| repo.get_default_base_ref().ok());
 
         // Staged changes? Probably want to commit
         if status.has_staged() {
             return Mode::Commit;
         }
 
-        // On feature branch with commits ahead? PR time (future)
-        // if status.commits_ahead > 0 && !status.is_main_branch() {
-        //     return Mode::PR;
-        // }
+        // On a feature branch with commits ahead? Default to PR mode.
+        if status.commits_ahead > 0 && !status.is_primary_branch(default_base_ref.as_deref()) {
+            return Mode::PR;
+        }
 
         // Default to exploration
         Mode::Explore

@@ -301,7 +301,7 @@ pub enum Commands {
         )]
         mode: Option<String>,
 
-        /// Starting ref for PR/changelog comparison (defaults to main/master)
+        /// Starting ref for PR/changelog comparison (defaults to the repository's primary branch)
         #[arg(long, value_name = "REF", help = "Starting ref for comparison")]
         from: Option<String>,
 
