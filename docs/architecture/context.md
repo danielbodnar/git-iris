@@ -349,7 +349,7 @@ Prioritize security and performance issues in high-relevance files.
 
 ```toml
 ## Branch Analysis
-1. Call `git_diff(from="main", to="HEAD", detail="summary")` for overview
+1. Call `git_diff(from="<default-branch>", to="HEAD", detail="summary")` for overview
 2. Identify major themes (new features, refactors, fixes)
 3. For large branches: Use `parallel_analyze` to analyze feature areas separately
 4. Synthesize findings into a cohesive PR description

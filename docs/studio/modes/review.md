@@ -92,17 +92,18 @@ Press <kbd>f</kbd> or <kbd>t</kbd> to select **from/to refs**. The modal display
 
 ### Default Refs
 
-- **From**: `main` (or `master`)
+- **From**: repository primary branch on feature branches
+  On the primary branch itself, Review falls back to `HEAD~1`
 - **To**: `HEAD` (current state)
 
 ### Common Ranges
 
 | From          | To       | Reviews                       |
 | ------------- | -------- | ----------------------------- |
-| `main`        | `HEAD`   | All changes on current branch |
+| `<default-branch>` | `HEAD`   | All changes on current branch |
 | `v1.0.0`      | `v1.1.0` | Changes between releases      |
 | `abc123f`     | `HEAD`   | Changes since specific commit |
-| `origin/main` | `HEAD`   | Local changes not pushed      |
+| `origin/<default-branch>` | `HEAD`   | Local changes not pushed      |
 
 ## Review Dimensions
 
@@ -250,7 +251,7 @@ Estimated time to address: 2-3 hours
 
 1. Finish feature branch
 2. Switch to Review mode
-3. Press <kbd>f</kbd> to select from ref: `origin/main`
+3. Press <kbd>f</kbd> to select from ref: `origin/<default-branch>`
 4. Press <kbd>t</kbd> to select to ref: `HEAD`
 5. Press <kbd>r</kbd> to generate review
 6. Address all ✗ and ⚠️ items
@@ -397,9 +398,9 @@ Don't guess what warnings mean:
 
 ### 3. Compare with Upstream
 
-Before merging to main:
+Before merging to your primary branch:
 
-- From: `origin/main`
+- From: `origin/<default-branch>`
 - To: `HEAD`
 - Reviews what will land in production
 

@@ -38,10 +38,11 @@ fn test_branch_parameter_validation() {
         matches!(explicit_range, TaskContext::Range { from, to } if from == "main" && to == "feature")
     );
 
-    let to_only = TaskContext::for_review(None, None, Some("feature".to_string()), false)
-        .expect("should succeed");
+    let to_only =
+        TaskContext::for_review_with_base(None, None, Some("feature".to_string()), false, "trunk")
+            .expect("should succeed");
     assert!(
-        matches!(to_only, TaskContext::Range { from, to } if from == "main" && to == "feature")
+        matches!(to_only, TaskContext::Range { from, to } if from == "trunk" && to == "feature")
     );
 
     let from_only = TaskContext::for_review(None, Some("main".to_string()), None, false);

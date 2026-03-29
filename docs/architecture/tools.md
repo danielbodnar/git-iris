@@ -77,7 +77,7 @@ Files changed: 3
 ```rust
 pub struct GitDiffArgs {
     pub detail: DetailLevel,        // summary | standard
-    pub from: Option<String>,       // For PR/review (e.g., "main")
+    pub from: Option<String>,       // For PR/review (e.g., "<default-branch>")
     pub to: Option<String>,         // Default: HEAD
 }
 

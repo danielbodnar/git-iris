@@ -130,7 +130,7 @@ pub struct GeneratedMessage {
 
 **Key instructions:**
 
-- Use `git_diff(from="main", to="HEAD")` for full branch context
+- Use `git_diff(from="<default-branch>", to="HEAD")` for full branch context
 - Analyze entire feature branch, not just latest commit
 - Include migration/upgrade notes for breaking changes
 - Suggest testing approach

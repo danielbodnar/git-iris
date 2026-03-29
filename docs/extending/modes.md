@@ -134,7 +134,7 @@ pub struct FeatureSummaryMode {
 impl FeatureSummaryMode {
     pub fn new() -> Self {
         Self {
-            from_ref: "main".to_string(),
+            from_ref: "<default-branch>".to_string(),
             to_ref: "HEAD".to_string(),
             ..Default::default()
         }

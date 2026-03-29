@@ -76,7 +76,7 @@ impl TaskContext {
     ///
     /// Validates:
     /// - `--from` requires `--to` for explicit range comparison
-    /// - `--to` on its own compares `main..to`
+    /// - `--to` on its own compares `<fallback-base>..to`
     /// - `--commit` is mutually exclusive with `--from/--to`
     /// - `--include-unstaged` is incompatible with range comparisons
     pub fn for_review(
@@ -89,6 +89,10 @@ impl TaskContext {
     }
 
     /// Create review context with an explicit default base for `--to`-only comparisons.
+    ///
+    /// CLI and Studio should prefer a repo-aware base from `GitRepo::get_default_base_ref()`.
+    /// This lets branch comparisons follow the repository's actual primary branch
+    /// instead of relying on the legacy `"main"` fallback.
     pub fn for_review_with_base(
         commit: Option<String>,
         from: Option<String>,
@@ -130,13 +134,15 @@ impl TaskContext {
     /// PR command is more flexible - all parameter combinations are valid:
     /// - `from` + `to`: Explicit range/branch comparison
     /// - `from` only: Compare `from..HEAD`
-    /// - `to` only: Compare `main..to`
-    /// - Neither: Compare `main..HEAD`
+    /// - `to` only: Compare `<fallback-base>..to`
+    /// - Neither: Compare `<fallback-base>..HEAD`
     pub fn for_pr(from: Option<String>, to: Option<String>) -> Self {
         Self::for_pr_with_base(from, to, "main")
     }
 
     /// Create PR context with an explicit default comparison base.
+    ///
+    /// CLI and Studio should prefer a repo-aware base from `GitRepo::get_default_base_ref()`.
     pub fn for_pr_with_base(from: Option<String>, to: Option<String>, default_base: &str) -> Self {
         match (from, to) {
             (Some(f), Some(t)) => Self::Range { from: f, to: t },
@@ -318,11 +324,17 @@ mod tests {
     }
 
     #[test]
-    fn test_review_to_only_defaults_from_main() {
-        let ctx = TaskContext::for_review(None, None, Some("feature".to_string()), false)
-            .expect("should succeed");
+    fn test_review_to_only_defaults_from_explicit_base() {
+        let ctx = TaskContext::for_review_with_base(
+            None,
+            None,
+            Some("feature".to_string()),
+            false,
+            "trunk",
+        )
+        .expect("should succeed");
         assert!(
-            matches!(ctx, TaskContext::Range { from, to } if from == "main" && to == "feature")
+            matches!(ctx, TaskContext::Range { from, to } if from == "trunk" && to == "feature")
         );
     }
 
@@ -375,8 +387,8 @@ mod tests {
 
     #[test]
     fn test_pr_defaults() {
-        let ctx = TaskContext::for_pr(None, None);
-        assert!(matches!(ctx, TaskContext::Range { from, to } if from == "main" && to == "HEAD"));
+        let ctx = TaskContext::for_pr_with_base(None, None, "trunk");
+        assert!(matches!(ctx, TaskContext::Range { from, to } if from == "trunk" && to == "HEAD"));
     }
 
     #[test]

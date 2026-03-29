@@ -10,7 +10,7 @@ A tool is a Rust struct that implements the `rig::tool::Tool` trait. When Iris n
 
 ```
 1. Iris decides she needs information
-2. Iris calls tool by name: git_diff(from="main", to="HEAD")
+2. Iris calls tool by name: git_diff(from="<default-branch>", to="HEAD")
 3. Tool executes and returns structured output
 4. Iris incorporates the result into her reasoning
 5. Iris may call more tools or produce final output
