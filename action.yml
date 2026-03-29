@@ -37,7 +37,7 @@ inputs:
     description: "Custom instructions for generation"
     required: false
   update-file:
-    description: "Update existing file (changelog only) - prepends to existing content"
+    description: "Update the target file using native git-iris update behavior"
     required: false
     default: "false"
   version:
@@ -83,9 +83,13 @@ runs:
             echo "artifact=git-iris-linux-arm64" >> $GITHUB_OUTPUT
             echo "binary=git-iris" >> $GITHUB_OUTPUT
             ;;
-          macOS-ARM64|macOS-X64)
+          macOS-ARM64)
             echo "artifact=git-iris-macos-arm64" >> $GITHUB_OUTPUT
             echo "binary=git-iris" >> $GITHUB_OUTPUT
+            ;;
+          macOS-X64)
+            echo "::error::Unsupported platform: macOS-X64 (no published x64 macOS binary)"
+            exit 1
             ;;
           Windows-X64)
             echo "artifact=git-iris-windows-gnu" >> $GITHUB_OUTPUT
@@ -118,7 +122,13 @@ runs:
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
+        set -euo pipefail
+
         echo "::group::Downloading git-iris"
+
+        INSTALL_DIR="$RUNNER_TEMP/git-iris-bin"
+        DOWNLOAD_DIR="$RUNNER_TEMP/git-iris-download-${RANDOM}"
+        mkdir -p "$INSTALL_DIR" "$DOWNLOAD_DIR"
 
         if [ "${{ inputs.version }}" = "latest" ]; then
           VERSION=$(gh release view --repo hyperb1iss/git-iris --json tagName -q '.tagName')
@@ -131,89 +141,172 @@ runs:
         gh release download "$VERSION" \
           --repo hyperb1iss/git-iris \
           --pattern "${{ steps.platform.outputs.artifact }}*" \
-          --dir /tmp/git-iris-download
+          --dir "$DOWNLOAD_DIR"
 
-        # Downloaded file keeps original name (e.g., git-iris-linux-amd64 or git-iris-windows-gnu.exe)
-        DOWNLOADED=$(ls /tmp/git-iris-download/)
-        chmod +x "/tmp/git-iris-download/$DOWNLOADED"
-        sudo mv "/tmp/git-iris-download/$DOWNLOADED" /usr/local/bin/${{ steps.platform.outputs.binary }}
+        shopt -s nullglob
+        matches=("$DOWNLOAD_DIR"/${{ steps.platform.outputs.artifact }}*)
+        shopt -u nullglob
+
+        if [ "${#matches[@]}" -ne 1 ]; then
+          echo "::error::Expected exactly one downloaded artifact, found ${#matches[@]}"
+          ls -la "$DOWNLOAD_DIR"
+          exit 1
+        fi
+
+        TARGET_PATH="$INSTALL_DIR/${{ steps.platform.outputs.binary }}"
+        cp "${matches[0]}" "$TARGET_PATH"
+        chmod +x "$TARGET_PATH" || true
+
+        echo "$INSTALL_DIR" >> "$GITHUB_PATH"
+        echo "GIT_IRIS_BIN=$TARGET_PATH" >> "$GITHUB_ENV"
 
         echo "git-iris installed successfully"
-        git-iris --version
+        "$TARGET_PATH" --version
         echo "::endgroup::"
 
     - name: Build git-iris from source
       if: inputs.binary-path == '' && inputs.build-from-source == 'true'
       shell: bash
       run: |
+        set -euo pipefail
+
         echo "::group::Building git-iris from source"
+        INSTALL_DIR="$RUNNER_TEMP/git-iris-bin"
+        TARGET_PATH="$INSTALL_DIR/${{ steps.platform.outputs.binary }}"
+
+        mkdir -p "$INSTALL_DIR"
         cargo build --release --locked
-        echo "GIT_IRIS_BIN=./target/release/git-iris" >> $GITHUB_ENV
+        cp "./target/release/${{ steps.platform.outputs.binary }}" "$TARGET_PATH"
+
+        echo "$INSTALL_DIR" >> "$GITHUB_PATH"
+        echo "GIT_IRIS_BIN=$TARGET_PATH" >> "$GITHUB_ENV"
+        "$TARGET_PATH" --version
         echo "::endgroup::"
 
     - name: Generate content
       id: generate
       shell: bash
       env:
-        # LLM provider configuration
-        OPENAI_API_KEY: ${{ inputs.provider == 'openai' && inputs.api-key || '' }}
-        ANTHROPIC_API_KEY: ${{ inputs.provider == 'anthropic' && inputs.api-key || '' }}
-        GOOGLE_API_KEY: ${{ inputs.provider == 'google' && inputs.api-key || '' }}
-        IRIS_PROVIDER: ${{ inputs.provider }}
+        ACTION_API_KEY: ${{ inputs.api-key }}
+        IRIS_COMMAND: ${{ inputs.command }}
+        IRIS_FROM: ${{ inputs.from }}
+        IRIS_TO: ${{ inputs.to }}
+        IRIS_PROVIDER_INPUT: ${{ inputs.provider }}
         IRIS_MODEL: ${{ inputs.model }}
         IRIS_INSTRUCTIONS: ${{ inputs.custom-instructions }}
+        IRIS_VERSION_NAME: ${{ inputs.version-name }}
+        IRIS_OUTPUT_FILE: ${{ inputs.output-file }}
+        IRIS_UPDATE_FILE: ${{ inputs.update-file }}
         # Ensure clean markdown output - no colors or formatting
         NO_COLOR: "1"
         TERM: dumb
         CLICOLOR: "0"
         CLICOLOR_FORCE: "0"
       run: |
-        echo "::group::Running git-iris ${{ inputs.command }}"
+        set -euo pipefail
+
+        echo "::group::Running git-iris $IRIS_COMMAND"
 
         GIT_IRIS="${GIT_IRIS_BIN:-git-iris}"
-        COMMAND="${{ inputs.command }}"
+        COMMAND="$IRIS_COMMAND"
+
+        case "$COMMAND" in
+          release-notes|changelog) ;;
+          *)
+            echo "::error::Unsupported command: $COMMAND"
+            exit 1
+            ;;
+        esac
+
+        case "${IRIS_PROVIDER_INPUT,,}" in
+          openai)
+            IRIS_PROVIDER="openai"
+            export OPENAI_API_KEY="$ACTION_API_KEY"
+            ;;
+          anthropic|claude)
+            IRIS_PROVIDER="anthropic"
+            export ANTHROPIC_API_KEY="$ACTION_API_KEY"
+            ;;
+          google|gemini)
+            IRIS_PROVIDER="google"
+            export GOOGLE_API_KEY="$ACTION_API_KEY"
+            ;;
+          *)
+            echo "::error::Unsupported provider: $IRIS_PROVIDER_INPUT"
+            exit 1
+            ;;
+        esac
 
         echo "Provider: $IRIS_PROVIDER"
-        echo "Model: $IRIS_MODEL"
+        if [ -n "${IRIS_MODEL:-}" ]; then
+          echo "Model: $IRIS_MODEL"
+        else
+          echo "Model: provider default"
+        fi
 
-        # Build base command (--raw ensures markdown output, --quiet suppresses spinners)
-        # Explicitly pass --provider to ensure it's used regardless of config
-        CMD="$GIT_IRIS $COMMAND --from '${{ inputs.from }}' --to '${{ inputs.to }}' --provider '${{ inputs.provider }}' --raw --quiet"
+        # Build the command as an argv array so provider/model/ref values are passed literally.
+        cmd=(
+          "$GIT_IRIS"
+          "$COMMAND"
+          "--from" "$IRIS_FROM"
+          "--to" "$IRIS_TO"
+          "--provider" "$IRIS_PROVIDER"
+          "--raw"
+          "--quiet"
+        )
 
         # Add version name if specified
-        if [ -n "${{ inputs.version-name }}" ]; then
-          CMD="$CMD --version-name '${{ inputs.version-name }}'"
+        if [ -n "${IRIS_VERSION_NAME:-}" ]; then
+          cmd+=("--version-name" "$IRIS_VERSION_NAME")
         fi
 
         # Add model if specified
-        if [ -n "${{ inputs.model }}" ]; then
-          CMD="$CMD --model '${{ inputs.model }}'"
+        if [ -n "${IRIS_MODEL:-}" ]; then
+          cmd+=("--model" "$IRIS_MODEL")
+        fi
+
+        # Add custom instructions if specified
+        if [ -n "${IRIS_INSTRUCTIONS:-}" ]; then
+          cmd+=("--instructions" "$IRIS_INSTRUCTIONS")
+        fi
+
+        if [ "$IRIS_UPDATE_FILE" = "true" ]; then
+          cmd+=("--update")
+
+          if [ -n "${IRIS_OUTPUT_FILE:-}" ]; then
+            cmd+=("--file" "$IRIS_OUTPUT_FILE")
+          fi
         fi
 
         # Execute and capture output
-        CONTENT=$(eval $CMD)
+        CONTENT="$("${cmd[@]}")"
 
         # Handle multiline output for GitHub Actions
-        echo "content<<EOF" >> $GITHUB_OUTPUT
-        echo "$CONTENT" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
+        DELIMITER="GIT_IRIS_$(date +%s%N)_$$"
+        {
+          echo "content<<$DELIMITER"
+          printf '%s\n' "$CONTENT"
+          echo "$DELIMITER"
+        } >> "$GITHUB_OUTPUT"
 
-        # Write to file if specified
-        if [ -n "${{ inputs.output-file }}" ]; then
-          OUTPUT_FILE="${{ inputs.output-file }}"
-
-          if [ "${{ inputs.update-file }}" = "true" ] && [ -f "$OUTPUT_FILE" ]; then
-            # Prepend new content to existing file (for changelogs)
-            echo "Updating existing file: $OUTPUT_FILE"
-            EXISTING=$(cat "$OUTPUT_FILE")
-            echo "$CONTENT" > "$OUTPUT_FILE"
-            echo "" >> "$OUTPUT_FILE"
-            echo "$EXISTING" >> "$OUTPUT_FILE"
-          else
-            echo "$CONTENT" > "$OUTPUT_FILE"
+        if [ "$IRIS_UPDATE_FILE" = "true" ]; then
+          OUTPUT_FILE="$IRIS_OUTPUT_FILE"
+          if [ -z "${OUTPUT_FILE:-}" ]; then
+            if [ "$COMMAND" = "changelog" ]; then
+              OUTPUT_FILE="CHANGELOG.md"
+            else
+              OUTPUT_FILE="RELEASE_NOTES.md"
+            fi
           fi
 
-          echo "output_file=$OUTPUT_FILE" >> $GITHUB_OUTPUT
+          echo "output_file=$OUTPUT_FILE" >> "$GITHUB_OUTPUT"
+          echo "Content written to $OUTPUT_FILE"
+        elif [ -n "${IRIS_OUTPUT_FILE:-}" ]; then
+          OUTPUT_FILE="$IRIS_OUTPUT_FILE"
+          mkdir -p "$(dirname "$OUTPUT_FILE")"
+          printf '%s\n' "$CONTENT" > "$OUTPUT_FILE"
+
+          echo "output_file=$OUTPUT_FILE" >> "$GITHUB_OUTPUT"
           echo "Content written to $OUTPUT_FILE"
         fi
 
@@ -221,5 +314,8 @@ runs:
 
         # Print preview
         echo "::group::Generated Content Preview"
-        echo "$CONTENT"
+        STOP_COMMAND="git_iris_stop_$(date +%s%N)"
+        echo "::stop-commands::$STOP_COMMAND"
+        printf '%s\n' "$CONTENT"
+        echo "::$STOP_COMMAND::"
         echo "::endgroup::"

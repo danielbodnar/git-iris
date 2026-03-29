@@ -57,7 +57,7 @@ Git-Iris supports three LLM providers with different strengths:
 | Provider      | Default Model              | Fast Model                | Context Window | Best For                          |
 | ------------- | -------------------------- | ------------------------- | -------------- | --------------------------------- |
 | **openai**    | gpt-5.4                    | gpt-5.4-mini              | 128K           | General purpose, fast             |
-| **anthropic** | claude-sonnet-4-5-20250929 | claude-haiku-4-5-20251001 | 200K           | Deep analysis, code understanding |
+| **anthropic** | claude-opus-4-6            | claude-haiku-4-5-20251001 | 200K           | Deep analysis, code understanding |
 | **google**    | gemini-3-pro-preview       | gemini-2.5-flash          | 1M             | Massive context windows           |
 
 **Fast models** are used for simple tasks like status updates and parsing. The primary model handles complex analysis.
@@ -67,7 +67,7 @@ Git-Iris supports three LLM providers with different strengths:
 Set a custom model for your provider:
 
 ```bash
-git-iris config --provider anthropic --model claude-opus-4-20250514
+git-iris config --provider anthropic --model claude-opus-4-6
 ```
 
 Set a custom fast model:
@@ -91,8 +91,8 @@ git-iris config --provider openai --token-limit 4000
 Enable or disable emoji prefixes in commits:
 
 ```bash
-git-iris config --gitmoji true   # Enable
-git-iris config --gitmoji false  # Disable
+git-iris config --gitmoji     # Enable
+git-iris config --no-gitmoji  # Disable
 ```
 
 ### Instruction Presets
@@ -143,13 +143,13 @@ Project settings live in `.irisconfig` in your repository root. Teams can commit
 Set project-specific settings:
 
 ```bash
-git-iris project-config --provider anthropic --preset conventional
+git-iris project-config --provider openai --preset conventional
 ```
 
 Set a model for the project:
 
 ```bash
-git-iris project-config --model claude-sonnet-4-5-20250929
+git-iris project-config --model gpt-5.4
 ```
 
 Set project instructions:
@@ -252,7 +252,7 @@ Useful for scripting and CI/CD where you only want final output.
 Commit shared project settings:
 
 ```bash
-git-iris project-config --provider anthropic --preset conventional
+git-iris project-config --provider openai --preset conventional
 git add .irisconfig
 git commit -m "Add Git-Iris project configuration"
 ```
@@ -260,7 +260,7 @@ git commit -m "Add Git-Iris project configuration"
 Team members clone the repo and only need to set their personal API key:
 
 ```bash
-git-iris config --provider anthropic --api-key sk-ant-...
+git-iris config --provider openai --api-key sk-...
 ```
 
 ### Multiple Providers
@@ -276,6 +276,9 @@ git-iris gen --provider openai
 
 # Use Anthropic for reviews
 git-iris review --provider anthropic
+
+# Use Google for large release notes
+git-iris release-notes --provider google --from v1.0.0
 ```
 
 ### Per-Repository Presets
@@ -295,21 +298,26 @@ git-iris project-config --preset detailed
 The global config file (`~/.config/git-iris/config.toml`) looks like this:
 
 ```toml
-default_provider = "anthropic"
+default_provider = "openai"
 use_gitmoji = true
 instruction_preset = "conventional"
 instructions = "Always include ticket numbers"
 theme = "silkcircuit-neon"
 
-[providers.anthropic]
-api_key = "sk-ant-..."
-model = "claude-sonnet-4-5-20250929"
-fast_model = "claude-haiku-4-5-20251001"
-
 [providers.openai]
 api_key = "sk-..."
 model = "gpt-5.4"
 fast_model = "gpt-5.4-mini"
+
+[providers.anthropic]
+api_key = "sk-ant-..."
+model = "claude-opus-4-6"
+fast_model = "claude-haiku-4-5-20251001"
+
+[providers.google]
+api_key = "AIza..."
+model = "gemini-3-pro-preview"
+fast_model = "gemini-2.5-flash"
 ```
 
 You can edit this manually if you prefer, but the `git-iris config` command is safer.

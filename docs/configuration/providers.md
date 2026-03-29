@@ -7,7 +7,7 @@ Git-Iris supports three LLM providers: OpenAI, Anthropic, and Google.
 | Provider      | Default Model                | Fast Model                  | Context Window | API Key Env         |
 | ------------- | ---------------------------- | --------------------------- | -------------- | ------------------- |
 | **OpenAI**    | `gpt-5.4`                    | `gpt-5.4-mini`              | 128K           | `OPENAI_API_KEY`    |
-| **Anthropic** | `claude-sonnet-4-5-20250929` | `claude-haiku-4-5-20251001` | 200K           | `ANTHROPIC_API_KEY` |
+| **Anthropic** | `claude-opus-4-6`            | `claude-haiku-4-5-20251001` | 200K           | `ANTHROPIC_API_KEY` |
 | **Google**    | `gemini-3-pro-preview`       | `gemini-2.5-flash`          | 1M             | `GOOGLE_API_KEY`    |
 
 ## Configuration Format
@@ -50,7 +50,7 @@ export OPENAI_API_KEY="sk-..."
 ```toml
 [providers.anthropic]
 api_key = "sk-ant-..."
-model = "claude-sonnet-4-5-20250929"
+model = "claude-opus-4-6"
 fast_model = "claude-haiku-4-5-20251001"
 token_limit = 200000
 ```
@@ -59,7 +59,7 @@ token_limit = 200000
 
 ```bash
 git-iris config --provider anthropic --api-key YOUR_API_KEY
-git-iris config --provider anthropic --model claude-sonnet-4-5-20250929
+git-iris config --provider anthropic --model claude-opus-4-6
 ```
 
 ### Environment Variable
@@ -68,9 +68,9 @@ git-iris config --provider anthropic --model claude-sonnet-4-5-20250929
 export ANTHROPIC_API_KEY="sk-ant-..."
 ```
 
-### Legacy Alias
+### Legacy Aliases
 
-The provider name `claude` is still supported as an alias for `anthropic`.
+The provider names `claude` and `gemini` are still supported as aliases for `anthropic` and `google`.
 
 ## Google Configuration
 

@@ -22,23 +22,13 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 git-iris gen
 ```
 
-## Docker-Specific Variables
-
-When running in Docker containers, use these variables:
-
-| Variable           | Description                  | Example      |
-| ------------------ | ---------------------------- | ------------ |
-| `GITIRIS_PROVIDER` | Default provider             | `openai`     |
-| `GITIRIS_API_KEY`  | API key for default provider | `sk-proj-...` |
-
-### Docker Example
+## Docker Example
 
 ```bash
 docker run --rm \
   -v "$(pwd):/git-repo" \
-  -e GITIRIS_PROVIDER="openai" \
-  -e GITIRIS_API_KEY="$OPENAI_API_KEY" \
-  hyperb1iss/git-iris gen --print
+  -e OPENAI_API_KEY="$OPENAI_API_KEY" \
+  hyperb1iss/git-iris gen --provider openai --print
 ```
 
 ## Configuration Priority
@@ -98,8 +88,7 @@ services:
   git-iris:
     image: hyperb1iss/git-iris
     environment:
-      GITIRIS_PROVIDER: openai
-      GITIRIS_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
     volumes:
       - .:/git-repo
 ```
@@ -208,9 +197,9 @@ commit-check:
   stage: test
   image: hyperb1iss/git-iris
   variables:
-    GITIRIS_PROVIDER: 'openai'
+    OPENAI_API_KEY: ${OPENAI_API_KEY}
   script:
-    - git-iris gen --print
+    - git-iris gen --provider openai --print
   only:
     - merge_requests
 ```
@@ -278,8 +267,8 @@ export OPENAI_API_KEY="sk-proj-..."
 # Check current provider
 git-iris config --print | grep default_provider
 
-# Override with environment
-export GITIRIS_PROVIDER="openai"
+# Override for this command
+git-iris gen --provider openai --print
 ```
 
 ### Environment Variable Not Loading
@@ -304,8 +293,6 @@ git-iris gen --print
 | `OPENAI_API_KEY`    | OpenAI authentication     | `sk-proj-...`   |
 | `ANTHROPIC_API_KEY` | Anthropic authentication  | `sk-ant-...`    |
 | `GOOGLE_API_KEY`    | Google authentication     | `AIza...`       |
-| `GITIRIS_PROVIDER`  | Default provider (Docker) | `openai`        |
-| `GITIRIS_API_KEY`   | Generic API key (Docker)  | `sk-proj-...`   |
 | `RUST_LOG`          | Logging level             | `debug`, `info` |
 
 ### Example Complete Setup
@@ -314,9 +301,6 @@ git-iris gen --print
 # Personal development
 export OPENAI_API_KEY="sk-proj-personal-dev-key"
 export ANTHROPIC_API_KEY="sk-ant-personal-dev-key"
-
-# Project-specific
-export GITIRIS_PROVIDER="openai"
 
 # Debug logging
 export RUST_LOG="debug"

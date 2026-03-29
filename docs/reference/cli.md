@@ -38,7 +38,7 @@ Generate AI-powered commit messages for staged changes.
 | `--provider <NAME>`     |       | Override default provider                   |
 | `--instructions <TEXT>` | `-i`  | Custom instructions                         |
 | `--preset <NAME>`       |       | Instruction preset name                     |
-| `--gitmoji <BOOL>`      |       | Enable/disable gitmoji                      |
+| `--gitmoji`             |       | Enable gitmoji for this invocation          |
 
 **Examples:**
 
@@ -53,7 +53,7 @@ git-iris gen --print
 git-iris gen --auto-commit
 
 # Use specific provider
-git-iris gen --provider anthropic --print
+git-iris gen --provider google --print
 
 # Custom instructions
 git-iris gen -i "Focus on security implications" --print
@@ -149,6 +149,7 @@ Generate pull request descriptions.
 | -------------- | ----- | ------------------------------ |
 | `--print`      | `-p`  | Print to stdout                |
 | `--raw`        |       | Output raw markdown            |
+| `--copy`       | `-c`  | Copy raw markdown to clipboard |
 | `--from <REF>` |       | Starting ref (default: `main`) |
 | `--to <REF>`   |       | Target ref (default: `HEAD`)   |
 
@@ -163,6 +164,9 @@ git-iris pr --from develop --to feature-branch
 
 # Single commit PR
 git-iris pr --from abc1234
+
+# Copy markdown to clipboard
+git-iris pr --copy
 
 # Print only
 git-iris pr --print
@@ -222,6 +226,8 @@ Generate comprehensive release notes.
 | `--from <REF>`          | Yes      | Starting Git reference             |
 | `--to <REF>`            | No       | Ending reference (default: `HEAD`) |
 | `--raw`                 | No       | Output raw markdown                |
+| `--update`              | No       | Update the release notes file      |
+| `--file <PATH>`         | No       | Release notes file path            |
 | `--version-name <NAME>` | No       | Explicit version name              |
 
 **Examples:**
@@ -232,6 +238,9 @@ git-iris release-notes --from v1.0.0
 
 # Between tags
 git-iris release-notes --from v1.0.0 --to v2.0.0
+
+# Update RELEASE_NOTES.md
+git-iris release-notes --from v1.0.0 --update
 
 # Custom version
 git-iris release-notes --from v1.0.0 --version-name "2.0.0-beta"
@@ -249,24 +258,29 @@ Configure global Git-Iris settings.
 
 **Options:**
 
-| Flag                  | Description               |
-| --------------------- | ------------------------- |
-| `--provider <NAME>`   | Set default provider      |
-| `--api-key <KEY>`     | Set API key               |
-| `--model <NAME>`      | Set primary model         |
-| `--fast-model <NAME>` | Set fast model            |
-| `--token-limit <NUM>` | Set token limit           |
-| `--param <KEY=VALUE>` | Set additional parameters |
+| Flag                           | Description                    |
+| ------------------------------ | ------------------------------ |
+| `--instructions <TEXT>`        | Set default instructions       |
+| `--preset <NAME>`              | Set default preset             |
+| `--gitmoji`                    | Enable gitmoji                 |
+| `--no-gitmoji`                 | Disable gitmoji                |
+| `--provider <NAME>`            | Set default provider           |
+| `--api-key <KEY>`              | Set API key                    |
+| `--model <NAME>`               | Set primary model              |
+| `--fast-model <NAME>`          | Set fast model                 |
+| `--token-limit <NUM>`          | Set token limit                |
+| `--param <KEY=VALUE>`          | Set additional parameters      |
+| `--subagent-timeout <SECONDS>` | Set parallel subagent timeout  |
 
 **Examples:**
 
 ```bash
 # Set provider and API key
-git-iris config --provider anthropic --api-key sk-ant-...
+git-iris config --provider openai --api-key sk-...
 
 # Configure models
 git-iris config --provider anthropic \
-  --model claude-sonnet-4-5-20250929 \
+  --model claude-opus-4-6 \
   --fast-model claude-haiku-4-5-20251001
 
 # Set token limit
@@ -290,23 +304,28 @@ Manage project-specific `.irisconfig` file.
 
 **Options:**
 
-| Flag                  | Short | Description                  |
-| --------------------- | ----- | ---------------------------- |
-| `--provider <NAME>`   |       | Set project provider         |
-| `--model <NAME>`      |       | Set project model            |
-| `--fast-model <NAME>` |       | Set project fast model       |
-| `--token-limit <NUM>` |       | Set project token limit      |
-| `--param <KEY=VALUE>` |       | Set project parameters       |
-| `--print`             | `-p`  | Print current project config |
+| Flag                           | Short | Description                   |
+| ------------------------------ | ----- | ----------------------------- |
+| `--provider <NAME>`            |       | Set project provider          |
+| `--instructions <TEXT>`        |       | Set project instructions      |
+| `--preset <NAME>`              |       | Set project preset            |
+| `--gitmoji`                    |       | Enable gitmoji                |
+| `--no-gitmoji`                 |       | Disable gitmoji               |
+| `--model <NAME>`               |       | Set project model             |
+| `--fast-model <NAME>`          |       | Set project fast model        |
+| `--token-limit <NUM>`          |       | Set project token limit       |
+| `--param <KEY=VALUE>`          |       | Set project parameters        |
+| `--subagent-timeout <SECONDS>` |       | Set parallel subagent timeout |
+| `--print`                      | `-p`  | Print current project config  |
 
 **Examples:**
 
 ```bash
 # Create project config
-git-iris project-config --provider anthropic
+git-iris project-config --provider google
 
 # Set project model
-git-iris project-config --model claude-sonnet-4-5-20250929
+git-iris project-config --model gemini-3-pro-preview
 
 # View project config
 git-iris project-config --print
@@ -336,6 +355,64 @@ Display all available themes.
 
 **No options.**
 
+---
+
+### `completions` - Generate Shell Completions
+
+```bash
+git-iris completions <SHELL>
+```
+
+Generate shell completion scripts.
+
+**Arguments:**
+
+| Argument | Description |
+| -------- | ----------- |
+| `bash` | Generate Bash completions |
+| `zsh` | Generate Zsh completions |
+| `fish` | Generate Fish completions |
+| `elvish` | Generate Elvish completions |
+| `powershell` | Generate PowerShell completions |
+
+**Examples:**
+
+```bash
+git-iris completions zsh >> ~/.zshrc
+git-iris completions fish > ~/.config/fish/completions/git-iris.fish
+```
+
+---
+
+### `hook` - Manage Git Hooks
+
+```bash
+git-iris hook <install|uninstall> [OPTIONS]
+```
+
+Install or uninstall the `prepare-commit-msg` hook.
+
+**Subcommands:**
+
+| Subcommand | Description |
+| ---------- | ----------- |
+| `install` | Install the prepare-commit-msg hook |
+| `uninstall` | Remove the prepare-commit-msg hook |
+
+**Options for `install`:**
+
+| Flag | Description |
+| ---- | ----------- |
+| `--force` | Overwrite an existing non-git-iris hook |
+
+**Examples:**
+
+```bash
+git-iris hook install
+git-iris hook install --force
+git-iris hook uninstall
+```
+
 ## Common Workflows
 
 ### First-Time Setup
@@ -345,8 +422,9 @@ Display all available themes.
 brew install hyperb1iss/tap/git-iris
 
 # Configure
-git-iris config --provider anthropic --api-key YOUR_KEY
-git-iris config --model claude-sonnet-4-5-20250929
+git-iris config --provider openai --api-key YOUR_OPENAI_API_KEY
+git-iris config --provider anthropic --api-key YOUR_ANTHROPIC_API_KEY
+git-iris config --provider google --api-key YOUR_GOOGLE_API_KEY
 ```
 
 ### Daily Usage
@@ -440,8 +518,7 @@ See [Environment Variables](../configuration/environment.md) for details.
 | `OPENAI_API_KEY`    | OpenAI authentication     |
 | `ANTHROPIC_API_KEY` | Anthropic authentication  |
 | `GOOGLE_API_KEY`    | Google authentication     |
-| `GITIRIS_PROVIDER`  | Default provider (Docker) |
-| `GITIRIS_API_KEY`   | Generic API key (Docker)  |
+| `RUST_LOG`          | Logging and debug output  |
 
 ## Shell Aliases
 

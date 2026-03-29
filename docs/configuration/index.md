@@ -6,7 +6,7 @@ Git-Iris uses a layered configuration system that combines personal settings, pr
 
 1. **Personal Config** (`~/.config/git-iris/config.toml`) — Your global defaults
 2. **Project Config** (`.irisconfig` in repo root) — Team-shared settings
-3. **Environment Variables** — Runtime overrides
+3. **Environment Variables** — API keys and integration-specific overrides
 4. **CLI Flags** — Command-specific overrides
 
 Settings are merged in this order (later takes precedence), except **API keys are never loaded from project config** for security.
@@ -14,15 +14,18 @@ Settings are merged in this order (later takes precedence), except **API keys ar
 ## Quick Start
 
 ```bash
-# Set up your provider
-git-iris config --provider anthropic --api-key YOUR_API_KEY
+# Set up your provider (OpenAI is the default)
+git-iris config --provider openai --api-key YOUR_OPENAI_API_KEY
+# or:
+git-iris config --provider anthropic --api-key YOUR_ANTHROPIC_API_KEY
+git-iris config --provider google --api-key YOUR_GOOGLE_API_KEY
 
-# Set preferred models
-git-iris config --model claude-sonnet-4-5-20250929
-git-iris config --fast-model claude-haiku-4-5-20251001
+# Optionally override models for the selected provider
+git-iris config --provider openai --model gpt-5.4
+git-iris config --provider openai --fast-model gpt-5.4-mini
 
 # Enable gitmoji
-git-iris config --use-gitmoji true
+git-iris config --gitmoji
 ```
 
 ## Configuration Files
@@ -64,18 +67,23 @@ instruction_preset = "conventional"
 theme = "silkcircuit-neon"
 
 # Default provider
-default_provider = "anthropic"
+default_provider = "openai"
 
 # Provider configurations
-[providers.anthropic]
-api_key = "sk-ant-..."
-model = "claude-sonnet-4-5-20250929"
-fast_model = "claude-haiku-4-5-20251001"
-
 [providers.openai]
 api_key = "sk-..."
 model = "gpt-5.4"
 fast_model = "gpt-5.4-mini"
+
+[providers.anthropic]
+api_key = "sk-ant-..."
+model = "claude-opus-4-6"
+fast_model = "claude-haiku-4-5-20251001"
+
+[providers.google]
+api_key = "AIza..."
+model = "gemini-3-pro-preview"
+fast_model = "gemini-2.5-flash"
 ```
 
 ## Global Settings

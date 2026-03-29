@@ -6,8 +6,8 @@ Git-Iris uses a dual-model strategy: **primary models** for complex analysis and
 
 | Model Type  | Used For                                       | Examples                                    |
 | ----------- | ---------------------------------------------- | ------------------------------------------- |
-| **Primary** | Commit messages, code reviews, PR descriptions | `claude-sonnet-4-5-20250929`, `gpt-5.4`     |
-| **Fast**    | Status updates, parsing, simple queries        | `claude-haiku-4-5-20251001`, `gpt-5.4-mini` |
+| **Primary** | Commit messages, code reviews, PR descriptions | `claude-opus-4-6`, `gpt-5.4`, `gemini-3-pro-preview` |
+| **Fast**    | Status updates, parsing, simple queries        | `claude-haiku-4-5-20251001`, `gpt-5.4-mini`, `gemini-2.5-flash` |
 
 This dual-model approach optimizes for both quality and speed.
 
@@ -30,13 +30,13 @@ fast_model = "gpt-5.4-mini"
 
 ```toml
 [providers.anthropic]
-model = "claude-sonnet-4-5-20250929"
+model = "claude-opus-4-6"
 fast_model = "claude-haiku-4-5-20251001"
 ```
 
 | Model                        | Use Case | Context | Notes                       |
 | ---------------------------- | -------- | ------- | --------------------------- |
-| `claude-sonnet-4-5-20250929` | Primary  | 200K    | Excellent for code analysis |
+| `claude-opus-4-6`            | Primary  | 200K    | Excellent for code analysis |
 | `claude-haiku-4-5-20251001`  | Fast     | 200K    | Fastest response times      |
 
 ### Google
@@ -58,7 +58,7 @@ fast_model = "gemini-2.5-flash"
 
 ```bash
 # Set primary model
-git-iris config --provider anthropic --model claude-sonnet-4-5-20250929
+git-iris config --provider anthropic --model claude-opus-4-6
 
 # Set fast model
 git-iris config --provider anthropic --fast-model claude-haiku-4-5-20251001
@@ -69,7 +69,7 @@ git-iris config --provider anthropic --fast-model claude-haiku-4-5-20251001
 ```toml
 [providers.anthropic]
 api_key = "sk-ant-..."
-model = "claude-sonnet-4-5-20250929"
+model = "claude-opus-4-6"
 fast_model = "claude-haiku-4-5-20251001"
 ```
 
@@ -96,14 +96,14 @@ fast_model = "claude-haiku-4-5-20251001"
 
 | Priority    | Consideration                | Recommendation           |
 | ----------- | ---------------------------- | ------------------------ |
-| **Quality** | Need best analysis           | Claude Sonnet 4.5        |
+| **Quality** | Need best analysis           | Claude Opus 4.6          |
 | **Context** | Large changesets (>50 files) | Gemini 3 Pro (1M tokens) |
-| **Speed**   | Fast turnaround              | GPT-5.1                  |
+| **Speed**   | Fast turnaround              | GPT-5.4-mini or Gemini 2.5 Flash |
 | **Cost**    | Budget constraints           | Use fast models more     |
 
 ### Optimize Fast Model For
 
-- **Response time** — Haiku, GPT-5.1-mini, Gemini Flash
+- **Response time** — Haiku, GPT-5.4-mini, Gemini Flash
 - **Context window** — All fast models support large context
 - **Availability** — Check provider rate limits
 
@@ -116,10 +116,10 @@ You can use any model supported by your provider:
 git-iris config --provider openai --model gpt-5.4
 
 # Anthropic custom model
-git-iris config --provider anthropic --model claude-opus-4-5
+git-iris config --provider anthropic --model claude-haiku-4-5-20251001
 
 # Google custom model
-git-iris config --provider google --model gemini-2.0-flash-exp
+git-iris config --provider google --model gemini-2.5-flash
 ```
 
 ## Model Fallback Behavior
@@ -167,7 +167,7 @@ fast_model = "claude-haiku-4-5-20251001"
 
 ```toml
 [providers.anthropic]
-model = "claude-sonnet-4-5-20250929"  # Best code understanding
+model = "claude-opus-4-6"  # Best code understanding
 ```
 
 ## Monitoring Model Usage
@@ -202,7 +202,7 @@ token_limit = 8000  # Lower limit
 ```toml
 # Standard setup
 [providers.anthropic]
-model = "claude-sonnet-4-5-20250929"  # Quality for commits
+model = "claude-opus-4-6"  # Quality for commits
 fast_model = "claude-haiku-4-5-20251001"  # Speed for status
 ```
 
@@ -219,9 +219,9 @@ fast_model = "claude-haiku-4-5-20251001"  # Speed for status
 
 | Model             | Provider  | Context | Speed  | Quality   | Cost   |
 | ----------------- | --------- | ------- | ------ | --------- | ------ |
-| claude-sonnet-4-5 | Anthropic | 200K    | Medium | Excellent | Medium |
+| claude-opus-4-6   | Anthropic | 200K    | Medium | Excellent | Medium |
 | claude-haiku-4-5  | Anthropic | 200K    | Fast   | Good      | Low    |
 | gpt-5.4           | OpenAI    | 128K    | Medium | Excellent | Medium |
 | gpt-5.4-mini      | OpenAI    | 128K    | Fast   | Good      | Low    |
-| gemini-3-pro      | Google    | 1M      | Slow   | Excellent | High   |
+| gemini-3-pro-preview | Google | 1M      | Slow   | Excellent | High   |
 | gemini-2.5-flash  | Google    | 1M      | Fast   | Good      | Low    |

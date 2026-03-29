@@ -276,18 +276,27 @@ impl Config {
     fn migrate_if_needed(mut config: Self) -> Self {
         let mut migrated = false;
 
-        // Migrate "claude" provider to "anthropic"
-        if config.providers.contains_key("claude") {
-            log_debug!("Migrating 'claude' provider to 'anthropic'");
-            if let Some(claude_config) = config.providers.remove("claude") {
-                config
-                    .providers
-                    .insert("anthropic".to_string(), claude_config);
+        for (legacy, canonical) in [("claude", "anthropic"), ("gemini", "google")] {
+            if let Some(legacy_config) = config.providers.remove(legacy) {
+                log_debug!("Migrating '{legacy}' provider to '{canonical}'");
+
+                if config.providers.contains_key(canonical) {
+                    log_debug!(
+                        "Keeping existing '{canonical}' config and dropping legacy '{legacy}' entry"
+                    );
+                } else {
+                    config
+                        .providers
+                        .insert(canonical.to_string(), legacy_config);
+                }
+
+                migrated = true;
             }
-            if config.default_provider == "claude" {
-                config.default_provider = "anthropic".to_string();
+
+            if config.default_provider.eq_ignore_ascii_case(legacy) {
+                config.default_provider = canonical.to_string();
+                migrated = true;
             }
-            migrated = true;
         }
 
         if migrated && let Err(e) = config.save() {

@@ -149,7 +149,7 @@ git-iris gen --no-gitmoji
 Or disable globally:
 
 ```bash
-git-iris config --gitmoji false
+git-iris config --no-gitmoji
 ```
 
 ### Add Custom Instructions

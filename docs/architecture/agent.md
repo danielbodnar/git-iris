@@ -44,12 +44,12 @@ pub struct IrisAgent {
 
 ```rust
 // Direct creation
-let agent = IrisAgent::new("anthropic", "claude-sonnet-4-5-20250929")?;
+let agent = IrisAgent::new("anthropic", "claude-opus-4-6")?;
 
 // With builder
 let agent = IrisAgentBuilder::new()
     .with_provider("anthropic")
-    .with_model("claude-sonnet-4-5-20250929")
+    .with_model("claude-opus-4-6")
     .with_preamble("Custom instructions...")
     .build()?;
 ```

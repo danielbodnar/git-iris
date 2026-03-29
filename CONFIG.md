@@ -19,14 +19,14 @@ The configuration file is organized into these main sections:
 | Option                | Type    | Default     | Description                                     |
 | --------------------- | ------- | ----------- | ----------------------------------------------- |
 | `use_gitmoji`         | Boolean | `false`     | Enable Gitmoji in commit messages               |
-| `custom_instructions` | String  | `""`        | Custom instructions included in all LLM prompts |
+| `instructions`        | String  | `""`        | Custom instructions included in all LLM prompts |
 | `instruction_preset`  | String  | `"default"` | Default preset for AI instructions              |
 
 **Examples:**
 
 ```toml
 use_gitmoji = true
-custom_instructions = """
+instructions = """
 Always mention the ticket number if applicable.
 Focus on the impact of changes rather than implementation details.
 """
@@ -42,7 +42,7 @@ instruction_preset = "conventional"
 **Example:**
 
 ```toml
-default_provider = "anthropic"
+default_provider = "openai"
 ```
 
 ### Provider-Specific Configurations
@@ -55,7 +55,7 @@ Each provider has its own subtable under `[providers]` with these fields:
 | `model`              | String  | No       | Primary model for complex analysis tasks              |
 | `fast_model`         | String  | No       | Fast model for simple tasks (status updates, parsing) |
 | `additional_params`  | Table   | No       | Additional provider-specific parameters               |
-| `custom_token_limit` | Integer | No       | Custom token limit override                           |
+| `token_limit`        | Integer | No       | Token limit override                                  |
 
 ## 🤖 Supported Providers
 
@@ -64,20 +64,20 @@ Git-Iris supports three LLM providers:
 | Provider      | Default Model              | Fast Model                | Context Window | API Key Env         |
 | ------------- | -------------------------- | ------------------------- | -------------- | ------------------- |
 | **openai**    | gpt-5.4                    | gpt-5.4-mini              | 128,000        | `OPENAI_API_KEY`    |
-| **anthropic** | claude-sonnet-4-5-20250929 | claude-haiku-4-5-20251001 | 200,000        | `ANTHROPIC_API_KEY` |
+| **anthropic** | claude-opus-4-6            | claude-haiku-4-5-20251001 | 200,000        | `ANTHROPIC_API_KEY` |
 | **google**    | gemini-3-pro-preview       | gemini-2.5-flash          | 1,000,000      | `GOOGLE_API_KEY`    |
 
-> **Note:** The `claude` provider name is still supported as a legacy alias for `anthropic`.
+> **Note:** `claude` and `gemini` are still supported as legacy aliases for `anthropic` and `google`.
 
 ## 📝 Example Configuration File
 
 ```toml
 # Global settings
 use_gitmoji = true
-default_provider = "anthropic"
+default_provider = "openai"
 instruction_preset = "conventional"
 
-custom_instructions = """
+instructions = """
 Always mention the ticket number if applicable.
 Focus on the impact of changes rather than implementation details.
 """
@@ -88,15 +88,15 @@ api_key = "sk-your-openai-api-key"
 model = "gpt-5.4"
 fast_model = "gpt-5.4-mini"
 additional_params = { temperature = "0.7", max_tokens = "4096" }
-custom_token_limit = 8000
+token_limit = 8000
 
 # Anthropic configuration
 [providers.anthropic]
 api_key = "sk-ant-your-anthropic-api-key"
-model = "claude-sonnet-4-5-20250929"
+model = "claude-opus-4-6"
 fast_model = "claude-haiku-4-5-20251001"
 additional_params = { temperature = "0.8" }
-custom_token_limit = 200000
+token_limit = 200000
 
 # Google configuration
 [providers.google]
@@ -104,7 +104,7 @@ api_key = "your-google-api-key"
 model = "gemini-3-pro-preview"
 fast_model = "gemini-2.5-flash"
 additional_params = { temperature = "0.7" }
-custom_token_limit = 1048576
+token_limit = 1048576
 ```
 
 ## 🖥️ CLI Configuration Commands
@@ -116,7 +116,7 @@ custom_token_limit = 1048576
 git-iris config --provider openai --api-key YOUR_API_KEY
 
 # Set models
-git-iris config --provider anthropic --model claude-sonnet-4-5-20250929
+git-iris config --provider anthropic --model claude-opus-4-6
 git-iris config --provider anthropic --fast-model claude-haiku-4-5-20251001
 
 # Set token limit
@@ -126,7 +126,7 @@ git-iris config --provider openai --token-limit 8000
 git-iris config --provider openai --param temperature=0.7 --param max_tokens=4096
 
 # Enable Gitmoji
-git-iris config --gitmoji true
+git-iris config --gitmoji
 
 # Set custom instructions
 git-iris config --instructions "Your custom instructions here"
@@ -141,10 +141,10 @@ Project settings are stored in `.irisconfig` in your repository root:
 
 ```bash
 # Set project-specific provider
-git-iris project-config --provider anthropic
+git-iris project-config --provider google
 
 # Set project-specific model
-git-iris project-config --model claude-sonnet-4-5-20250929
+git-iris project-config --model gemini-3-pro-preview
 
 # Set project-specific preset
 git-iris project-config --preset security
@@ -164,16 +164,14 @@ You can also configure Git-Iris using environment variables:
 | `OPENAI_API_KEY`    | OpenAI API key                   |
 | `ANTHROPIC_API_KEY` | Anthropic API key                |
 | `GOOGLE_API_KEY`    | Google API key                   |
-| `GITIRIS_PROVIDER`  | Default provider (for Docker/CI) |
-| `GITIRIS_API_KEY`   | API key (for Docker/CI)          |
+| `RUST_LOG`          | Logging level for debugging      |
 
 **Example (Docker/CI):**
 
 ```bash
 docker run --rm -v "$(pwd):/git-repo" \
-  -e GITIRIS_PROVIDER="openai" \
-  -e GITIRIS_API_KEY="$OPENAI_API_KEY" \
-  hyperb1iss/git-iris gen --print
+  -e OPENAI_API_KEY="$OPENAI_API_KEY" \
+  hyperb1iss/git-iris gen --provider openai --print
 ```
 
 ## 🎛️ Instruction Presets
@@ -229,7 +227,7 @@ git-iris config --provider openai --token-limit 4000
 | ------------------------- | ----------------------------------------------------------- |
 | **Authentication failed** | Verify API key is correct and has required permissions      |
 | **Model not found**       | Check you're using a supported model for your provider      |
-| **Token limit exceeded**  | Reduce `custom_token_limit` or use a smaller changeset      |
+| **Token limit exceeded**  | Reduce `token_limit` or use a smaller changeset             |
 | **Slow responses**        | Try a faster model with `--fast-model`                      |
 | **Debug issues**          | Enable logging with `-l` or use `--debug` for agent details |
 

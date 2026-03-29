@@ -78,10 +78,13 @@ Download pre-built binaries from [GitHub Releases][releases] for Linux (x64/ARM6
 
 ---
 
-Then configure your AI provider:
+Then configure your AI provider. OpenAI is the default, and Anthropic and Google are equally supported:
 
 ```bash
-git-iris config --provider anthropic --api-key YOUR_API_KEY
+git-iris config --provider openai --api-key YOUR_OPENAI_API_KEY
+# or:
+git-iris config --provider anthropic --api-key YOUR_ANTHROPIC_API_KEY
+git-iris config --provider google --api-key YOUR_GOOGLE_API_KEY
 ```
 
 Supports **OpenAI**, **Anthropic**, and **Google**. See the [Configuration Guide](https://hyperb1iss.github.io/git-iris/getting-started/configuration) for details.
@@ -132,10 +135,11 @@ Automate release notes and changelogs in your CI/CD:
 
 ```yaml
 - name: Generate release notes
-  uses: hyperb1iss/git-iris@v1
+  uses: hyperb1iss/git-iris@v2
   with:
     from: v1.0.0
     to: v1.1.0
+    provider: openai
     api-key: ${{ secrets.OPENAI_API_KEY }}
     output-file: RELEASE_NOTES.md
 ```

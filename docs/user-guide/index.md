@@ -52,10 +52,13 @@ Set your API key and preferences:
 
 ```bash
 # Configure provider
-git-iris config --provider anthropic --api-key YOUR_KEY
+git-iris config --provider openai --api-key YOUR_OPENAI_API_KEY
 
 # Set default model
-git-iris config --model claude-sonnet-4-5-20250929
+git-iris config --provider anthropic --model claude-opus-4-6
+
+# Google works the same way
+git-iris config --provider google --api-key YOUR_GOOGLE_API_KEY
 
 # List available presets
 git-iris list-presets

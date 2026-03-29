@@ -148,10 +148,10 @@ git-iris gen --no-gitmoji
 
 ```bash
 # Enable
-git-iris config --gitmoji true
+git-iris config --gitmoji
 
 # Disable
-git-iris config --gitmoji false
+git-iris config --no-gitmoji
 ```
 
 ## Hook Integration

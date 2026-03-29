@@ -44,9 +44,8 @@ docker run --rm -v "$(pwd):/git-repo" hyperb1iss/git-iris gen
 
 ```bash
 docker run --rm -v "$(pwd):/git-repo" \
-  -e GITIRIS_PROVIDER="openai" \
-  -e GITIRIS_API_KEY="your-api-key" \
-  hyperb1iss/git-iris gen
+  -e OPENAI_API_KEY="your-api-key" \
+  hyperb1iss/git-iris gen --provider openai
 ```
 
 **Persistent configuration:**

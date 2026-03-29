@@ -11,8 +11,8 @@ Git-Iris is available as a GitHub Action for automating release notes, changelog
     command: release-notes
     from: v1.0.0
     to: v2.0.0
-    provider: anthropic
-    api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    provider: openai
+    api-key: ${{ secrets.OPENAI_API_KEY }}
     output-file: RELEASE_NOTES.md
 ```
 
@@ -29,7 +29,7 @@ Git-Iris is available as a GitHub Action for automating release notes, changelog
 | `output-file` | File path to write output | No | - |
 | `version-name` | Explicit version name to use in output | No | - |
 | `custom-instructions` | Custom instructions for generation | No | - |
-| `update-file` | Prepend to existing file (changelog only) | No | `false` |
+| `update-file` | Apply native `git-iris --update` behavior | No | `false` |
 | `version` | Git-Iris version to use | No | `latest` |
 | `build-from-source` | Build from source instead of binary | No | `false` |
 | `binary-path` | Path to pre-built binary | No | - |
@@ -75,9 +75,8 @@ jobs:
           from: ${{ steps.prev_tag.outputs.tag }}
           to: ${{ github.ref_name }}
           version-name: ${{ github.ref_name }}
-          provider: anthropic
-          model: claude-sonnet-4-5-20250929
-          api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          provider: openai
+          api-key: ${{ secrets.OPENAI_API_KEY }}
           output-file: RELEASE_NOTES.md
 
       - name: Create GitHub Release
@@ -99,7 +98,7 @@ jobs:
     provider: openai
     api-key: ${{ secrets.OPENAI_API_KEY }}
     output-file: CHANGELOG.md
-    update-file: "true"  # Prepends to existing CHANGELOG.md
+    update-file: "true"  # Uses native changelog update behavior
 ```
 
 ### Use with Different Providers
@@ -124,7 +123,6 @@ jobs:
     command: release-notes
     from: v1.0.0
     provider: anthropic
-    model: claude-sonnet-4-5-20250929
     api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
@@ -136,7 +134,6 @@ jobs:
     command: release-notes
     from: v1.0.0
     provider: google
-    model: gemini-2.0-flash
     api-key: ${{ secrets.GOOGLE_API_KEY }}
 ```
 
@@ -147,8 +144,8 @@ jobs:
   with:
     command: release-notes
     from: v1.0.0
-    provider: anthropic
-    api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    provider: openai
+    api-key: ${{ secrets.OPENAI_API_KEY }}
     custom-instructions: |
       Focus on user-facing changes.
       Use simple language suitable for non-technical users.
@@ -164,8 +161,8 @@ jobs:
   with:
     command: release-notes
     from: v1.0.0
-    provider: anthropic
-    api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    provider: openai
+    api-key: ${{ secrets.OPENAI_API_KEY }}
 
 - name: Use Generated Content
   run: |
@@ -180,8 +177,8 @@ jobs:
   with:
     command: release-notes
     from: v1.0.0
-    provider: anthropic
-    api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    provider: openai
+    api-key: ${{ secrets.OPENAI_API_KEY }}
     version: v2.0.0  # Use specific git-iris version
 ```
 
@@ -214,7 +211,7 @@ Always use GitHub Secrets for API keys:
 
 1. Go to your repository Settings > Secrets and variables > Actions
 2. Click "New repository secret"
-3. Add your provider's API key (e.g., `ANTHROPIC_API_KEY`)
+3. Add your provider's API key (for example `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GOOGLE_API_KEY`)
 
 ### Build from Source (Advanced)
 
@@ -225,8 +222,8 @@ If you need the latest features or encounter issues with the binary:
   with:
     command: release-notes
     from: v1.0.0
-    provider: anthropic
-    api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    provider: openai
+    api-key: ${{ secrets.OPENAI_API_KEY }}
     build-from-source: "true"
 ```
 
@@ -246,7 +243,7 @@ If you've already built git-iris in a previous step:
   with:
     command: release-notes
     from: v1.0.0
-    provider: anthropic
-    api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    provider: openai
+    api-key: ${{ secrets.OPENAI_API_KEY }}
     binary-path: ./target/release/git-iris
 ```

@@ -135,7 +135,7 @@ Error: Model 'claude-4' not found
 
 ```bash
 # Use correct model name
-git-iris config --provider anthropic --model claude-sonnet-4-5-20250929
+git-iris config --provider anthropic --model claude-opus-4-6
 
 # List available providers
 git-iris config --help

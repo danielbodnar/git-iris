@@ -382,14 +382,14 @@ Or use CLI:
 
 ```bash
 git-iris config --provider anthropic --api-key YOUR_KEY
-git-iris config --provider anthropic --model claude-sonnet-4-5-20250929
+git-iris config --provider anthropic --model claude-opus-4-6
 ```
 
 ### Provider Details
 
 | Provider  | Default Model              | Fast Model                | Context |
 | --------- | -------------------------- | ------------------------- | ------- |
-| openai    | gpt-5.4                    | gpt-5.1-mini              | 128K    |
+| openai    | gpt-5.4                    | gpt-5.4-mini              | 128K    |
 | anthropic | claude-opus-4-6            | claude-haiku-4-5-20251001 | 200K    |
 | google    | gemini-3-pro-preview       | gemini-2.5-flash          | 1M      |
 

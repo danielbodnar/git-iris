@@ -27,7 +27,7 @@ This prevents credential leakage when committing `.irisconfig` to version contro
 ```bash
 # From repository root
 git-iris project-config --provider anthropic
-git-iris project-config --model claude-sonnet-4-5-20250929
+git-iris project-config --model claude-opus-4-6
 git-iris project-config --preset conventional
 ```
 
@@ -57,7 +57,7 @@ Focus on business impact over implementation details.
 
 # Provider configurations (no API keys)
 [providers.anthropic]
-model = "claude-sonnet-4-5-20250929"
+model = "claude-opus-4-6"
 fast_model = "claude-haiku-4-5-20251001"
 token_limit = 150000
 ```
@@ -93,7 +93,7 @@ use_gitmoji = true
 instruction_preset = "conventional"
 
 [providers.anthropic]
-model = "claude-sonnet-4-5-20250929"
+model = "claude-opus-4-6"
 ```
 
 **Effective config:**
@@ -110,7 +110,7 @@ api_key = "sk-..."
 
 # From project config
 [providers.anthropic]
-model = "claude-sonnet-4-5-20250929"
+model = "claude-opus-4-6"
 # API key loaded from personal config or ANTHROPIC_API_KEY env var
 ```
 
@@ -250,7 +250,7 @@ Project-specific guidelines here.
 """
 
 [providers.anthropic]
-model = "claude-sonnet-4-5-20250929"
+model = "claude-opus-4-6"
 fast_model = "claude-haiku-4-5-20251001"
 
 # API keys NOT included - loaded from personal config
@@ -370,7 +370,7 @@ Include:
 """
 
 [providers.anthropic]
-model = "claude-sonnet-4-5-20250929"
+model = "claude-opus-4-6"
 token_limit = 150000
 ```
 
