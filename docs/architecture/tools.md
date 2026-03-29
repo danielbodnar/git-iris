@@ -265,20 +265,24 @@ pub struct ProjectDocsArgs {
 **Doc types:**
 
 - `readme` — Project README
-- `agents` — AGENTS.md (agent-specific conventions)
-- `claude` — CLAUDE.md (project-specific LLM instructions)
-- `context` — All of the above concatenated
+- `agents` — Agent instruction files such as `AGENTS.md`, `CLAUDE.md`, or `.github/copilot-instructions.md`
+- `contributing` — Contribution guidelines
+- `changelog` — Changelog/history files
+- `license` — License files
+- `codeofconduct` — Code of conduct
+- `context` — A concise README + agent-instructions summary
+- `all` — All supported project docs
 
 **Example:**
 
 ```rust
-// Get full project context
+// Get a compact project context snapshot
 project_docs({ "doc_type": "context" })
 ```
 
 **Why this matters:**
 
-Every project has conventions (commit style, terminology, architecture patterns). Iris reads these first to align her output with project standards.
+Every project has conventions (commit style, terminology, architecture patterns). Iris can grab a compact context snapshot quickly, then request targeted docs when she needs the full file.
 
 ### Repository Metadata
 

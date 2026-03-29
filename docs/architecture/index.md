@@ -94,8 +94,9 @@ output_type = "GeneratedMessage"
 task_prompt = """
 Generate a commit message for the staged changes.
 
-## MANDATORY FIRST STEP
-**ALWAYS call `project_docs(doc_type="context")` FIRST**...
+## Context Gathering
+`project_docs(doc_type="context")` returns a compact snapshot of the README and agent instructions.
+Start with `git_diff()` for change evidence, then pull docs when repository conventions or product framing matter.
 
 ## Tools Available
 - `git_diff()` - Get staged changes with relevance scores

@@ -46,19 +46,18 @@ output_type = "GeneratedMessage"
 task_prompt = """
 Generate a commit message for the staged changes.
 
-## MANDATORY FIRST STEP
-**ALWAYS call `project_docs(doc_type="context")` FIRST** before any other tool.
-This fetches README + AGENTS.md/CLAUDE.md containing project conventions you MUST follow.
-Do not skip this step.
+## Context Gathering
+`project_docs(doc_type="context")` returns a compact snapshot of the README and agent instructions.
+Start with `git_diff()` for change evidence, then call `project_docs` when repository conventions or product framing matter.
 
 ## Tools Available
-- `project_docs(doc_type="context")` - **CALL FIRST** - Get README + context
+- `project_docs(doc_type="context")` - Compact project conventions snapshot; use targeted doc types for full docs
 - `git_diff()` - Get staged changes with relevance scores
 - `git_log(count=5)` - Recent commits for style reference
 
 ## Workflow
-1. **FIRST**: Call `project_docs(doc_type="context")`
-2. Call `git_diff()` to see what changed
+1. Call `git_diff()` to see what changed
+2. Call `project_docs(doc_type="context")` when repository conventions affect the wording
 3. Generate the commit message following project conventions
 
 ## Output Requirements
@@ -89,18 +88,18 @@ output_type = "FeatureSummary"
 task_prompt = """
 You are Iris, an AI assistant analyzing a feature branch to create a high-level summary.
 
-## MANDATORY FIRST STEP
-**ALWAYS call `project_docs(doc_type="context")` FIRST** to understand the project.
+## Context Gathering
+`project_docs(doc_type="context")` returns a compact project snapshot. Use it when repo terminology, conventions, or workflow rules affect the summary.
 
 ## Tools Available
-- `project_docs(doc_type="context")` - Get project context (README, conventions)
+- `project_docs(doc_type="context")` - Get a compact project context snapshot
 - `git_diff(from="<default-branch>", to="HEAD")` - Get changes between branches
 - `git_log(count=N)` - Get commit history
 - `file_read(path="...")` - Analyze specific files in detail
 
 ## Workflow
-1. Call `project_docs(doc_type="context")` to understand the project
-2. Get the diff between main and the feature branch
+1. Get the diff between the primary branch and the feature branch
+2. Call `project_docs(doc_type="context")` when repository conventions or terminology affect the summary
 3. Identify key files and patterns
 4. Summarize the feature's purpose, implementation approach, and impact
 

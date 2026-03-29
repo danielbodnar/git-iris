@@ -80,9 +80,9 @@ pub struct GeneratedMessage {
 
 **Key instructions:**
 
-- Always call `project_docs(doc_type="context")` first
-- Use `git_diff()` for changes with relevance scores
-- Follow project-specific conventions from README/AGENTS.md
+- Start with `git_diff()` for change evidence
+- Use `project_docs(doc_type="context")` when repository conventions or product framing matter
+- Treat `project_docs(doc_type="context")` as a compact snapshot; use targeted doc types for full files
 - Adapt context strategy based on changeset size
 - Use `parallel_analyze` for very large changes
 
@@ -337,15 +337,15 @@ cargo run -- my-capability
 
 ## Prompt Engineering Best Practices
 
-### 1. Mandatory First Steps
+### 1. Context Gathering
 
-Always instruct Iris to gather context first:
+Instruct Iris to gather the highest-signal evidence first, then pull repo docs when they materially change the answer:
 
 ```toml
 task_prompt = """
-## MANDATORY FIRST STEP
-**ALWAYS call `project_docs(doc_type="context")` FIRST**
-This fetches project conventions you MUST follow.
+## Context Gathering
+`project_docs(doc_type="context")` returns a compact snapshot of README and agent instructions.
+Start with `git_diff()` for code evidence, then call `project_docs` when conventions, terminology, or workflow rules matter.
 """
 ```
 
@@ -436,7 +436,7 @@ Guide a workflow:
 Leverage project docs:
 
 ```toml
-After reading `project_docs(doc_type="context")`:
+When `project_docs(doc_type="context")` is relevant:
 - Follow any commit conventions from AGENTS.md
 - Use terminology from README
 - Respect project style guide
@@ -479,7 +479,8 @@ Color-coded output shows:
 
 ✅ **DO:**
 
-- Start with `project_docs()` for context
+- Start with `git_diff()` or the primary change evidence
+- Use `project_docs(doc_type="context")` as a compact conventions snapshot
 - Provide clear tool descriptions
 - Guide size-based strategies
 - Allow style flexibility

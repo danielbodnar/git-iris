@@ -168,8 +168,8 @@ flowchart TB
 | Step           | Action                            | Example                                            |
 | -------------- | --------------------------------- | -------------------------------------------------- |
 | **1. Receive** | Load prompt from capability TOML  | "Generate a commit message for staged changes..."  |
-| **2. Decide**  | Iris selects which tools to call  | `project_docs()`, `git_diff()`, `git_log(count=5)` |
-| **3. Execute** | Tools return structured data      | README content, diff with scores, recent commits   |
+| **2. Decide**  | Iris selects which tools to call  | `git_diff()`, `project_docs()`, `git_log(count=5)` |
+| **3. Execute** | Tools return structured data      | Diff with scores, compact doc context, recent commits |
 | **4. Iterate** | Call more tools based on findings | `file_read()` to examine specific files            |
 | **5. Return**  | Generate structured JSON response | `{ emoji: "✨", title: "...", message: "..." }`    |
 
