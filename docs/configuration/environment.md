@@ -28,16 +28,16 @@ When running in Docker containers, use these variables:
 
 | Variable           | Description                  | Example      |
 | ------------------ | ---------------------------- | ------------ |
-| `GITIRIS_PROVIDER` | Default provider             | `anthropic`  |
-| `GITIRIS_API_KEY`  | API key for default provider | `sk-ant-...` |
+| `GITIRIS_PROVIDER` | Default provider             | `openai`     |
+| `GITIRIS_API_KEY`  | API key for default provider | `sk-proj-...` |
 
 ### Docker Example
 
 ```bash
 docker run --rm \
   -v "$(pwd):/git-repo" \
-  -e GITIRIS_PROVIDER="anthropic" \
-  -e GITIRIS_API_KEY="$ANTHROPIC_API_KEY" \
+  -e GITIRIS_PROVIDER="openai" \
+  -e GITIRIS_API_KEY="$OPENAI_API_KEY" \
   hyperb1iss/git-iris gen --print
 ```
 
@@ -98,8 +98,8 @@ services:
   git-iris:
     image: hyperb1iss/git-iris
     environment:
-      GITIRIS_PROVIDER: anthropic
-      GITIRIS_API_KEY: ${ANTHROPIC_API_KEY}
+      GITIRIS_PROVIDER: openai
+      GITIRIS_API_KEY: ${OPENAI_API_KEY}
     volumes:
       - .:/git-repo
 ```
@@ -208,7 +208,7 @@ commit-check:
   stage: test
   image: hyperb1iss/git-iris
   variables:
-    GITIRIS_PROVIDER: 'anthropic'
+    GITIRIS_PROVIDER: 'openai'
   script:
     - git-iris gen --print
   only:
@@ -250,11 +250,11 @@ cat debug.log | grep "API key"
 ### Test Environment Setup
 
 ```bash
-# This should work if ANTHROPIC_API_KEY is set
-git-iris gen --provider anthropic --print
+# This should work if OPENAI_API_KEY is set
+git-iris gen --provider openai --print
 
 # If it fails, check:
-echo $ANTHROPIC_API_KEY  # Should output key (or empty if not set)
+echo $OPENAI_API_KEY  # Should output key (or empty if not set)
 ```
 
 ## Debugging
@@ -262,14 +262,14 @@ echo $ANTHROPIC_API_KEY  # Should output key (or empty if not set)
 ### API Key Not Found
 
 ```
-Error: API key required for anthropic.
-Set ANTHROPIC_API_KEY or configure in ~/.config/git-iris/config.toml
+Error: API key required for openai.
+Set OPENAI_API_KEY or configure in ~/.config/git-iris/config.toml
 ```
 
 **Solution:**
 
 ```bash
-export ANTHROPIC_API_KEY="sk-ant-..."
+export OPENAI_API_KEY="sk-proj-..."
 ```
 
 ### Wrong Provider Selected
@@ -279,7 +279,7 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 git-iris config --print | grep default_provider
 
 # Override with environment
-export GITIRIS_PROVIDER="anthropic"
+export GITIRIS_PROVIDER="openai"
 ```
 
 ### Environment Variable Not Loading
@@ -289,7 +289,7 @@ export GITIRIS_PROVIDER="anthropic"
 env | grep API_KEY
 
 # If not, export it
-export ANTHROPIC_API_KEY="sk-ant-..."
+export OPENAI_API_KEY="sk-proj-..."
 
 # Test immediately
 git-iris gen --print
@@ -304,19 +304,19 @@ git-iris gen --print
 | `OPENAI_API_KEY`    | OpenAI authentication     | `sk-proj-...`   |
 | `ANTHROPIC_API_KEY` | Anthropic authentication  | `sk-ant-...`    |
 | `GOOGLE_API_KEY`    | Google authentication     | `AIza...`       |
-| `GITIRIS_PROVIDER`  | Default provider (Docker) | `anthropic`     |
-| `GITIRIS_API_KEY`   | Generic API key (Docker)  | `sk-ant-...`    |
+| `GITIRIS_PROVIDER`  | Default provider (Docker) | `openai`        |
+| `GITIRIS_API_KEY`   | Generic API key (Docker)  | `sk-proj-...`   |
 | `RUST_LOG`          | Logging level             | `debug`, `info` |
 
 ### Example Complete Setup
 
 ```bash
 # Personal development
+export OPENAI_API_KEY="sk-proj-personal-dev-key"
 export ANTHROPIC_API_KEY="sk-ant-personal-dev-key"
-export OPENAI_API_KEY="sk-personal-dev-key"
 
 # Project-specific
-export GITIRIS_PROVIDER="anthropic"
+export GITIRIS_PROVIDER="openai"
 
 # Debug logging
 export RUST_LOG="debug"

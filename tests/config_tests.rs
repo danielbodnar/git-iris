@@ -52,7 +52,7 @@ fn test_project_config_security() {
     let mut config = MockDataBuilder::config();
 
     // Add API keys to multiple providers
-    for provider_name in &["openai", "anthropic", "cohere"] {
+    for provider_name in &["openai", "anthropic", "google"] {
         let provider_config = ProviderConfig {
             api_key: format!("secret_{provider_name}_api_key"),
             model: format!("{provider_name}_model"),
@@ -77,7 +77,7 @@ fn test_project_config_security() {
     let content = fs::read_to_string(config_path).expect("Failed to read project config file");
 
     // Verify no API keys are in the file
-    for provider_name in &["openai", "anthropic", "cohere"] {
+    for provider_name in &["openai", "anthropic", "google"] {
         let api_key = format!("secret_{provider_name}_api_key");
         assert!(
             !content.contains(&api_key),

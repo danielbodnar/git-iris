@@ -58,7 +58,7 @@ let agent = IrisAgentBuilder::new()
 
 Agents can be configured with:
 
-- **Fast model** for subagents: `agent.set_fast_model("claude-haiku-4-5-20251001")`
+- **Fast model** for subagents: `agent.set_fast_model("gpt-5.4-mini")`
 - **Config** for gitmoji/presets: `agent.set_config(config)`
 - **Content update sender** for Studio chat mode: `agent.set_content_update_sender(sender)`
 

@@ -31,11 +31,6 @@ fn cwd_lock() -> MutexGuard<'static, ()> {
     LOCK.get_or_init(|| Mutex::new(())).lock().expect("lock")
 }
 
-async fn cwd_lock_async() -> tokio::sync::MutexGuard<'static, ()> {
-    static LOCK: OnceLock<tokio::sync::Mutex<()>> = OnceLock::new();
-    LOCK.get_or_init(|| tokio::sync::Mutex::new(())).lock().await
-}
-
 fn create_test_context() -> (AgentContext, TempDir) {
     let temp_dir = TempDir::new().expect("Failed to create temporary directory");
     let repo_path = temp_dir.path().to_path_buf();
@@ -228,8 +223,9 @@ fn test_git_repo_discovers_root_from_subdirectory() {
 }
 
 #[tokio::test]
+#[allow(clippy::await_holding_lock)]
 async fn test_tool_repo_context_uses_active_repo_root() {
-    let _guard = cwd_lock_async().await;
+    let _guard = cwd_lock();
     let (primary_temp_dir, _primary_repo) = setup_git_repo();
     let (fallback_temp_dir, _fallback_repo) = setup_git_repo();
     let original_dir = env::current_dir().expect("Failed to get current directory");

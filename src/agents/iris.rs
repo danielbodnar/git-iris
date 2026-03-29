@@ -570,10 +570,10 @@ Guidelines:
         }
     }
 
-    /// Apply OpenAI-specific additional params.
-    /// Newer `OpenAI` models require `max_completion_tokens` instead of `max_tokens`,
-    /// and support `reasoning_effort`. We inject these via `additional_params` since
-    /// rig's `AgentBuilder` only serializes the legacy `max_tokens` field.
+    /// Apply OpenAI-specific token params.
+    /// Newer `OpenAI` models require `max_completion_tokens` instead of `max_tokens`.
+    /// We inject that via `additional_params` since rig's `AgentBuilder` only
+    /// serializes the legacy `max_tokens` field.
     fn apply_openai_params<M>(&self, builder: AgentBuilder<M>, max_tokens: u64) -> AgentBuilder<M>
     where
         M: CompletionModel,
@@ -1241,7 +1241,7 @@ impl IrisAgentBuilder {
     pub fn new() -> Self {
         Self {
             provider: "openai".to_string(),
-            model: "gpt-4o".to_string(),
+            model: "gpt-5.4".to_string(),
             preamble: None,
         }
     }

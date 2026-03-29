@@ -171,8 +171,8 @@ You can also configure Git-Iris using environment variables:
 
 ```bash
 docker run --rm -v "$(pwd):/git-repo" \
-  -e GITIRIS_PROVIDER="anthropic" \
-  -e GITIRIS_API_KEY="$ANTHROPIC_API_KEY" \
+  -e GITIRIS_PROVIDER="openai" \
+  -e GITIRIS_API_KEY="$OPENAI_API_KEY" \
   hyperb1iss/git-iris gen --print
 ```
 
