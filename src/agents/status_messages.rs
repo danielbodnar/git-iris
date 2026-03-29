@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use tokio::sync::mpsc;
 use tokio::time::{Duration, timeout};
 
-use crate::agents::provider::{self, DynAgent};
+use crate::agents::provider::{self, CompletionProfile, DynAgent};
 
 /// Context for generating status messages
 #[derive(Debug, Clone)]
@@ -226,6 +226,7 @@ impl StatusMessageGenerator {
                     fast_model,
                     50,
                     additional_params,
+                    CompletionProfile::StatusMessage,
                 )
                 .build();
                 Ok(DynAgent::OpenAI(agent))
@@ -238,6 +239,7 @@ impl StatusMessageGenerator {
                     fast_model,
                     50,
                     additional_params,
+                    CompletionProfile::StatusMessage,
                 )
                 .build();
                 Ok(DynAgent::Anthropic(agent))
@@ -250,6 +252,7 @@ impl StatusMessageGenerator {
                     fast_model,
                     50,
                     additional_params,
+                    CompletionProfile::StatusMessage,
                 )
                 .build();
                 Ok(DynAgent::Gemini(agent))

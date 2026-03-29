@@ -26,13 +26,23 @@ macro_rules! build_streaming_agent {
         let sub_builder = $builder_fn($fast_model, $api_key)?
             .name("analyze_subagent")
             .preamble("You are a specialized analysis sub-agent.");
-        let sub_builder = $self.apply_completion_params(sub_builder, $fast_model, 4096)?;
+        let sub_builder = $self.apply_completion_params(
+            sub_builder,
+            $fast_model,
+            4096,
+            CompletionProfile::Subagent,
+        )?;
         let sub_agent = crate::attach_core_tools!(sub_builder).build();
 
         // Build main agent with tools
         let builder = $builder_fn(&$self.model, $api_key)?
             .preamble($self.preamble.as_deref().unwrap_or("You are Iris."));
-        let builder = $self.apply_completion_params(builder, &$self.model, 16384)?;
+        let builder = $self.apply_completion_params(
+            builder,
+            &$self.model,
+            16384,
+            CompletionProfile::MainAgent,
+        )?;
 
         let builder = crate::attach_core_tools!(builder)
             .tool(DebugTool::new(GitRepoInfo))
@@ -106,7 +116,7 @@ fn streaming_response_instructions(capability: &str) -> &'static str {
     }
 }
 
-use crate::agents::provider::{self, DynAgent};
+use crate::agents::provider::{self, CompletionProfile, DynAgent};
 use crate::agents::tools::{GitRepoInfo, ParallelAnalyze, Workspace};
 
 /// Trait for streaming callback to handle real-time response processing
@@ -514,7 +524,12 @@ Guidelines:
 - Highlight important issues, patterns, or insights
 - Keep your response focused and concise")
                     ;
-                let builder = self.apply_completion_params(builder, fast_model, 4096)?;
+                let builder = self.apply_completion_params(
+                    builder,
+                    fast_model,
+                    4096,
+                    CompletionProfile::Subagent,
+                )?;
                 crate::attach_core_tools!(builder).build()
             }};
         }
@@ -558,7 +573,12 @@ Guidelines:
 
                 // Build main agent
                 let builder = provider::openai_builder(&self.model, api_key)?.preamble(preamble);
-                let builder = self.apply_completion_params(builder, &self.model, 16384)?;
+                let builder = self.apply_completion_params(
+                    builder,
+                    &self.model,
+                    16384,
+                    CompletionProfile::MainAgent,
+                )?;
                 let builder = attach_main_tools!(builder).tool(sub_agent);
                 let agent = maybe_attach_update_tools!(builder);
                 Ok(DynAgent::OpenAI(agent))
@@ -569,7 +589,12 @@ Guidelines:
 
                 // Build main agent
                 let builder = provider::anthropic_builder(&self.model, api_key)?.preamble(preamble);
-                let builder = self.apply_completion_params(builder, &self.model, 16384)?;
+                let builder = self.apply_completion_params(
+                    builder,
+                    &self.model,
+                    16384,
+                    CompletionProfile::MainAgent,
+                )?;
                 let builder = attach_main_tools!(builder).tool(sub_agent);
                 let agent = maybe_attach_update_tools!(builder);
                 Ok(DynAgent::Anthropic(agent))
@@ -580,7 +605,12 @@ Guidelines:
 
                 // Build main agent
                 let builder = provider::gemini_builder(&self.model, api_key)?.preamble(preamble);
-                let builder = self.apply_completion_params(builder, &self.model, 16384)?;
+                let builder = self.apply_completion_params(
+                    builder,
+                    &self.model,
+                    16384,
+                    CompletionProfile::MainAgent,
+                )?;
                 let builder = attach_main_tools!(builder).tool(sub_agent);
                 let agent = maybe_attach_update_tools!(builder);
                 Ok(DynAgent::Gemini(agent))
@@ -594,6 +624,7 @@ Guidelines:
         builder: AgentBuilder<M>,
         model: &str,
         max_tokens: u64,
+        profile: CompletionProfile,
     ) -> Result<AgentBuilder<M>>
     where
         M: CompletionModel,
@@ -605,6 +636,7 @@ Guidelines:
             model,
             max_tokens,
             self.current_provider_additional_params(),
+            profile,
         ))
     }
 

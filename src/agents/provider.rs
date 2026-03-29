@@ -25,6 +25,23 @@ pub type OpenAIBuilder = AgentBuilder<OpenAIModel>;
 pub type AnthropicBuilder = AgentBuilder<AnthropicModel>;
 pub type GeminiBuilder = AgentBuilder<GeminiModel>;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CompletionProfile {
+    MainAgent,
+    Subagent,
+    StatusMessage,
+}
+
+impl CompletionProfile {
+    const fn default_openai_reasoning_effort(self) -> &'static str {
+        match self {
+            Self::MainAgent => "medium",
+            Self::Subagent => "low",
+            Self::StatusMessage => "none",
+        }
+    }
+}
+
 /// Dynamic agent that can be any provider's agent type
 pub enum DynAgent {
     OpenAI(Agent<OpenAIModel>),
@@ -235,6 +252,36 @@ fn additional_params_json(
     params
 }
 
+fn supports_openai_reasoning_defaults(model: &str) -> bool {
+    model.to_lowercase().starts_with("gpt-5")
+}
+
+fn completion_params_json(
+    additional_params: Option<&HashMap<String, String>>,
+    provider: Provider,
+    model: &str,
+    max_tokens: u64,
+    profile: CompletionProfile,
+) -> Map<String, Value> {
+    let mut params = additional_params_json(additional_params);
+
+    if provider == Provider::OpenAI && needs_max_completion_tokens(model) {
+        params.insert("max_completion_tokens".to_string(), json!(max_tokens));
+    }
+
+    if provider == Provider::OpenAI
+        && supports_openai_reasoning_defaults(model)
+        && !params.contains_key("reasoning")
+    {
+        params.insert(
+            "reasoning".to_string(),
+            json!({ "effort": profile.default_openai_reasoning_effort() }),
+        );
+    }
+
+    params
+}
+
 fn needs_max_completion_tokens(model: &str) -> bool {
     let model = model.to_lowercase();
     model.starts_with("gpt-5")
@@ -250,17 +297,16 @@ pub fn apply_completion_params<M>(
     model: &str,
     max_tokens: u64,
     additional_params: Option<&HashMap<String, String>>,
+    profile: CompletionProfile,
 ) -> AgentBuilder<M>
 where
     M: CompletionModel,
 {
-    let mut params = additional_params_json(additional_params);
-
-    if provider == Provider::OpenAI && needs_max_completion_tokens(model) {
-        params.insert("max_completion_tokens".to_string(), json!(max_tokens));
-    } else {
+    if !(provider == Provider::OpenAI && needs_max_completion_tokens(model)) {
         builder = builder.max_tokens(max_tokens);
     }
+
+    let params = completion_params_json(additional_params, provider, model, max_tokens, profile);
 
     if params.is_empty() {
         builder
@@ -373,6 +419,68 @@ mod tests {
         let params = additional_params_json(Some(&additional_params));
         assert_eq!(params.get("temperature"), Some(&json!(0.7)));
         assert_eq!(params.get("reasoning"), Some(&json!({"effort": "low"})));
+    }
+
+    #[test]
+    fn test_completion_params_use_profile_specific_openai_reasoning_defaults() {
+        let main_params = completion_params_json(
+            None,
+            Provider::OpenAI,
+            "gpt-5.4",
+            16_384,
+            CompletionProfile::MainAgent,
+        );
+        assert_eq!(
+            main_params.get("reasoning"),
+            Some(&json!({"effort": "medium"}))
+        );
+        assert_eq!(
+            main_params.get("max_completion_tokens"),
+            Some(&json!(16_384))
+        );
+
+        let status_params = completion_params_json(
+            None,
+            Provider::OpenAI,
+            "gpt-5.4-mini",
+            50,
+            CompletionProfile::StatusMessage,
+        );
+        assert_eq!(
+            status_params.get("reasoning"),
+            Some(&json!({"effort": "none"}))
+        );
+        assert_eq!(status_params.get("max_completion_tokens"), Some(&json!(50)));
+    }
+
+    #[test]
+    fn test_completion_params_preserve_explicit_reasoning_overrides() {
+        let mut additional_params = HashMap::new();
+        additional_params.insert("reasoning".to_string(), r#"{"effort":"high"}"#.to_string());
+
+        let params = completion_params_json(
+            Some(&additional_params),
+            Provider::OpenAI,
+            "gpt-5.4",
+            4096,
+            CompletionProfile::MainAgent,
+        );
+
+        assert_eq!(params.get("reasoning"), Some(&json!({"effort": "high"})));
+    }
+
+    #[test]
+    fn test_completion_params_skip_openai_reasoning_defaults_for_non_gpt5_models() {
+        let params = completion_params_json(
+            None,
+            Provider::OpenAI,
+            "gpt-4.1",
+            4096,
+            CompletionProfile::MainAgent,
+        );
+
+        assert!(!params.contains_key("reasoning"));
+        assert_eq!(params.get("max_completion_tokens"), Some(&json!(4096)));
     }
 
     #[test]

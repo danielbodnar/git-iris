@@ -20,7 +20,9 @@ use std::time::Duration;
 use tokio::sync::Mutex;
 
 use crate::agents::debug as agent_debug;
-use crate::agents::provider::{apply_completion_params, provider_from_name, resolve_api_key};
+use crate::agents::provider::{
+    CompletionProfile, apply_completion_params, provider_from_name, resolve_api_key,
+};
 use crate::providers::Provider;
 
 /// Default timeout for individual subagent tasks (2 minutes)
@@ -197,6 +199,7 @@ impl SubagentRunner {
                     model,
                     4096,
                     Some(additional_params),
+                    CompletionProfile::Subagent,
                 );
                 let agent = crate::attach_core_tools!(builder).build();
                 agent.prompt(task).await
@@ -213,6 +216,7 @@ impl SubagentRunner {
                     model,
                     4096,
                     Some(additional_params),
+                    CompletionProfile::Subagent,
                 );
                 let agent = crate::attach_core_tools!(builder).build();
                 agent.prompt(task).await
@@ -229,6 +233,7 @@ impl SubagentRunner {
                     model,
                     4096,
                     Some(additional_params),
+                    CompletionProfile::Subagent,
                 );
                 let agent = crate::attach_core_tools!(builder).build();
                 agent.prompt(task).await
