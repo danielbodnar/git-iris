@@ -6,6 +6,7 @@
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use tokio::sync::mpsc;
 use tokio::time::{Duration, timeout};
 
@@ -212,7 +213,7 @@ impl StatusMessageGenerator {
             "openai" => {
                 let agent = provider::openai_builder(fast_model, api_key)?
                     .preamble(preamble)
-                    .max_tokens(50)
+                    .additional_params(json!({"max_completion_tokens": 50}))
                     .build();
                 Ok(DynAgent::OpenAI(agent))
             }

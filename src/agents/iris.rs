@@ -24,18 +24,16 @@ macro_rules! build_streaming_agent {
         use crate::agents::debug_tool::DebugTool;
 
         // Build subagent
-        let sub_agent = crate::attach_core_tools!(
-            $builder_fn($fast_model, $api_key)?
-                .name("analyze_subagent")
-                .preamble("You are a specialized analysis sub-agent.")
-                .max_tokens(4096)
-        )
-        .build();
+        let sub_builder = $builder_fn($fast_model, $api_key)?
+            .name("analyze_subagent")
+            .preamble("You are a specialized analysis sub-agent.");
+        let sub_builder = $self.apply_openai_params(sub_builder, 4096);
+        let sub_agent = crate::attach_core_tools!(sub_builder).build();
 
         // Build main agent with tools
         let builder = $builder_fn(&$self.model, $api_key)?
-            .preamble($self.preamble.as_deref().unwrap_or("You are Iris."))
-            .max_tokens(16384);
+            .preamble($self.preamble.as_deref().unwrap_or("You are Iris."));
+        let builder = $self.apply_openai_params(builder, 16384);
 
         let builder = crate::attach_core_tools!(builder)
             .tool(DebugTool::new(GitRepoInfo))
@@ -497,8 +495,8 @@ Guidelines:
 - Return a clear, structured summary of findings
 - Highlight important issues, patterns, or insights
 - Keep your response focused and concise")
-                    .max_tokens(4096);
-                let builder = self.apply_reasoning_defaults(builder);
+                    ;
+                let builder = self.apply_openai_params(builder, 4096);
                 crate::attach_core_tools!(builder).build()
             }};
         }
@@ -541,9 +539,8 @@ Guidelines:
 
                 // Build main agent
                 let builder = provider::openai_builder(&self.model, api_key)?
-                    .preamble(preamble)
-                    .max_tokens(16384);
-                let builder = self.apply_reasoning_defaults(builder);
+                    .preamble(preamble);
+                let builder = self.apply_openai_params(builder, 16384);
                 let builder = attach_main_tools!(builder).tool(sub_agent);
                 let agent = maybe_attach_update_tools!(builder);
                 Ok(DynAgent::OpenAI(agent))
@@ -554,9 +551,8 @@ Guidelines:
 
                 // Build main agent
                 let builder = provider::anthropic_builder(&self.model, api_key)?
-                    .preamble(preamble)
-                    .max_tokens(16384);
-                let builder = self.apply_reasoning_defaults(builder);
+                    .preamble(preamble);
+                let builder = self.apply_openai_params(builder, 16384);
                 let builder = attach_main_tools!(builder).tool(sub_agent);
                 let agent = maybe_attach_update_tools!(builder);
                 Ok(DynAgent::Anthropic(agent))
@@ -567,9 +563,8 @@ Guidelines:
 
                 // Build main agent
                 let builder = provider::gemini_builder(&self.model, api_key)?
-                    .preamble(preamble)
-                    .max_tokens(16384);
-                let builder = self.apply_reasoning_defaults(builder);
+                    .preamble(preamble);
+                let builder = self.apply_openai_params(builder, 16384);
                 let builder = attach_main_tools!(builder).tool(sub_agent);
                 let agent = maybe_attach_update_tools!(builder);
                 Ok(DynAgent::Gemini(agent))
@@ -578,21 +573,31 @@ Guidelines:
         }
     }
 
-    fn apply_reasoning_defaults<M>(&self, builder: AgentBuilder<M>) -> AgentBuilder<M>
+    /// Apply OpenAI-specific additional params.
+    /// Newer `OpenAI` models require `max_completion_tokens` instead of `max_tokens`,
+    /// and support `reasoning_effort`. We inject these via `additional_params` since
+    /// rig's `AgentBuilder` only serializes the legacy `max_tokens` field.
+    fn apply_openai_params<M>(
+        &self,
+        builder: AgentBuilder<M>,
+        max_tokens: u64,
+    ) -> AgentBuilder<M>
     where
         M: CompletionModel,
     {
-        if self.provider == "openai" && Self::supports_reasoning_effort(&self.model) {
-            // Chat Completions API uses top-level "reasoning_effort" (not nested "reasoning.effort")
-            builder.additional_params(json!({
-                "reasoning_effort": "medium"
-            }))
+        if self.provider != "openai" {
+            return builder.max_tokens(max_tokens);
+        }
+
+        if Self::needs_max_completion_tokens(&self.model) {
+            builder.additional_params(json!({"max_completion_tokens": max_tokens}))
         } else {
-            builder
+            builder.max_tokens(max_tokens)
         }
     }
 
-    fn supports_reasoning_effort(model: &str) -> bool {
+    /// Models that require `max_completion_tokens` instead of `max_tokens`
+    fn needs_max_completion_tokens(model: &str) -> bool {
         let model = model.to_lowercase();
         model.starts_with("gpt-5")
             || model.starts_with("gpt-4.1")

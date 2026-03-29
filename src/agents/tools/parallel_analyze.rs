@@ -174,7 +174,8 @@ impl SubagentRunner {
         // Use shared tool registry for consistent tool attachment
         let result = match self {
             Self::OpenAI { client, model } => {
-                let builder = client.agent(model).preamble(preamble).max_tokens(4096);
+                let builder = client.agent(model).preamble(preamble)
+                    .additional_params(json!({"max_completion_tokens": 4096}));
                 let agent = crate::attach_core_tools!(builder).build();
                 agent.prompt(task).await
             }
