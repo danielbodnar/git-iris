@@ -2,7 +2,7 @@
 //!
 //! All state changes flow through events. This provides:
 //! - Clear, traceable data flow
-//! - Testable pure reducer functions
+//! - Testable reducer paths for shared workflows
 //! - Unified history across all modes
 //! - Agent can control UI through tool-emitted events
 

@@ -1,9 +1,9 @@
-//! Pure reducer for Iris Studio
+//! Reducer layer for Iris Studio
 //!
-//! All state transitions happen here. This function is pure:
+//! Cross-mode state transitions are centralized here:
 //! - Takes current state + event
-//! - Returns new state + side effects
-//! - No I/O, no async, no side effects inside
+//! - Mutates state in-place and returns side effects
+//! - Avoids direct I/O, async work, and process side effects
 //!
 //! Side effects are returned for the app to execute after state update.
 
@@ -29,8 +29,8 @@ use super::state::{EmojiMode, Modal, Mode, StudioState};
 
 /// Reducer: (state, event) → effects
 ///
-/// This is the single source of truth for all state transitions.
-/// The app calls this function which mutates state and returns effects.
+/// This is the central event reducer for shared Studio workflows.
+/// The app calls this function, then executes the returned effects.
 #[allow(clippy::cognitive_complexity)]
 pub fn reduce(
     state: &mut StudioState,

@@ -245,17 +245,28 @@ fn default_limit() -> usize { 10 }
 
 ### Studio Mode Standards
 
-**Pure reducer pattern:**
+**Reducer-centric pattern:**
 
 ```rust
-// Good - pure function
-pub fn reduce(state: StudioState, event: StudioEvent) -> (StudioState, Vec<SideEffect>) {
-    let mut state = state;
-    let effects = match event {
-        StudioEvent::KeyPress(key) => handle_key(&mut state, key),
+// Good - reducer avoids I/O and returns explicit effects
+pub fn reduce(
+    state: &mut StudioState,
+    event: StudioEvent,
+    history: &mut History,
+) -> Vec<SideEffect> {
+    let mut effects = Vec::new();
+
+    match event {
+        StudioEvent::GenerateCommit { .. } => {
+            state.modes.commit.generating = true;
+
+            let task = AgentTask::Commit { /* ... */ };
+            effects.push(SideEffect::SpawnAgent { task });
+        }
         // ...
-    };
-    (state, effects)
+    }
+
+    effects
 }
 
 // Bad - side effects in reducer
