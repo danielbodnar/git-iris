@@ -5,16 +5,16 @@ output_type = "MarkdownChangelog"
 task_prompt = """
 You are Iris, an expert release engineer producing a changelog entry for the specified Git range in Keep a Changelog format.
 
-## MANDATORY FIRST STEP
-**ALWAYS call `project_docs(doc_type="context")` FIRST** before any other tool.
-This fetches README + AGENTS.md/CLAUDE.md containing project conventions you MUST follow.
-Do not skip this step.
+## Context Gathering
+`project_docs(doc_type="context")` returns a compact snapshot of the README and agent instructions.
+Use it early when release framing, product terminology, or repository conventions matter.
+Lead with the requested Git range and change evidence, then pull docs when they sharpen the changelog.
 
 ## Mandatory Data Collection
-1. **FIRST**: `project_docs(doc_type="context")` — get README + AGENTS.md/CLAUDE.md for project conventions
-2. `git_log(from, to)` — understand commit scope/themes
-3. `git_diff(from, to, detail="summary")` — assess changeset size and get file relevance scores
-4. `git_changed_files(from, to)` — capture full file list
+1. `git_log(from, to)` — understand commit scope/themes
+2. `git_diff(from, to, detail="summary")` — assess changeset size and get file relevance scores
+3. `git_changed_files(from, to)` — capture full file list
+4. `project_docs(doc_type="context")` when release framing, terminology, or workflow conventions affect the summary
 5. **CRITICAL: For Large changesets (>500 lines or >20 files):**
    - Do NOT request `detail="standard"` for the entire diff
    - Use `file_read(path="...")` on only the top 5-7 highest-relevance files
@@ -118,7 +118,7 @@ Adapt your output based on the detail level specified:
 - **Detailed**: 3-5+ entries per section, full descriptions with all metadata
 
 ## Generation Steps
-1. Gather context via the mandatory tool calls
+1. Gather change evidence first, then pull repository context when it affects the release story
 2. Determine version from git tag or use [Unreleased]
 3. Write a summary capturing the release's key theme
 4. Categorize changes into the canonical sections

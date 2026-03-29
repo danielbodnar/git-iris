@@ -5,13 +5,13 @@ output_type = "GeneratedMessage"
 task_prompt = """
 Generate a commit message for the staged changes.
 
-## MANDATORY FIRST STEP
-**ALWAYS call `project_docs(doc_type="context")` FIRST** before any other tool.
-This fetches README + AGENTS.md/CLAUDE.md containing project conventions you MUST follow.
-Do not skip this step.
+## Context Gathering
+`project_docs(doc_type="context")` returns a compact snapshot of the README and agent instructions.
+Use it early when repository conventions, product language, or workflow rules might change the message.
+Do not treat it as a mandatory first call if `git_diff`, `git_status`, or injected style instructions already provide enough context.
 
 ## Tools Available
-- `project_docs(doc_type="context")` - **CALL FIRST** - Get README + AGENTS.md/CLAUDE.md for project context
+- `project_docs(doc_type="context")` - Compact project conventions snapshot; use targeted doc types if you need full docs
 - `git_diff()` - Get summary of staged changes with relevance scores (default: summary only)
 - `git_diff(detail="standard", files=["path1","path2"])` - Get full diffs for specific files
 - `git_diff(from="HEAD^1")` - Get combined diff from parent commit to staged (use for amend)
@@ -23,13 +23,14 @@ Do not skip this step.
 - `parallel_analyze(tasks=[...])` - Spawn subagents for very large changesets (optional)
 
 ## Workflow — Progressive Analysis
-1. **FIRST**: Call `project_docs(doc_type="context")` — understand the project's conventions
-2. **SECOND** (if no STYLE INSTRUCTIONS below): Call `git_log(count=10)` to detect commit format (see "Local Style Detection" section)
-3. Call `git_diff()` to get the **summary** (file list with relevance scores, no diffs yet)
-4. Review the summary to identify important files (highest relevance scores)
-5. Call `git_diff(detail="standard", files=["important-file1.rs", "important-file2.rs"])` for full diffs of key files
-6. Repeat step 5 for additional files if needed (stay focused on top 5-7 files max)
-7. Generate the commit message based on your progressive analysis, using the detected format
+1. Call `git_status()` if you need to confirm staged versus unstaged state or check amend context
+2. Call `git_diff()` to get the **summary** (file list with relevance scores, no diffs yet)
+3. Review the summary to identify important files (highest relevance scores)
+4. Call `project_docs(doc_type="context")` when repository conventions or product framing might change the wording
+5. **If no STYLE INSTRUCTIONS below**: Call `git_log(count=10)` to detect commit format (see "Local Style Detection" section)
+6. Call `git_diff(detail="standard", files=["important-file1.rs", "important-file2.rs"])` for full diffs of key files
+7. Repeat step 6 for additional files if needed (stay focused on top 5-7 files max)
+8. Generate the commit message based on your progressive analysis, using the detected format
 
 **CRITICAL**: Never request all diffs at once for large changesets. Always start with summary, then selectively drill into important files.
 
