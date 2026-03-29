@@ -46,7 +46,7 @@ src/
 ├── studio/                 # Iris Studio TUI (Ratatui-based)
 │   ├── app.rs             # Main event loop and app coordination
 │   ├── state.rs           # Centralized state for all modes
-│   ├── reducer.rs         # Pure state transitions and side effects
+│   ├── reducer.rs         # Reducer-centric state transitions and effects
 │   ├── events.rs          # Comprehensive event type definitions
 │   ├── history.rs         # Complete audit trail and session persistence
 │   ├── theme.rs           # SilkCircuit Neon color definitions
@@ -102,7 +102,7 @@ Studio is built around a **reducer-centric event loop** for predictable state ma
 │         ▼                                                   │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────────┐ │
 │  │   Handler   │ -> │   Reducer   │ -> │  Side Effects   │ │
-│  │ (map input  │    │ (pure func) │    │ (spawn agent,   │ │
+│  │ (map input  │    │ (state core)│    │ (spawn agent,   │ │
 │  │  to event)  │    │             │    │  load data)     │ │
 │  └─────────────┘    └─────────────┘    └─────────────────┘ │
 │                            │                                │
@@ -393,11 +393,15 @@ git-iris config --provider anthropic --model claude-opus-4-6
 | anthropic | claude-opus-4-6            | claude-haiku-4-5-20251001 | 200K    |
 | google    | gemini-3-pro-preview       | gemini-2.5-flash          | 1M      |
 
+OpenAI GPT-5 defaults are workflow-aware: main agent generations use medium reasoning, subagents
+use low reasoning, and status messages use none unless the provider config explicitly overrides
+`reasoning`.
+
 ## Key Design Decisions
 
 1. **LLM-First**: No hardcoded heuristics—Iris makes decisions
 2. **Tool-Based Context**: Gather only what's needed via tool calls
-3. **Pure Reducer**: State changes are predictable and testable
+3. **Reducer-Centric Event Flow**: State changes stay predictable even though handlers and `StudioApp` still own some direct updates
 4. **Structured Output**: JSON schemas ensure parseable responses
 5. **Output Validation**: Recovery logic handles malformed JSON
 6. **Unified Interface**: Studio provides one TUI for all operations
