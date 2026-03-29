@@ -6,8 +6,8 @@ Git-Iris uses a dual-model strategy: **primary models** for complex analysis and
 
 | Model Type  | Used For                                       | Examples                                    |
 | ----------- | ---------------------------------------------- | ------------------------------------------- |
-| **Primary** | Commit messages, code reviews, PR descriptions | `claude-sonnet-4-5-20250929`, `gpt-5.1`     |
-| **Fast**    | Status updates, parsing, simple queries        | `claude-haiku-4-5-20251001`, `gpt-5.1-mini` |
+| **Primary** | Commit messages, code reviews, PR descriptions | `claude-sonnet-4-5-20250929`, `gpt-5.4`     |
+| **Fast**    | Status updates, parsing, simple queries        | `claude-haiku-4-5-20251001`, `gpt-5.4-mini` |
 
 This dual-model approach optimizes for both quality and speed.
 
@@ -17,14 +17,14 @@ This dual-model approach optimizes for both quality and speed.
 
 ```toml
 [providers.openai]
-model = "gpt-5.1"
-fast_model = "gpt-5.1-mini"
+model = "gpt-5.4"
+fast_model = "gpt-5.4-mini"
 ```
 
 | Model          | Use Case | Context | Notes                     |
 | -------------- | -------- | ------- | ------------------------- |
-| `gpt-5.1`      | Primary  | 128K    | Best for complex analysis |
-| `gpt-5.1-mini` | Fast     | 128K    | Quick status updates      |
+| `gpt-5.4`      | Primary  | 128K    | Best for complex analysis |
+| `gpt-5.4-mini` | Fast     | 128K    | Quick status updates      |
 
 ### Anthropic
 
@@ -113,7 +113,7 @@ You can use any model supported by your provider:
 
 ```bash
 # OpenAI custom model
-git-iris config --provider openai --model gpt-4o
+git-iris config --provider openai --model gpt-5.4
 
 # Anthropic custom model
 git-iris config --provider anthropic --model claude-opus-4-5
@@ -192,8 +192,8 @@ Output shows:
 ```toml
 # Use fast model for everything
 [providers.openai]
-model = "gpt-5.1-mini"
-fast_model = "gpt-5.1-mini"
+model = "gpt-5.4-mini"
+fast_model = "gpt-5.4-mini"
 token_limit = 8000  # Lower limit
 ```
 
@@ -221,7 +221,7 @@ fast_model = "claude-haiku-4-5-20251001"  # Speed for status
 | ----------------- | --------- | ------- | ------ | --------- | ------ |
 | claude-sonnet-4-5 | Anthropic | 200K    | Medium | Excellent | Medium |
 | claude-haiku-4-5  | Anthropic | 200K    | Fast   | Good      | Low    |
-| gpt-5.1           | OpenAI    | 128K    | Medium | Excellent | Medium |
-| gpt-5.1-mini      | OpenAI    | 128K    | Fast   | Good      | Low    |
+| gpt-5.4           | OpenAI    | 128K    | Medium | Excellent | Medium |
+| gpt-5.4-mini      | OpenAI    | 128K    | Fast   | Good      | Low    |
 | gemini-3-pro      | Google    | 1M      | Slow   | Excellent | High   |
 | gemini-2.5-flash  | Google    | 1M      | Fast   | Good      | Low    |

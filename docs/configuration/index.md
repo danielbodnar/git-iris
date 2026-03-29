@@ -74,8 +74,8 @@ fast_model = "claude-haiku-4-5-20251001"
 
 [providers.openai]
 api_key = "sk-..."
-model = "gpt-5.1"
-fast_model = "gpt-5.1-mini"
+model = "gpt-5.4"
+fast_model = "gpt-5.4-mini"
 ```
 
 ## Global Settings

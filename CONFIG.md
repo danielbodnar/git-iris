@@ -63,7 +63,7 @@ Git-Iris supports three LLM providers:
 
 | Provider      | Default Model              | Fast Model                | Context Window | API Key Env         |
 | ------------- | -------------------------- | ------------------------- | -------------- | ------------------- |
-| **openai**    | gpt-5.1                    | gpt-5.1-mini              | 128,000        | `OPENAI_API_KEY`    |
+| **openai**    | gpt-5.4                    | gpt-5.4-mini              | 128,000        | `OPENAI_API_KEY`    |
 | **anthropic** | claude-sonnet-4-5-20250929 | claude-haiku-4-5-20251001 | 200,000        | `ANTHROPIC_API_KEY` |
 | **google**    | gemini-3-pro-preview       | gemini-2.5-flash          | 1,000,000      | `GOOGLE_API_KEY`    |
 
@@ -85,8 +85,8 @@ Focus on the impact of changes rather than implementation details.
 # OpenAI configuration
 [providers.openai]
 api_key = "sk-your-openai-api-key"
-model = "gpt-5.1"
-fast_model = "gpt-5.1-mini"
+model = "gpt-5.4"
+fast_model = "gpt-5.4-mini"
 additional_params = { temperature = "0.7", max_tokens = "4096" }
 custom_token_limit = 8000
 

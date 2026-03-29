@@ -6,7 +6,7 @@ Git-Iris supports three LLM providers: OpenAI, Anthropic, and Google.
 
 | Provider      | Default Model                | Fast Model                  | Context Window | API Key Env         |
 | ------------- | ---------------------------- | --------------------------- | -------------- | ------------------- |
-| **OpenAI**    | `gpt-5.1`                    | `gpt-5.1-mini`              | 128K           | `OPENAI_API_KEY`    |
+| **OpenAI**    | `gpt-5.4`                    | `gpt-5.4-mini`              | 128K           | `OPENAI_API_KEY`    |
 | **Anthropic** | `claude-sonnet-4-5-20250929` | `claude-haiku-4-5-20251001` | 200K           | `ANTHROPIC_API_KEY` |
 | **Google**    | `gemini-3-pro-preview`       | `gemini-2.5-flash`          | 1M             | `GOOGLE_API_KEY`    |
 
@@ -27,8 +27,8 @@ token_limit = 8000             # Optional: custom limit
 ```toml
 [providers.openai]
 api_key = "sk-..."
-model = "gpt-5.1"
-fast_model = "gpt-5.1-mini"
+model = "gpt-5.4"
+fast_model = "gpt-5.4-mini"
 token_limit = 128000
 ```
 
@@ -36,7 +36,7 @@ token_limit = 128000
 
 ```bash
 git-iris config --provider openai --api-key YOUR_API_KEY
-git-iris config --provider openai --model gpt-5.1
+git-iris config --provider openai --model gpt-5.4
 ```
 
 ### Environment Variable

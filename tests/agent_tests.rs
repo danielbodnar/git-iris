@@ -42,12 +42,12 @@ fn create_test_context() -> (AgentContext, TempDir) {
 fn test_agent_backend_creation() {
     let backend = AgentBackend::new(
         "openai".to_string(),
-        "gpt-4o".to_string(),
-        "gpt-4o-mini".to_string(),
+        "gpt-5.4".to_string(),
+        "gpt-5.4-mini".to_string(),
     );
     assert_eq!(backend.provider_name, "openai");
-    assert_eq!(backend.model, "gpt-4o");
-    assert_eq!(backend.fast_model, "gpt-4o-mini");
+    assert_eq!(backend.model, "gpt-5.4");
+    assert_eq!(backend.fast_model, "gpt-5.4-mini");
 }
 
 #[test]
@@ -111,7 +111,7 @@ fn test_iris_agent_builder() {
     // Builder now creates client on-demand from environment
     let result = IrisAgentBuilder::new()
         .with_provider("openai")
-        .with_model("gpt-4o")
+        .with_model("gpt-5.4")
         .with_preamble("Custom preamble")
         .build();
 
@@ -120,7 +120,7 @@ fn test_iris_agent_builder() {
 
 #[test]
 fn test_iris_agent_builder_defaults() {
-    // Builder with defaults (openai/gpt-4o) should succeed
+    // Builder with defaults (openai/gpt-5.4) should succeed
     let result = IrisAgentBuilder::new().build();
     assert!(result.is_ok());
 }
@@ -132,7 +132,7 @@ async fn test_create_agent_with_defaults() {
         return;
     }
 
-    let result = create_agent_with_defaults("openai", "gpt-4o");
+    let result = create_agent_with_defaults("openai", "gpt-5.4");
     assert!(result.is_ok());
 }
 

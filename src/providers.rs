@@ -42,7 +42,7 @@ impl Provider {
     /// Fast model for simple tasks (status updates, parsing)
     pub const fn default_fast_model(&self) -> &'static str {
         match self {
-            Self::OpenAI => "gpt-5.1-mini",
+            Self::OpenAI => "gpt-5.4-mini",
             Self::Anthropic => "claude-haiku-4-5-20251001",
             Self::Google => "gemini-2.5-flash",
         }
@@ -281,6 +281,7 @@ mod tests {
     #[test]
     fn test_provider_defaults() {
         assert_eq!(Provider::OpenAI.default_model(), "gpt-5.4");
+        assert_eq!(Provider::OpenAI.default_fast_model(), "gpt-5.4-mini");
         assert_eq!(Provider::Anthropic.context_window(), 200_000);
         assert_eq!(Provider::Google.api_key_env(), "GOOGLE_API_KEY");
     }

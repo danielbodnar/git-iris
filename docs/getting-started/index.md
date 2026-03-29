@@ -45,7 +45,7 @@ Work with your preferred LLM:
 
 | Provider      | Default Model              | Context Window |
 | ------------- | -------------------------- | -------------- |
-| **OpenAI**    | gpt-5.1                    | 128K tokens    |
+| **OpenAI**    | gpt-5.4                    | 128K tokens    |
 | **Anthropic** | claude-sonnet-4-5-20250929 | 200K tokens    |
 | **Google**    | gemini-3-pro-preview       | 1M tokens      |
 

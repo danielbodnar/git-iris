@@ -93,12 +93,12 @@ fn test_project_config_security() {
         .providers
         .get_mut("openai")
         .expect("OpenAI provider should exist")
-        .model = "gpt-3.5-turbo".to_string();
+        .model = "gpt-5.4".to_string();
 
     let mut project_config = MockDataBuilder::config();
     let project_provider_config = ProviderConfig {
         api_key: String::new(), // Empty API key
-        model: "gpt-4".to_string(),
+        model: "gpt-5.4".to_string(),
         ..Default::default()
     };
     project_config
@@ -120,7 +120,7 @@ fn test_project_config_security() {
 
     // Verify model from project config is used
     assert_eq!(
-        provider_config.model, "gpt-4",
+        provider_config.model, "gpt-5.4",
         "Project model setting was not applied"
     );
 
@@ -337,8 +337,8 @@ fn test_provider_config_serializes_set_values() {
 
     let config = ProviderConfig {
         api_key: String::new(), // Still empty, should skip
-        model: "gpt-4".to_string(),
-        fast_model: Some("gpt-4o-mini".to_string()),
+        model: "gpt-5.4".to_string(),
+        fast_model: Some("gpt-5.4-mini".to_string()),
         token_limit: Some(4096),
         additional_params: params,
     };
@@ -347,11 +347,11 @@ fn test_provider_config_serializes_set_values() {
 
     // Set values should appear
     assert!(
-        serialized.contains(r#"model = "gpt-4""#),
+        serialized.contains(r#"model = "gpt-5.4""#),
         "model should serialize"
     );
     assert!(
-        serialized.contains(r#"fast_model = "gpt-4o-mini""#),
+        serialized.contains(r#"fast_model = "gpt-5.4-mini""#),
         "fast_model should serialize"
     );
     assert!(

@@ -82,7 +82,7 @@ use_gitmoji = false
 
 [providers.openai]
 api_key = "sk-..."
-model = "gpt-5.1"
+model = "gpt-5.4"
 ```
 
 **Project config:**

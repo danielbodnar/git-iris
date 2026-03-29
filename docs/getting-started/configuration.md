@@ -56,7 +56,7 @@ Git-Iris supports three LLM providers with different strengths:
 
 | Provider      | Default Model              | Fast Model                | Context Window | Best For                          |
 | ------------- | -------------------------- | ------------------------- | -------------- | --------------------------------- |
-| **openai**    | gpt-5.1                    | gpt-5.1-mini              | 128K           | General purpose, fast             |
+| **openai**    | gpt-5.4                    | gpt-5.4-mini              | 128K           | General purpose, fast             |
 | **anthropic** | claude-sonnet-4-5-20250929 | claude-haiku-4-5-20251001 | 200K           | Deep analysis, code understanding |
 | **google**    | gemini-3-pro-preview       | gemini-2.5-flash          | 1M             | Massive context windows           |
 
@@ -73,7 +73,7 @@ git-iris config --provider anthropic --model claude-opus-4-20250514
 Set a custom fast model:
 
 ```bash
-git-iris config --provider openai --fast-model gpt-5.1-mini
+git-iris config --provider openai --fast-model gpt-5.4-mini
 ```
 
 ### Token Limits
@@ -308,8 +308,8 @@ fast_model = "claude-haiku-4-5-20251001"
 
 [providers.openai]
 api_key = "sk-..."
-model = "gpt-5.1"
-fast_model = "gpt-5.1-mini"
+model = "gpt-5.4"
+fast_model = "gpt-5.4-mini"
 ```
 
 You can edit this manually if you prefer, but the `git-iris config` command is safer.
