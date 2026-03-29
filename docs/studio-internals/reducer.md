@@ -1,10 +1,10 @@
 # Reducer Pattern
 
-**Deep dive into Iris Studio's pure reducer architecture.**
+**Deep dive into Iris Studio's reducer layer within today's hybrid Studio architecture.**
 
 ## What is a Reducer?
 
-A **reducer** is a pure function that takes the current state and an event, then returns the new state and any side effects:
+A **reducer** is a focused state transition function that takes the current state and an event, then returns any side effects needed after applying the transition:
 
 ```
 (state, event) → (state', effects)
@@ -12,9 +12,9 @@ A **reducer** is a pure function that takes the current state and an event, then
 
 **Key properties:**
 
-- **Pure** — No I/O, no randomness, no hidden state
+- **I/O-free** — No direct disk/network/process work
 - **Predictable** — Same inputs always produce same outputs
-- **Testable** — Trivial to unit test
+- **Testable** — Easy to unit test reducer paths in isolation
 - **Traceable** — Can log every state transition
 
 ## Why Use a Reducer?
@@ -39,7 +39,7 @@ fn handle_key(&mut self, key: Key) {
 - Hard to debug (where did this state come from?)
 - Race conditions with async code
 
-With a reducer, everything flows through one function:
+With a reducer, the important cross-mode transitions flow through one function:
 
 ```rust
 // GOOD: Single source of truth
@@ -57,9 +57,19 @@ fn reduce(state: &mut State, event: Event) -> Vec<Effect> {
 **Benefits:**
 
 - **Single place** to look for state changes
-- **Pure logic** separate from I/O
+- **State logic** separate from I/O
 - **Easy testing** — no mocking needed
 - **Audit trail** — log every `(state, event, effects)` triple
+
+## Current Reality
+
+Studio is no longer a fully pure reducer architecture end-to-end.
+
+- Handlers still perform direct synchronous UI mutations for immediate interactions
+- `StudioApp` applies async results, loaded data, and some coordination state directly
+- The reducer remains the central event-processing layer for shared workflows and explicit effects
+
+This page focuses on that reducer layer, not on an exclusivity guarantee.
 
 ## The Reducer Function
 
@@ -172,7 +182,7 @@ StudioEvent::GenerateCommit {
 **Notice:**
 
 - State mutations happen **immediately**
-- No async/await (pure, synchronous)
+- No async/await in the reducer path
 - Effect describes what to do, doesn't do it
 - History records the transition
 

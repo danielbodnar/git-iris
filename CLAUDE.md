@@ -15,7 +15,7 @@ Git-Iris uses an agent-first architecture powered by **Iris**, an LLM-driven age
 - **LLM-First**: The LLM makes all intelligent decisions—we avoid deterministic heuristics
 - **Tool-Based Context**: Iris gathers precisely what she needs via tool calls
 - **Unified Interface**: Studio provides a single TUI for all capabilities
-- **Event-Driven State**: Pure reducer pattern for predictable, testable state management
+- **Event-Driven State**: Reducer-centric event flow for predictable, testable state management
 
 ## Project Structure
 
@@ -91,7 +91,7 @@ src/
 
 ## Iris Studio Architecture
 
-Studio is built on a **pure reducer pattern** for predictable state management:
+Studio is built around a **reducer-centric event loop** for predictable state management:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -130,9 +130,9 @@ Studio is built on a **pure reducer pattern** for predictable state management:
 
 **Reducer (`reducer.rs`):**
 
-- Pure function: `(state, event) → (state, effects)`
-- No I/O inside reducer—side effects returned as data
-- Enables testing, replay, debugging
+- Central event reducer for cross-mode state transitions
+- Avoids direct I/O by returning side effects as data
+- Works alongside handlers and `StudioApp`, which still perform some direct UI/data updates
 
 **Side Effects:**
 

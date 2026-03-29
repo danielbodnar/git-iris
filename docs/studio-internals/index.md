@@ -8,7 +8,7 @@ Iris Studio is a terminal UI (TUI) built with Ratatui that provides a unified in
 
 Studio follows three core principles:
 
-1. **Predictable State Management** — Pure reducer pattern borrowed from frontend frameworks (Redux, Elm)
+1. **Predictable State Management** — Reducer-centric event flow borrowed from frontend frameworks
 2. **Event-Driven Architecture** — All state changes flow through a central event system
 3. **Separation of Concerns** — Clear boundaries between state, rendering, and effects
 
@@ -49,7 +49,7 @@ flowchart TB
 | -------------- | ---------------- | --------------------------------------------------- |
 | **State**      | `state/mod.rs`   | Single source of truth for all UI state             |
 | **Events**     | `events.rs`      | 30+ event variants for all state transitions        |
-| **Reducer**    | `reducer/mod.rs` | Pure function: `(state, event) → (state', effects)` |
+| **Reducer**    | `reducer/mod.rs` | Central event reducer for cross-mode state changes  |
 | **Handlers**   | `handlers/`      | Map user input to events                            |
 | **Components** | `components/`    | Reusable UI widgets with local state                |
 | **History**    | `history.rs`     | Complete audit trail, session persistence           |
@@ -66,21 +66,21 @@ Interactive TUIs face unique challenges:
 - **User input** interleaved with agent responses
 - **Debugging** — "how did we get here?" when state is inconsistent
 
-### The Solution: Pure Reducer Pattern
+### The Solution: Reducer-Centric Event Flow
 
-By adopting a **pure reducer**, we get:
+By centering Studio around a reducer, we get:
 
 1. **Predictability** — Same event + state = same result (testable, debuggable)
 2. **Traceability** — Every state change is an event in the history
 3. **Separation** — No I/O in state logic, side effects are explicit
 4. **Replay** — Can reconstruct any state from event log
-5. **Testability** — Pure functions are trivial to test
+5. **Testability** — Reducer paths are easy to exercise directly
 
 ### The Trade-off
 
 **Cost:** More indirection. Input → Event → Reducer → Effect → Executor.
 
-**Benefit:** Complete control over state flow. No hidden mutations, no race conditions, no "how did that happen?"
+**Benefit:** Much clearer state flow for cross-mode work, even though some localized UI updates still happen in handlers and `StudioApp`.
 
 ## Core Concepts
 
@@ -107,7 +107,7 @@ pub struct StudioState {
 **Key characteristics:**
 
 - Owned by `StudioApp`
-- Mutated only by the reducer
+- Most high-level transitions flow through reducer events, but handlers and `StudioApp` still update some localized UI/data state directly
 - Read-only for rendering
 
 ### Events
@@ -162,7 +162,7 @@ Events come from three sources:
 
 **Effects are data returned by the reducer.** Located in `events.rs`.
 
-The reducer is **pure** (no I/O), so effects describe operations for the app to execute:
+The reducer avoids direct I/O, so effects describe operations for the app to execute:
 
 ```rust
 pub enum SideEffect {
