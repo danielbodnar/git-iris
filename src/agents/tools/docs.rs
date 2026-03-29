@@ -7,7 +7,8 @@ use anyhow::Result;
 use rig::completion::ToolDefinition;
 use rig::tool::Tool;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::cmp::Reverse;
+use std::path::{Path, PathBuf};
 
 use super::common::{current_repo_root, parameters_schema};
 
@@ -16,13 +17,58 @@ crate::define_tool_error!(DocsError);
 
 const MAX_DOC_CHARS: usize = 20_000;
 const MAX_CONTEXT_TOTAL_CHARS: usize = 8_000;
-const README_CONTEXT_CHARS: usize = 4_000;
-const AGENT_CONTEXT_CHARS: usize = 4_000;
-const OTHER_CONTEXT_CHARS: usize = 2_000;
+const MAX_CONTEXT_HEADINGS: usize = 6;
+const MAX_CONTEXT_HIGHLIGHTS: usize = 3;
+const CONTEXT_SUMMARY_CHAR_LIMIT: usize = 360;
+const CONTEXT_HIGHLIGHT_CHAR_LIMIT: usize = 420;
+
+const GENERIC_CONTEXT_KEYWORDS: &[&str] = &[
+    "overview",
+    "summary",
+    "usage",
+    "workflow",
+    "development",
+    "testing",
+    "command",
+    "config",
+    "architecture",
+    "convention",
+    "release",
+];
+
+const README_CONTEXT_KEYWORDS: &[&str] = &[
+    "feature",
+    "getting started",
+    "install",
+    "quick start",
+    "setup",
+];
+
+const AGENT_CONTEXT_KEYWORDS: &[&str] = &[
+    "project",
+    "provider",
+    "tool",
+    "instruction",
+    "style",
+    "git hygiene",
+];
 
 /// Tool for fetching project documentation files
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectDocs;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ContextDocKind {
+    Readme,
+    Agents,
+}
+
+#[derive(Debug, Clone)]
+struct MarkdownSection {
+    heading: String,
+    body: String,
+    position: usize,
+}
 
 /// Type of documentation to fetch
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema, Default)]
@@ -41,7 +87,7 @@ pub enum DocType {
     CodeOfConduct,
     /// Agent/AI instructions (AGENTS.md, CLAUDE.md, .github/copilot-instructions.md)
     Agents,
-    /// Project context: README + agent instructions (recommended for all operations)
+    /// Project context: concise README + agent instructions summary
     Context,
     /// All documentation files
     All,
@@ -60,27 +106,6 @@ pub struct ProjectDocsArgs {
 
 fn default_max_chars() -> usize {
     MAX_DOC_CHARS
-}
-
-fn context_doc_budget(filename: &str, remaining: usize) -> usize {
-    let preferred_budget = if filename.eq_ignore_ascii_case("README.md")
-        || filename.eq_ignore_ascii_case("README.rst")
-        || filename.eq_ignore_ascii_case("README.txt")
-        || filename.eq_ignore_ascii_case("README")
-        || filename.eq_ignore_ascii_case("readme.md")
-    {
-        README_CONTEXT_CHARS
-    } else if matches!(
-        filename,
-        "AGENTS.md" | "CLAUDE.md" | ".github/copilot-instructions.md" | "CODING_GUIDELINES.md"
-    ) || filename.starts_with(".cursor/")
-    {
-        AGENT_CONTEXT_CHARS
-    } else {
-        OTHER_CONTEXT_CHARS
-    };
-
-    preferred_budget.min(remaining)
 }
 
 fn append_doc(
@@ -115,6 +140,312 @@ fn append_doc(
     output.push_str("\n\n");
 }
 
+fn readme_candidates() -> &'static [&'static str] {
+    &[
+        "README.md",
+        "README.rst",
+        "README.txt",
+        "README",
+        "readme.md",
+    ]
+}
+
+fn agent_doc_candidates() -> &'static [&'static str] {
+    &[
+        "AGENTS.md",
+        "CLAUDE.md",
+        ".github/copilot-instructions.md",
+        ".cursor/rules",
+        "CODING_GUIDELINES.md",
+    ]
+}
+
+fn find_first_existing_file(repo_root: &Path, candidates: &[&str]) -> Option<PathBuf> {
+    candidates
+        .iter()
+        .map(|candidate| repo_root.join(candidate))
+        .find(|path| path.exists())
+}
+
+fn is_markdown_heading(line: &str) -> bool {
+    let hashes = line.chars().take_while(|&ch| ch == '#').count();
+    hashes > 0 && hashes <= 6 && line.chars().nth(hashes) == Some(' ')
+}
+
+fn heading_title(heading: &str) -> &str {
+    heading.trim_start_matches('#').trim()
+}
+
+fn is_list_item(line: &str) -> bool {
+    line.starts_with("- ")
+        || line.starts_with("* ")
+        || line.starts_with("+ ")
+        || line
+            .chars()
+            .next()
+            .is_some_and(|ch| ch.is_ascii_digit() && line.contains(". "))
+}
+
+fn truncate_chars(text: &str, max_chars: usize) -> String {
+    let char_count = text.chars().count();
+    if char_count <= max_chars {
+        return text.to_string();
+    }
+
+    let truncated: String = text.chars().take(max_chars).collect();
+    format!("{truncated}...")
+}
+
+fn compact_excerpt(text: &str, max_chars: usize) -> String {
+    let mut output = String::new();
+    let mut in_code_block = false;
+    let mut previous_was_blank = false;
+
+    for line in text.lines() {
+        let trimmed = line.trim();
+
+        if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
+            in_code_block = !in_code_block;
+            continue;
+        }
+
+        if in_code_block {
+            continue;
+        }
+
+        if trimmed.is_empty() {
+            if !output.is_empty() && !previous_was_blank {
+                output.push_str("\n\n");
+            }
+            previous_was_blank = true;
+            continue;
+        }
+
+        if output.chars().count() >= max_chars {
+            break;
+        }
+
+        if is_list_item(trimmed) {
+            if !output.is_empty() && !output.ends_with('\n') {
+                output.push('\n');
+            }
+            output.push_str(trimmed);
+            output.push('\n');
+        } else {
+            if !output.is_empty() && !output.ends_with('\n') && !output.ends_with(' ') {
+                output.push(' ');
+            }
+            output.push_str(trimmed);
+        }
+
+        previous_was_blank = false;
+    }
+
+    truncate_chars(output.trim(), max_chars)
+}
+
+fn parse_markdown_sections(content: &str) -> (String, Vec<MarkdownSection>) {
+    let mut intro_lines = Vec::new();
+    let mut sections = Vec::new();
+    let mut current_heading: Option<String> = None;
+    let mut current_lines = Vec::new();
+    let mut in_code_block = false;
+
+    for line in content.lines() {
+        let trimmed = line.trim_end();
+        let simplified = trimmed.trim();
+
+        if simplified.starts_with("```") || simplified.starts_with("~~~") {
+            in_code_block = !in_code_block;
+            continue;
+        }
+
+        if in_code_block {
+            continue;
+        }
+
+        if is_markdown_heading(simplified) {
+            if let Some(heading) = current_heading.take() {
+                sections.push(MarkdownSection {
+                    heading,
+                    body: current_lines.join("\n"),
+                    position: sections.len(),
+                });
+                current_lines.clear();
+            }
+
+            current_heading = Some(simplified.to_string());
+            continue;
+        }
+
+        if current_heading.is_some() {
+            current_lines.push(trimmed.to_string());
+        } else {
+            intro_lines.push(trimmed.to_string());
+        }
+    }
+
+    if let Some(heading) = current_heading {
+        sections.push(MarkdownSection {
+            heading,
+            body: current_lines.join("\n"),
+            position: sections.len(),
+        });
+    }
+
+    (intro_lines.join("\n"), sections)
+}
+
+fn score_context_section(section: &MarkdownSection, kind: ContextDocKind) -> usize {
+    let lower_heading = heading_title(&section.heading).to_ascii_lowercase();
+    let mut score = 100usize.saturating_sub(section.position * 7);
+
+    for keyword in GENERIC_CONTEXT_KEYWORDS {
+        if lower_heading.contains(keyword) {
+            score += 25;
+        }
+    }
+
+    let extra_keywords = match kind {
+        ContextDocKind::Readme => README_CONTEXT_KEYWORDS,
+        ContextDocKind::Agents => AGENT_CONTEXT_KEYWORDS,
+    };
+
+    for keyword in extra_keywords {
+        if lower_heading.contains(keyword) {
+            score += 35;
+        }
+    }
+
+    score
+}
+
+fn select_context_sections(
+    sections: &[MarkdownSection],
+    kind: ContextDocKind,
+) -> Vec<&MarkdownSection> {
+    let mut ranked = sections.iter().collect::<Vec<_>>();
+    ranked.sort_by_key(|section| {
+        (
+            Reverse(score_context_section(section, kind)),
+            section.position,
+        )
+    });
+    ranked.truncate(MAX_CONTEXT_HIGHLIGHTS);
+    ranked
+}
+
+fn render_context_doc(
+    filename: &str,
+    content: &str,
+    kind: ContextDocKind,
+    max_chars: usize,
+) -> String {
+    let (intro, sections) = parse_markdown_sections(content);
+    let summary_source = if intro.trim().is_empty() {
+        sections
+            .first()
+            .map(|section| section.body.as_str())
+            .unwrap_or(content)
+    } else {
+        intro.as_str()
+    };
+    let summary = compact_excerpt(summary_source, CONTEXT_SUMMARY_CHAR_LIMIT);
+
+    let headings = sections
+        .iter()
+        .take(MAX_CONTEXT_HEADINGS)
+        .map(|section| heading_title(&section.heading).to_string())
+        .collect::<Vec<_>>();
+
+    let highlights = select_context_sections(&sections, kind)
+        .into_iter()
+        .filter_map(|section| {
+            let snippet = compact_excerpt(&section.body, CONTEXT_HIGHLIGHT_CHAR_LIMIT);
+            (!snippet.is_empty()).then(|| (heading_title(&section.heading).to_string(), snippet))
+        })
+        .collect::<Vec<_>>();
+
+    let mut output = String::new();
+    output.push_str(&format!("=== {filename} ===\n"));
+
+    if !summary.is_empty() {
+        output.push_str("Summary:\n");
+        output.push_str(&summary);
+        output.push_str("\n\n");
+    }
+
+    if !headings.is_empty() {
+        output.push_str("Key sections: ");
+        output.push_str(&headings.join(" | "));
+        output.push_str("\n\n");
+    }
+
+    if !highlights.is_empty() {
+        output.push_str("Highlights:\n");
+        for (heading, snippet) in highlights {
+            output.push_str(&format!("- {heading}: {snippet}\n"));
+        }
+    }
+
+    truncate_chars(output.trim_end(), max_chars)
+}
+
+async fn build_context_output(repo_root: &Path, requested_max_chars: usize) -> Result<String> {
+    let context_budget = requested_max_chars.min(MAX_CONTEXT_TOTAL_CHARS);
+    let mut docs = Vec::new();
+
+    if let Some(path) = find_first_existing_file(repo_root, readme_candidates()) {
+        let content = tokio::fs::read_to_string(&path).await?;
+        docs.push((ContextDocKind::Readme, path, content));
+    }
+
+    if let Some(path) = find_first_existing_file(repo_root, agent_doc_candidates()) {
+        let content = tokio::fs::read_to_string(&path).await?;
+        docs.push((ContextDocKind::Agents, path, content));
+    }
+
+    if docs.is_empty() {
+        return Ok("No project context documentation found in project root.".to_string());
+    }
+
+    let mut output = String::from(
+        "Concise project context. Use `project_docs(doc_type=\"readme\")` or \
+`project_docs(doc_type=\"agents\")` for full targeted docs.\n\n",
+    );
+
+    let has_readme = docs
+        .iter()
+        .any(|(kind, _, _)| *kind == ContextDocKind::Readme);
+    let has_agents = docs
+        .iter()
+        .any(|(kind, _, _)| *kind == ContextDocKind::Agents);
+
+    let mut rendered = Vec::new();
+    for (kind, path, content) in docs {
+        let filename = path
+            .strip_prefix(repo_root)
+            .ok()
+            .and_then(|relative| relative.to_str())
+            .unwrap_or_else(|| {
+                path.file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("doc")
+            });
+
+        let doc_budget = match (has_readme, has_agents, kind) {
+            (true, true, ContextDocKind::Readme) => context_budget * 2 / 5,
+            (true, true, ContextDocKind::Agents) => context_budget * 3 / 5,
+            _ => context_budget,
+        };
+
+        rendered.push(render_context_doc(filename, &content, kind, doc_budget));
+    }
+
+    output.push_str(&rendered.join("\n\n"));
+    Ok(truncate_chars(output.trim_end(), context_budget))
+}
+
 impl Tool for ProjectDocs {
     const NAME: &'static str = "project_docs";
     type Error = DocsError;
@@ -134,16 +465,15 @@ impl Tool for ProjectDocs {
     async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
         let current_dir = current_repo_root().map_err(DocsError::from)?;
         let max_chars = args.max_chars.min(MAX_DOC_CHARS);
-        let is_context = matches!(args.doc_type, DocType::Context);
+
+        if matches!(args.doc_type, DocType::Context) {
+            return build_context_output(&current_dir, max_chars)
+                .await
+                .map_err(DocsError::from);
+        }
 
         let files_to_check = match args.doc_type {
-            DocType::Readme => vec![
-                "README.md",
-                "README.rst",
-                "README.txt",
-                "README",
-                "readme.md",
-            ],
+            DocType::Readme => readme_candidates().to_vec(),
             DocType::Contributing => vec!["CONTRIBUTING.md", "CONTRIBUTING", "contributing.md"],
             DocType::Changelog => vec![
                 "CHANGELOG.md",
@@ -154,19 +484,8 @@ impl Tool for ProjectDocs {
             ],
             DocType::License => vec!["LICENSE", "LICENSE.md", "LICENSE.txt", "license"],
             DocType::CodeOfConduct => vec!["CODE_OF_CONDUCT.md", "code_of_conduct.md"],
-            DocType::Agents => vec![
-                "AGENTS.md",
-                "CLAUDE.md",
-                ".github/copilot-instructions.md",
-                ".cursor/rules",
-                "CODING_GUIDELINES.md",
-            ],
-            DocType::Context => vec![
-                "README.md",
-                "AGENTS.md",
-                "CLAUDE.md",
-                ".github/copilot-instructions.md",
-            ],
+            DocType::Agents => agent_doc_candidates().to_vec(),
+            DocType::Context => Vec::new(),
             DocType::All => vec![
                 "README.md",
                 "AGENTS.md",
@@ -179,27 +498,13 @@ impl Tool for ProjectDocs {
 
         let mut output = String::new();
         let mut found_any = false;
-        let mut remaining_context_chars = max_chars.min(MAX_CONTEXT_TOTAL_CHARS);
         // Track if we found an agent instructions file (AGENTS.md often symlinks to CLAUDE.md)
         let mut found_agent_doc = false;
-
-        if is_context {
-            output.push_str(
-                "Project context snapshot. This is intentionally compact so you can get conventions quickly.\n",
-            );
-            output.push_str(
-                "Use `project_docs(doc_type=\"readme\")` or `project_docs(doc_type=\"agents\")` if you need the full documents.\n\n",
-            );
-        }
 
         for filename in files_to_check {
             // Skip CLAUDE.md if we already found AGENTS.md (avoid duplicate from symlink)
             if filename == "CLAUDE.md" && found_agent_doc {
                 continue;
-            }
-
-            if is_context && remaining_context_chars == 0 {
-                break;
             }
 
             let path: PathBuf = current_dir.join(filename);
@@ -213,24 +518,11 @@ impl Tool for ProjectDocs {
                             found_agent_doc = true;
                         }
 
-                        if is_context {
-                            let doc_budget = context_doc_budget(filename, remaining_context_chars);
-                            append_doc(
-                                &mut output,
-                                filename,
-                                &content,
-                                doc_budget,
-                                Some("call the targeted doc type for the full file"),
-                            );
-                            remaining_context_chars =
-                                remaining_context_chars.saturating_sub(doc_budget);
-                        } else {
-                            append_doc(&mut output, filename, &content, max_chars, None);
-                        }
+                        append_doc(&mut output, filename, &content, max_chars, None);
 
                         // For single doc types, return after finding first match
                         // Context and All gather multiple files
-                        if !matches!(args.doc_type, DocType::All | DocType::Context) {
+                        if !matches!(args.doc_type, DocType::All) {
                             break;
                         }
                     }
