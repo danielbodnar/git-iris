@@ -94,14 +94,11 @@ pub fn render_pr_panel(state: &mut StudioState, frame: &mut Frame, area: Rect, p
             // Calculate visible height for scroll indicator
             let visible_height = area.height.saturating_sub(2) as usize;
 
-            // Prefer streaming content if available, then final content
-            let content_to_display = state.modes.pr.streaming_content.as_ref().or(
-                if state.modes.pr.pr_content.is_empty() {
-                    None
-                } else {
-                    Some(&state.modes.pr.pr_content)
-                },
-            );
+            let content_to_display = if state.modes.pr.pr_content.is_empty() {
+                None
+            } else {
+                Some(&state.modes.pr.pr_content)
+            };
 
             let total_lines = content_to_display.map_or(0, |c| c.lines().count());
             let title = scrollable_title(

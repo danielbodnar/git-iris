@@ -98,14 +98,11 @@ pub fn render_changelog_panel(
             // Calculate visible height for scroll indicator
             let visible_height = area.height.saturating_sub(2) as usize;
 
-            // Prefer streaming content if available, then final content
-            let content_to_display = state.modes.changelog.streaming_content.as_ref().or(
-                if state.modes.changelog.changelog_content.is_empty() {
-                    None
-                } else {
-                    Some(&state.modes.changelog.changelog_content)
-                },
-            );
+            let content_to_display = if state.modes.changelog.changelog_content.is_empty() {
+                None
+            } else {
+                Some(&state.modes.changelog.changelog_content)
+            };
 
             let total_lines = content_to_display.map_or(0, |c| c.lines().count());
             let title = scrollable_title(

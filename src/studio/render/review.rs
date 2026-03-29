@@ -52,14 +52,11 @@ pub fn render_review_panel(
             // Calculate visible height for scroll indicator
             let visible_height = area.height.saturating_sub(2) as usize; // -2 for borders
 
-            // Prefer streaming content if available, then final content
-            let content_to_display = state.modes.review.streaming_content.as_ref().or(
-                if state.modes.review.review_content.is_empty() {
-                    None
-                } else {
-                    Some(&state.modes.review.review_content)
-                },
-            );
+            let content_to_display = if state.modes.review.review_content.is_empty() {
+                None
+            } else {
+                Some(&state.modes.review.review_content)
+            };
 
             let total_lines = content_to_display.map_or(0, |c| c.lines().count());
             let title = scrollable_title(

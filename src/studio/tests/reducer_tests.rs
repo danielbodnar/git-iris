@@ -237,11 +237,10 @@ fn test_generate_commit_produces_agent_effect() {
 }
 
 #[test]
-fn test_update_content_clears_stale_streaming_review_buffer() {
+fn test_update_content_sets_review_content() {
     let mut state = test_state();
     let mut history = History::new();
     state.active_mode = Mode::Review;
-    state.modes.review.streaming_content = Some("{ raw streamed review }".to_string());
 
     let _ = reduce(
         &mut state,
@@ -252,11 +251,67 @@ fn test_update_content_clears_stale_streaming_review_buffer() {
         &mut history,
     );
 
-    assert_eq!(state.modes.review.streaming_content, None);
     assert_eq!(
         state.modes.review.review_content,
         "## Final Review\n\nLooks good."
     );
+}
+
+#[test]
+fn test_streaming_chunk_ignores_review_panel_content() {
+    let mut state = test_state();
+    let mut history = History::new();
+    state.active_mode = Mode::Review;
+
+    let _ = reduce(
+        &mut state,
+        StudioEvent::StreamingChunk {
+            task_type: TaskType::Review,
+            chunk: "{".to_string(),
+            aggregated: "{\"content\":\"raw stream\"}".to_string(),
+        },
+        &mut history,
+    );
+
+    assert!(state.modes.review.review_content.is_empty());
+}
+
+#[test]
+fn test_streaming_chunk_updates_chat_response() {
+    let mut state = test_state();
+    let mut history = History::new();
+
+    let _ = reduce(
+        &mut state,
+        StudioEvent::StreamingChunk {
+            task_type: TaskType::Chat,
+            chunk: "hello".to_string(),
+            aggregated: "hello world".to_string(),
+        },
+        &mut history,
+    );
+
+    assert_eq!(
+        state.chat_state.streaming_response.as_deref(),
+        Some("hello world")
+    );
+}
+
+#[test]
+fn test_streaming_complete_clears_chat_response() {
+    let mut state = test_state();
+    let mut history = History::new();
+    state.chat_state.streaming_response = Some("hello world".to_string());
+
+    let _ = reduce(
+        &mut state,
+        StudioEvent::StreamingComplete {
+            task_type: TaskType::Chat,
+        },
+        &mut history,
+    );
+
+    assert_eq!(state.chat_state.streaming_response, None);
 }
 
 #[test]

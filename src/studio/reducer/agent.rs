@@ -173,27 +173,17 @@ pub fn agent_error(
 /// Handle `StreamingChunk` event
 pub fn streaming_chunk(state: &mut StudioState, task_type: TaskType, aggregated: String) {
     match task_type {
-        TaskType::Review => {
-            state.modes.review.streaming_content = Some(aggregated);
-        }
-        TaskType::PR => {
-            state.modes.pr.streaming_content = Some(aggregated);
-        }
-        TaskType::Changelog => {
-            state.modes.changelog.streaming_content = Some(aggregated);
-        }
-        TaskType::ReleaseNotes => {
-            state.modes.release_notes.streaming_content = Some(aggregated);
-        }
         TaskType::Chat => {
             state.chat_state.streaming_response = Some(aggregated);
         }
         TaskType::SemanticBlame => {
             state.modes.explore.streaming_blame = Some(aggregated);
         }
-        TaskType::Commit => {
-            // Commit doesn't stream (structured JSON)
-        }
+        TaskType::Commit
+        | TaskType::Review
+        | TaskType::PR
+        | TaskType::Changelog
+        | TaskType::ReleaseNotes => {}
     }
     state.mark_dirty();
 }
@@ -201,18 +191,6 @@ pub fn streaming_chunk(state: &mut StudioState, task_type: TaskType, aggregated:
 /// Handle `StreamingComplete` event
 pub fn streaming_complete(state: &mut StudioState, task_type: TaskType) {
     match task_type {
-        TaskType::Review => {
-            state.modes.review.streaming_content = None;
-        }
-        TaskType::PR => {
-            state.modes.pr.streaming_content = None;
-        }
-        TaskType::Changelog => {
-            state.modes.changelog.streaming_content = None;
-        }
-        TaskType::ReleaseNotes => {
-            state.modes.release_notes.streaming_content = None;
-        }
         TaskType::Chat => {
             state.chat_state.streaming_response = None;
             // Move final current_tool to history before clearing
@@ -223,7 +201,11 @@ pub fn streaming_complete(state: &mut StudioState, task_type: TaskType) {
         TaskType::SemanticBlame => {
             state.modes.explore.streaming_blame = None;
         }
-        TaskType::Commit => {}
+        TaskType::Commit
+        | TaskType::Review
+        | TaskType::PR
+        | TaskType::Changelog
+        | TaskType::ReleaseNotes => {}
     }
     state.mark_dirty();
 }

@@ -6,16 +6,6 @@ use super::super::events::{ContentPayload, ContentType, EventSource, SideEffect}
 use super::super::history::{ContentData, History};
 use super::super::state::{Mode, Notification, StudioState};
 
-fn clear_streaming_content(state: &mut StudioState, content_type: ContentType) {
-    match content_type {
-        ContentType::CommitMessage => {}
-        ContentType::PRDescription => state.modes.pr.streaming_content = None,
-        ContentType::CodeReview => state.modes.review.streaming_content = None,
-        ContentType::Changelog => state.modes.changelog.streaming_content = None,
-        ContentType::ReleaseNotes => state.modes.release_notes.streaming_content = None,
-    }
-}
-
 /// Handle `UpdateContent` event (tool-triggered)
 pub fn update_content(
     state: &mut StudioState,
@@ -23,8 +13,6 @@ pub fn update_content(
     content_type: ContentType,
     content: ContentPayload,
 ) {
-    clear_streaming_content(state, content_type);
-
     match (content_type, content) {
         (ContentType::CommitMessage, ContentPayload::Commit(msg)) => {
             // Update current message

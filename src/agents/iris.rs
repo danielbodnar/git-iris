@@ -95,6 +95,16 @@ You have access to Git tools, code analysis tools, and powerful sub-agent capabi
 - Use file_read to read files directly instead of multiple code_search calls
 - Use parallel_analyze for large changesets to avoid context overflow";
 
+fn streaming_response_instructions(capability: &str) -> &'static str {
+    if capability == "chat" {
+        "After using the available tools, respond in plain text.\n\
+         Keep it concise and do not repeat full content that tools already updated."
+    } else {
+        "After using the available tools, respond with your analysis in markdown format.\n\
+         Keep it clear, well-structured, and informative."
+    }
+}
+
 use crate::agents::provider::{self, DynAgent};
 use crate::agents::tools::{GitRepoInfo, ParallelAnalyze, Workspace};
 
@@ -986,10 +996,10 @@ Guidelines:
 
         // Build the full prompt (simplified for streaming - no JSON schema enforcement)
         let full_prompt = format!(
-            "{}\n\n{}\n\n\
-            After using the available tools, respond with your analysis in markdown format.\n\
-            Keep it clear, well-structured, and informative.",
-            system_prompt, user_prompt
+            "{}\n\n{}\n\n{}",
+            system_prompt,
+            user_prompt,
+            streaming_response_instructions(capability)
         );
 
         // Update status
@@ -1283,7 +1293,7 @@ impl Default for IrisAgentBuilder {
 
 #[cfg(test)]
 mod tests {
-    use super::sanitize_json_response;
+    use super::{sanitize_json_response, streaming_response_instructions};
     use serde_json::Value;
     use std::borrow::Cow;
 
@@ -1302,5 +1312,20 @@ Line2\"}";
         let sanitized = sanitize_json_response(raw);
         assert_eq!(sanitized.as_ref(), "{\"description\": \"Line1\\nLine2\"}");
         serde_json::from_str::<Value>(sanitized.as_ref()).expect("json sanitized");
+    }
+
+    #[test]
+    fn chat_streaming_instructions_avoid_markdown_suffix() {
+        let instructions = streaming_response_instructions("chat");
+        assert!(instructions.contains("plain text"));
+        assert!(instructions.contains("do not repeat full content"));
+        assert!(!instructions.contains("markdown format"));
+    }
+
+    #[test]
+    fn structured_streaming_instructions_still_use_markdown_suffix() {
+        let instructions = streaming_response_instructions("review");
+        assert!(instructions.contains("markdown format"));
+        assert!(instructions.contains("well-structured"));
     }
 }

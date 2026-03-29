@@ -174,8 +174,6 @@ pub struct ReviewState {
     pub diff_view: DiffViewState,
     /// Generated review content (markdown)
     pub review_content: String,
-    /// Streaming content (while generating)
-    pub streaming_content: Option<String>,
     /// Review scroll offset
     pub review_scroll: usize,
     /// Whether a review is being generated
@@ -192,7 +190,6 @@ impl Default for ReviewState {
             file_tree: FileTreeState::default(),
             diff_view: DiffViewState::default(),
             review_content: String::new(),
-            streaming_content: None,
             review_scroll: 0,
             generating: false,
             from_ref: "HEAD~1".to_string(),
@@ -244,8 +241,6 @@ pub struct PrState {
     pub diff_view: DiffViewState,
     /// Generated PR description (markdown)
     pub pr_content: String,
-    /// Streaming content (while generating)
-    pub streaming_content: Option<String>,
     /// PR content scroll offset
     pub pr_scroll: usize,
     /// Whether PR description is being generated
@@ -263,7 +258,6 @@ impl Default for PrState {
             file_tree: FileTreeState::new(),
             diff_view: DiffViewState::new(),
             pr_content: String::new(),
-            streaming_content: None,
             pr_scroll: 0,
             generating: false,
         }
@@ -314,8 +308,6 @@ pub struct ChangelogState {
     pub diff_view: DiffViewState,
     /// Generated changelog content (markdown)
     pub changelog_content: String,
-    /// Streaming content (while generating)
-    pub streaming_content: Option<String>,
     /// Changelog content scroll offset
     pub changelog_scroll: usize,
     /// Whether changelog is being generated
@@ -332,7 +324,6 @@ impl Default for ChangelogState {
             commit_scroll: 0,
             diff_view: DiffViewState::new(),
             changelog_content: String::new(),
-            streaming_content: None,
             changelog_scroll: 0,
             generating: false,
         }
@@ -360,8 +351,6 @@ pub struct ReleaseNotesState {
     pub diff_view: DiffViewState,
     /// Generated release notes content (markdown)
     pub release_notes_content: String,
-    /// Streaming content (while generating)
-    pub streaming_content: Option<String>,
     /// Release notes content scroll offset
     pub release_notes_scroll: usize,
     /// Whether release notes are being generated
@@ -378,7 +367,6 @@ impl Default for ReleaseNotesState {
             commit_scroll: 0,
             diff_view: DiffViewState::new(),
             release_notes_content: String::new(),
-            streaming_content: None,
             release_notes_scroll: 0,
             generating: false,
         }
