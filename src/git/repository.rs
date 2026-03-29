@@ -10,6 +10,7 @@ use crate::log_debug;
 use anyhow::{Context as AnyhowContext, Result, anyhow};
 use chrono::{DateTime, Utc};
 use git2::{Repository, Tree};
+use std::collections::HashSet;
 use std::env;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -168,6 +169,52 @@ impl GitRepo {
         let branch_name = head.shorthand().unwrap_or("HEAD detached").to_string();
         log_debug!("Current branch: {}", branch_name);
         Ok(branch_name)
+    }
+
+    /// Resolve the best default base ref for branch comparisons.
+    ///
+    /// Prefers the repository's remote HEAD when available, falls back to common
+    /// primary-branch names, and only uses the current branch as a last resort.
+    pub fn get_default_base_ref(&self) -> Result<String> {
+        let repo = self.open_repo()?;
+        let local_branches = collect_branch_names(&repo, git2::BranchType::Local)?;
+        let remote_branches = collect_branch_names(&repo, git2::BranchType::Remote)?;
+
+        if let Some(base) = resolve_remote_head_base(&repo, "origin", &local_branches)? {
+            return Ok(base);
+        }
+
+        if let Ok(remotes) = repo.remotes() {
+            for remote_name in remotes.iter().flatten() {
+                if remote_name == "origin" {
+                    continue;
+                }
+                if let Some(base) = resolve_remote_head_base(&repo, remote_name, &local_branches)? {
+                    return Ok(base);
+                }
+            }
+        }
+
+        for candidate in ["main", "master", "trunk", "develop", "dev", "default"] {
+            if local_branches.contains(candidate) {
+                return Ok(candidate.to_string());
+            }
+        }
+
+        for candidate in [
+            "origin/main",
+            "origin/master",
+            "origin/trunk",
+            "origin/develop",
+            "origin/dev",
+            "origin/default",
+        ] {
+            if remote_branches.contains(candidate) {
+                return Ok(candidate.to_string());
+            }
+        }
+
+        self.get_current_branch()
     }
 
     /// Executes a Git hook.
@@ -903,6 +950,44 @@ impl GitRepo {
         };
         get_ahead_behind(&repo)
     }
+}
+
+fn collect_branch_names(
+    repo: &Repository,
+    branch_type: git2::BranchType,
+) -> Result<HashSet<String>> {
+    let mut names = HashSet::new();
+    for branch in repo.branches(Some(branch_type))?.flatten() {
+        if let Ok(Some(name)) = branch.0.name() {
+            names.insert(name.to_string());
+        }
+    }
+    Ok(names)
+}
+
+fn resolve_remote_head_base(
+    repo: &Repository,
+    remote_name: &str,
+    local_branches: &HashSet<String>,
+) -> Result<Option<String>> {
+    let reference_name = format!("refs/remotes/{remote_name}/HEAD");
+    let Ok(reference) = repo.find_reference(&reference_name) else {
+        return Ok(None);
+    };
+    let Some(symbolic_target) = reference.symbolic_target() else {
+        return Ok(None);
+    };
+    let Some(remote_ref) = symbolic_target.strip_prefix("refs/remotes/") else {
+        return Ok(None);
+    };
+
+    if let Some((_, local_candidate)) = remote_ref.split_once('/')
+        && local_branches.contains(local_candidate)
+    {
+        return Ok(Some(local_candidate.to_string()));
+    }
+
+    Ok(Some(remote_ref.to_string()))
 }
 
 impl Drop for GitRepo {

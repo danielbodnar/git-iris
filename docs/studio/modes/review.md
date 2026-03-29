@@ -235,7 +235,8 @@ Estimated time to address: 2-3 hours
 
 1. Make code changes
 2. Switch to Review mode (<kbd>Shift+R</kbd>)
-3. Default refs are `main..HEAD` (perfect for feature branch)
+3. Default refs are `primary-branch..HEAD` on feature branches
+   On the primary branch, Review falls back to `HEAD~1..HEAD`
 4. Press <kbd>r</kbd> to generate review
 5. Read through each dimension
 6. Press <kbd>/</kbd> to chat: "Explain the O(n²) issue you found"

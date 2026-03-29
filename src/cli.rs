@@ -154,17 +154,17 @@ pub enum Commands {
         )]
         commit: Option<String>,
 
-        /// Starting branch for comparison (defaults to 'main')
+        /// Starting branch for comparison (defaults to the repository's primary branch)
         #[arg(
             long,
-            help = "Starting branch for comparison (defaults to 'main'). Used with --to for explicit branch comparison reviews"
+            help = "Starting branch for comparison (defaults to the repository's primary branch). Used with --to for explicit branch comparison reviews"
         )]
         from: Option<String>,
 
         /// Target branch for comparison (e.g., 'feature-branch', 'pr-branch')
         #[arg(
             long,
-            help = "Target branch for comparison (e.g., 'feature-branch', 'pr-branch'). Used with --from for branch comparison reviews or on its own to compare from main"
+            help = "Target branch for comparison (e.g., 'feature-branch', 'pr-branch'). Used with --from for branch comparison reviews or on its own to compare from the repository's primary branch"
         )]
         to: Option<String>,
     },
@@ -172,7 +172,7 @@ pub enum Commands {
     /// Generate a pull request description
     #[command(
         about = "Generate a pull request description using AI",
-        long_about = "Generate a comprehensive pull request description based on commit ranges, branch differences, or single commits. Analyzes the overall changeset as an atomic unit and creates professional PR descriptions with summaries, detailed explanations, and testing notes.\n\nUsage examples:\n• Single commit: --from abc1234 or --to abc1234\n• Single commitish: --from HEAD~1 or --to HEAD~2\n• Multiple commits: --from HEAD~3 (reviews last 3 commits)\n• Commit range: --from abc1234 --to def5678\n• Branch comparison: --from main --to feature-branch\n• From main to branch: --to feature-branch\n\nSupported commitish syntax: HEAD~2, HEAD^, @~3, main~1, origin/main^, etc."
+        long_about = "Generate a comprehensive pull request description based on commit ranges, branch differences, or single commits. Analyzes the overall changeset as an atomic unit and creates professional PR descriptions with summaries, detailed explanations, and testing notes.\n\nUsage examples:\n• Single commit: --from abc1234 or --to abc1234\n• Single commitish: --from HEAD~1 or --to HEAD~2\n• Multiple commits: --from HEAD~3 (reviews last 3 commits)\n• Commit range: --from abc1234 --to def5678\n• Branch comparison: --from main --to feature-branch\n• From repository primary branch to target branch: --to feature-branch\n\nSupported commitish syntax: HEAD~2, HEAD^, @~3, main~1, origin/main^, etc."
     )]
     Pr {
         #[command(flatten)]
@@ -798,9 +798,6 @@ async fn handle_review(
 
     use crate::agents::{IrisAgentService, TaskContext};
 
-    // Validate parameters and create structured context
-    let context = TaskContext::for_review(commit, from, to, include_unstaged)?;
-
     // Create spinner for progress indication (skip for raw output)
     let spinner = if raw {
         None
@@ -810,6 +807,12 @@ async fn handle_review(
 
     // Use IrisAgentService for agent execution
     let service = IrisAgentService::from_common_params(&common, repository_url)?;
+    let default_base = service
+        .git_repo()
+        .and_then(|repo| repo.get_default_base_ref().ok())
+        .unwrap_or_else(|| "main".to_string());
+    let context =
+        TaskContext::for_review_with_base(commit, from, to, include_unstaged, &default_base)?;
     let response = service.execute_task("review", context).await?;
 
     // Finish spinner
@@ -1292,9 +1295,6 @@ async fn handle_pr_with_agent(
         ui::print_info("Run 'git-iris list-presets' to see available presets for PRs.");
     }
 
-    // Create structured context for PR (handles defaults: from=main, to=HEAD)
-    let context = TaskContext::for_pr(from, to);
-
     // Create spinner for progress indication (skip for raw output only)
     let spinner = if raw {
         None
@@ -1304,6 +1304,11 @@ async fn handle_pr_with_agent(
 
     // Use IrisAgentService for agent execution
     let service = IrisAgentService::from_common_params(&common, repository_url)?;
+    let default_base = service
+        .git_repo()
+        .and_then(|repo| repo.get_default_base_ref().ok())
+        .unwrap_or_else(|| "main".to_string());
+    let context = TaskContext::for_pr_with_base(from, to, &default_base);
     let response = service.execute_task("pr", context).await?;
 
     // Finish spinner

@@ -233,7 +233,7 @@ Existing configs are auto-migrated on first run.
 
 1. Finish feature work on branch `feature/emoji-selector`
 2. Switch to PR mode (<kbd>Shift+P</kbd>)
-3. Default refs are `main..HEAD` (perfect!)
+3. Default refs are `primary-branch..HEAD` (perfect!)
 4. Press <kbd>r</kbd> to generate description
 5. Review output in center panel
 6. Press <kbd>y</kbd> to copy to clipboard

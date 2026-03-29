@@ -85,6 +85,17 @@ impl TaskContext {
         to: Option<String>,
         include_unstaged: bool,
     ) -> Result<Self> {
+        Self::for_review_with_base(commit, from, to, include_unstaged, "main")
+    }
+
+    /// Create review context with an explicit default base for `--to`-only comparisons.
+    pub fn for_review_with_base(
+        commit: Option<String>,
+        from: Option<String>,
+        to: Option<String>,
+        include_unstaged: bool,
+        default_base: &str,
+    ) -> Result<Self> {
         // Validate: --from requires --to
         if from.is_some() && to.is_none() {
             bail!("When using --from, you must also specify --to for branch comparison reviews");
@@ -107,7 +118,7 @@ impl TaskContext {
             (Some(id), _, _) => Self::Commit { commit_id: id },
             (_, Some(f), Some(t)) => Self::Range { from: f, to: t },
             (None, None, Some(t)) => Self::Range {
-                from: "main".to_string(),
+                from: default_base.to_string(),
                 to: t,
             },
             _ => Self::Staged { include_unstaged },
@@ -122,6 +133,11 @@ impl TaskContext {
     /// - `to` only: Compare `main..to`
     /// - Neither: Compare `main..HEAD`
     pub fn for_pr(from: Option<String>, to: Option<String>) -> Self {
+        Self::for_pr_with_base(from, to, "main")
+    }
+
+    /// Create PR context with an explicit default comparison base.
+    pub fn for_pr_with_base(from: Option<String>, to: Option<String>, default_base: &str) -> Self {
         match (from, to) {
             (Some(f), Some(t)) => Self::Range { from: f, to: t },
             (Some(f), None) => Self::Range {
@@ -129,11 +145,11 @@ impl TaskContext {
                 to: "HEAD".to_string(),
             },
             (None, Some(t)) => Self::Range {
-                from: "main".to_string(),
+                from: default_base.to_string(),
                 to: t,
             },
             (None, None) => Self::Range {
-                from: "main".to_string(),
+                from: default_base.to_string(),
                 to: "HEAD".to_string(),
             },
         }

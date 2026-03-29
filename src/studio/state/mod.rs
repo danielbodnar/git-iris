@@ -982,11 +982,24 @@ impl StudioState {
     pub fn new(config: Config, repo: Option<Arc<GitRepo>>) -> Self {
         // Apply CLI overrides to commit mode
         let mut modes = ModeStates::default();
+        let default_base_ref = repo
+            .as_ref()
+            .and_then(|repo| repo.get_default_base_ref().ok());
+        let current_branch = repo
+            .as_ref()
+            .and_then(|repo| repo.get_current_branch().ok());
+
         if let Some(temp_instr) = &config.temp_instructions {
             modes.commit.custom_instructions.clone_from(temp_instr);
         }
         if let Some(temp_preset) = &config.temp_preset {
             modes.commit.preset.clone_from(temp_preset);
+        }
+        if let Some(default_base_ref) = &default_base_ref {
+            modes.pr.base_branch.clone_from(default_base_ref);
+            if !same_branch_ref(current_branch.as_deref(), Some(default_base_ref.as_str())) {
+                modes.review.from_ref.clone_from(default_base_ref);
+            }
         }
 
         Self {
@@ -1490,4 +1503,15 @@ impl StudioState {
         // Update display
         self.update_companion_display();
     }
+}
+
+fn same_branch_ref(left: Option<&str>, right: Option<&str>) -> bool {
+    match (left, right) {
+        (Some(left), Some(right)) => normalize_branch_ref(left) == normalize_branch_ref(right),
+        _ => false,
+    }
+}
+
+fn normalize_branch_ref(value: &str) -> &str {
+    value.strip_prefix("origin/").unwrap_or(value)
 }
