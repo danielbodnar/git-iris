@@ -26,6 +26,15 @@ fast_model = "gpt-5.4-mini"
 | `gpt-5.4`      | Primary  | 128K    | Best for complex analysis |
 | `gpt-5.4-mini` | Fast     | 128K    | Quick status updates      |
 
+Git-Iris also applies workflow-specific GPT-5 reasoning defaults for OpenAI:
+
+- Main agent tasks use `medium` reasoning for commit/review/PR quality
+- Subagents and `parallel_analyze` use `low` reasoning to stay fast but thoughtful
+- Status messages use `none` reasoning to keep waiting text snappy
+
+If you want a different OpenAI reasoning level everywhere, set `additional_params.reasoning` for
+that provider.
+
 ### Anthropic
 
 ```toml

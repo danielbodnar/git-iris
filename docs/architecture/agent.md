@@ -93,7 +93,12 @@ fn build_agent(&self) -> Result<Agent<impl CompletionModel + 'static>> {
     let agent_builder = DynClientBuilder::new()
         .agent(&self.provider, &self.model)?
         .preamble(preamble);
-    let agent_builder = self.apply_completion_params(agent_builder, &self.model, 16_384)?;
+    let agent_builder = self.apply_completion_params(
+        agent_builder,
+        &self.model,
+        16_384,
+        CompletionProfile::MainAgent,
+    )?;
 
     // Core tools (shared with subagents)
     let agent_builder = attach_core_tools!(agent_builder)
@@ -114,6 +119,10 @@ fn build_agent(&self) -> Result<Agent<impl CompletionModel + 'static>> {
     }
 }
 ```
+
+`apply_completion_params` keeps provider quirks out of the main builder flow. For OpenAI GPT-5
+models, it injects the right completion-token parameter and a default reasoning profile
+(`medium` for the main agent unless the user explicitly overrides `reasoning`).
 
 ### Tool Registry Pattern
 
@@ -304,7 +313,12 @@ let sub_agent_builder = client_builder
     .name("analyze_subagent")
     .description("Delegate focused analysis tasks to a sub-agent...")
     .preamble("You are a specialized analysis sub-agent...");
-let sub_agent_builder = self.apply_completion_params(sub_agent_builder, fast_model, 4_096)?;
+let sub_agent_builder = self.apply_completion_params(
+    sub_agent_builder,
+    fast_model,
+    4_096,
+    CompletionProfile::Subagent,
+)?;
 
 let sub_agent = attach_core_tools!(sub_agent_builder).build();
 ```
@@ -314,6 +328,7 @@ let sub_agent = attach_core_tools!(sub_agent_builder).build();
 - Uses **fast model** for cost efficiency
 - Has **core tools** (git, file read) but no delegation tools (no recursion)
 - **Smaller token limit** (4096 vs 16384), applied through provider-aware completion params
+- **Lower default reasoning** for OpenAI GPT-5 (`low`) so delegated analysis stays fast
 - **Focused preamble** — "Complete the task, return concise summary"
 
 The sub-agent is attached as a **tool**, allowing Iris to delegate:

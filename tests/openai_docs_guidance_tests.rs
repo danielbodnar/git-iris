@@ -26,6 +26,9 @@ fn openai_docs_prefer_reasoning_controls_over_legacy_max_tokens_examples() {
     assert!(providers_doc.contains("reasoning"));
     assert!(providers_doc.contains("verbosity"));
     assert!(providers_doc.contains("token-limit"));
+    assert!(providers_doc.contains("\"effort\":\"medium\""));
+    assert!(providers_doc.contains("\"effort\":\"low\""));
+    assert!(providers_doc.contains("\"effort\":\"none\""));
 }
 
 #[test]
@@ -33,6 +36,8 @@ fn architecture_doc_matches_current_provider_and_gitmoji_wiring() {
     let doc = fs::read_to_string("docs/architecture/agent.md").unwrap();
 
     assert!(doc.contains("apply_completion_params"));
+    assert!(doc.contains("CompletionProfile::MainAgent"));
+    assert!(doc.contains("CompletionProfile::Subagent"));
     assert!(doc.contains("get_gitmoji_prompt_guide()"));
     assert!(!doc.contains(".max_tokens(16384)"));
     assert!(!doc.contains(".max_tokens(4096)"));

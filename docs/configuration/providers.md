@@ -123,6 +123,15 @@ Git-Iris parses valid JSON values here, so nested provider options work without 
 files. For OpenAI reasoning models, use `--token-limit` to control output-token budgets; Git-Iris
 maps that to the provider's current completion-token setting automatically.
 
+OpenAI GPT-5 defaults are already tuned by workflow:
+
+- Main agent generations use `reasoning = {"effort":"medium"}`
+- Subagents and `parallel_analyze` use `reasoning = {"effort":"low"}`
+- Fast status messages use `reasoning = {"effort":"none"}`
+
+Set `reasoning` yourself only when you want to override those defaults for every OpenAI request
+using that provider config.
+
 In TOML:
 
 ```toml
