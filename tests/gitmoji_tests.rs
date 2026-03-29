@@ -1,4 +1,4 @@
-use git_iris::gitmoji::{apply_gitmoji, get_gitmoji, get_gitmoji_list};
+use git_iris::gitmoji::{apply_gitmoji, get_gitmoji, get_gitmoji_list, get_gitmoji_prompt_guide};
 
 // Use our centralized test infrastructure
 #[path = "test_utils.rs"]
@@ -59,6 +59,19 @@ mod tests {
         assert!(list.contains("♻️ - :refactor: - Refactor code"));
         assert!(list.contains("✅ - :test: - Add or update tests"));
         assert!(list.contains("🔨 - :chore: - Other changes that don't modify src or test files"));
+    }
+
+    #[test]
+    fn test_get_gitmoji_prompt_guide() {
+        let guide = get_gitmoji_prompt_guide();
+
+        TestAssertions::assert_contains_gitmoji(&guide);
+        assert!(guide.contains("Common gitmoji choices:"));
+        assert!(guide.contains("- ✨ `:feat:` - Introduce new features"));
+        assert!(guide.contains("- 🐛 `:fix:` - Fix a bug"));
+        assert!(guide.contains("- 🔥 `:remove:` - Remove code or files"));
+        assert!(!guide.contains(":accessibility:"));
+        assert!(!guide.contains(":analytics:"));
     }
 
     #[test]

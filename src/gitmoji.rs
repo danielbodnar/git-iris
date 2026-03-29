@@ -45,6 +45,10 @@ fn create_gitmoji_map() -> HashMap<&'static str, (&'static str, &'static str)> {
 static GITMOJI_MAP: LazyLock<HashMap<&'static str, (&'static str, &'static str)>> =
     LazyLock::new(create_gitmoji_map);
 
+const PROMPT_GITMOJI_KEYS: &[&str] = &[
+    "feat", "fix", "refactor", "perf", "test", "docs", "build", "ci", "chore", "remove",
+];
+
 pub fn get_gitmoji(commit_type: &str) -> Option<&'static str> {
     GITMOJI_MAP.get(commit_type).map(|&(emoji, _)| emoji)
 }
@@ -69,6 +73,22 @@ pub fn get_gitmoji_list() -> String {
         .collect::<Vec<String>>();
 
     emoji_list.join("\n")
+}
+
+pub fn get_gitmoji_prompt_guide() -> String {
+    let entries = PROMPT_GITMOJI_KEYS
+        .iter()
+        .filter_map(|key| {
+            GITMOJI_MAP
+                .get(key)
+                .map(|(emoji, description)| format!("- {emoji} `:{key}:` - {description}"))
+        })
+        .collect::<Vec<_>>();
+
+    format!(
+        "Common gitmoji choices:\n{}\n- Reuse the closest option above instead of inventing a new emoji",
+        entries.join("\n")
+    )
 }
 
 /// Post-processes a commit message, applying gitmoji if enabled

@@ -786,8 +786,8 @@ Guidelines:
                 system_prompt.push_str(
                     "DO NOT include the emoji in the 'message' or 'title' text - only set the 'emoji' field. ",
                 );
-                system_prompt.push_str("Choose the most relevant emoji from this list:\n\n");
-                system_prompt.push_str(&crate::gitmoji::get_gitmoji_list());
+                system_prompt.push_str("Choose the closest match from this compact guide:\n\n");
+                system_prompt.push_str(&crate::gitmoji::get_gitmoji_prompt_guide());
                 system_prompt.push_str("\n\nThe emoji should match the primary type of change.");
             } else if is_conventional {
                 system_prompt.push_str("\n\n=== CONVENTIONAL COMMITS FORMAT ===\n");
@@ -827,8 +827,7 @@ Guidelines:
         prompt.push_str("- Section headers: Add relevant emojis (🎯 What's New, ⚙️ How It Works, 📋 Commits, ⚠️ Breaking Changes)\n");
         prompt.push_str("- Commit list entries: Include gitmoji where appropriate\n");
         prompt.push_str("- Body text: Keep clean - no scattered emojis within prose\n\n");
-        prompt.push_str("Choose from this gitmoji list:\n\n");
-        prompt.push_str(&crate::gitmoji::get_gitmoji_list());
+        prompt.push_str(&crate::gitmoji::get_gitmoji_prompt_guide());
     }
 
     fn inject_release_notes_emoji_styling(prompt: &mut String) {
@@ -836,7 +835,7 @@ Guidelines:
         prompt.push_str("Use at most one emoji per highlight/section title. No emojis in bullet descriptions, upgrade notes, or metrics. ");
         prompt.push_str("Pick from the approved gitmoji list (e.g., 🌟 Highlights, 🤖 Agents, 🔧 Tooling, 🐛 Fixes, ⚡ Performance). ");
         prompt.push_str("Never sprinkle emojis within sentences or JSON keys.\n\n");
-        prompt.push_str(&crate::gitmoji::get_gitmoji_list());
+        prompt.push_str(&crate::gitmoji::get_gitmoji_prompt_guide());
     }
 
     fn inject_changelog_emoji_styling(prompt: &mut String) {
@@ -848,7 +847,7 @@ Guidelines:
         prompt.push_str(
             "Never add emojis to JSON keys, section names, metrics, or upgrade notes.\n\n",
         );
-        prompt.push_str(&crate::gitmoji::get_gitmoji_list());
+        prompt.push_str(&crate::gitmoji::get_gitmoji_prompt_guide());
     }
 
     fn inject_no_emoji_styling(prompt: &mut String) {
@@ -1294,7 +1293,7 @@ impl Default for IrisAgentBuilder {
 
 #[cfg(test)]
 mod tests {
-    use super::{sanitize_json_response, streaming_response_instructions};
+    use super::{IrisAgent, sanitize_json_response, streaming_response_instructions};
     use serde_json::Value;
     use std::borrow::Cow;
 
@@ -1328,5 +1327,17 @@ Line2\"}";
         let instructions = streaming_response_instructions("review");
         assert!(instructions.contains("markdown format"));
         assert!(instructions.contains("well-structured"));
+    }
+
+    #[test]
+    fn pr_review_emoji_styling_uses_a_compact_gitmoji_guide() {
+        let mut prompt = String::new();
+        IrisAgent::inject_pr_review_emoji_styling(&mut prompt);
+
+        assert!(prompt.contains("Common gitmoji choices:"));
+        assert!(prompt.contains("`:feat:`"));
+        assert!(prompt.contains("`:fix:`"));
+        assert!(!prompt.contains("`:accessibility:`"));
+        assert!(!prompt.contains("`:analytics:`"));
     }
 }
