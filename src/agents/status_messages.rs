@@ -6,7 +6,7 @@
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use std::collections::HashMap;
 use tokio::sync::mpsc;
 use tokio::time::{Duration, timeout};
 
@@ -111,6 +111,8 @@ pub struct StatusMessageGenerator {
     fast_model: String,
     /// API key for the provider (from config)
     api_key: Option<String>,
+    /// Provider-specific params inherited from config
+    additional_params: HashMap<String, String>,
     /// Hard timeout for status message generation (ms)
     timeout_ms: u64,
 }
@@ -126,11 +128,13 @@ impl StatusMessageGenerator {
         provider: impl Into<String>,
         fast_model: impl Into<String>,
         api_key: Option<String>,
+        additional_params: Option<HashMap<String, String>>,
     ) -> Self {
         Self {
             provider: provider.into(),
             fast_model: fast_model.into(),
             api_key,
+            additional_params: additional_params.unwrap_or_default(),
             timeout_ms: 1500, // 1.5 seconds - fast model should respond quickly
         }
     }
@@ -169,6 +173,7 @@ impl StatusMessageGenerator {
         let provider = self.provider.clone();
         let fast_model = self.fast_model.clone();
         let api_key = self.api_key.clone();
+        let additional_params = self.additional_params.clone();
         let timeout_ms = self.timeout_ms;
 
         tokio::spawn(async move {
@@ -176,6 +181,7 @@ impl StatusMessageGenerator {
                 provider,
                 fast_model,
                 api_key,
+                additional_params,
                 timeout_ms,
             };
 
@@ -203,32 +209,49 @@ impl StatusMessageGenerator {
         provider: &str,
         fast_model: &str,
         api_key: Option<&str>,
+        additional_params: Option<&HashMap<String, String>>,
     ) -> Result<DynAgent> {
         let preamble = "You write fun waiting messages for a Git AI named Iris. \
                         Concise, yet fun and encouraging, add vibes, be clever, not cheesy. \
                         Capitalize first letter, end with ellipsis. Under 35 chars. No emojis. \
                         Just the message text, nothing else.";
+        let provider_name = provider::provider_from_name(provider)?;
 
         match provider {
             "openai" => {
-                let agent = provider::openai_builder(fast_model, api_key)?
-                    .preamble(preamble)
-                    .additional_params(json!({"max_completion_tokens": 50}))
-                    .build();
+                let builder = provider::openai_builder(fast_model, api_key)?.preamble(preamble);
+                let agent = provider::apply_completion_params(
+                    builder,
+                    provider_name,
+                    fast_model,
+                    50,
+                    additional_params,
+                )
+                .build();
                 Ok(DynAgent::OpenAI(agent))
             }
             "anthropic" => {
-                let agent = provider::anthropic_builder(fast_model, api_key)?
-                    .preamble(preamble)
-                    .max_tokens(50)
-                    .build();
+                let builder = provider::anthropic_builder(fast_model, api_key)?.preamble(preamble);
+                let agent = provider::apply_completion_params(
+                    builder,
+                    provider_name,
+                    fast_model,
+                    50,
+                    additional_params,
+                )
+                .build();
                 Ok(DynAgent::Anthropic(agent))
             }
             "google" | "gemini" => {
-                let agent = provider::gemini_builder(fast_model, api_key)?
-                    .preamble(preamble)
-                    .max_tokens(50)
-                    .build();
+                let builder = provider::gemini_builder(fast_model, api_key)?.preamble(preamble);
+                let agent = provider::apply_completion_params(
+                    builder,
+                    provider_name,
+                    fast_model,
+                    50,
+                    additional_params,
+                )
+                .build();
                 Ok(DynAgent::Gemini(agent))
             }
             _ => Err(anyhow::anyhow!("Unsupported provider: {}", provider)),
@@ -250,6 +273,7 @@ impl StatusMessageGenerator {
             &self.provider,
             &self.fast_model,
             self.api_key.as_deref(),
+            Some(&self.additional_params),
         ) {
             Ok(a) => a,
             Err(e) => {
@@ -349,8 +373,12 @@ impl StatusMessageGenerator {
     async fn generate_completion_internal(&self, context: &StatusContext) -> Result<StatusMessage> {
         let prompt = Self::build_completion_prompt(context);
 
-        let agent =
-            Self::build_status_agent(&self.provider, &self.fast_model, self.api_key.as_deref())?;
+        let agent = Self::build_status_agent(
+            &self.provider,
+            &self.fast_model,
+            self.api_key.as_deref(),
+            Some(&self.additional_params),
+        )?;
         let response = agent.prompt(&prompt).await?;
         let message = capitalize_first(response.trim());
 
@@ -539,8 +567,7 @@ mod tests {
         rt.block_on(async {
             // Get provider/model from env or use defaults
             let provider = std::env::var("IRIS_PROVIDER").unwrap_or_else(|_| "openai".to_string());
-            let model =
-                std::env::var("IRIS_MODEL").unwrap_or_else(|_| "gpt-5.4-mini".to_string());
+            let model = std::env::var("IRIS_MODEL").unwrap_or_else(|_| "gpt-5.4-mini".to_string());
 
             println!("\n{}", "=".repeat(60));
             println!(
@@ -549,7 +576,7 @@ mod tests {
             );
             println!("{}\n", "=".repeat(60));
 
-            let generator = StatusMessageGenerator::new(&provider, &model, None);
+            let generator = StatusMessageGenerator::new(&provider, &model, None, None);
 
             // Test scenarios
             let scenarios = [

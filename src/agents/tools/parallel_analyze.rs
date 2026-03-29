@@ -14,12 +14,13 @@ use rig::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 
 use crate::agents::debug as agent_debug;
-use crate::agents::provider::resolve_api_key;
+use crate::agents::provider::{apply_completion_params, provider_from_name, resolve_api_key};
 use crate::providers::Provider;
 
 /// Default timeout for individual subagent tasks (2 minutes)
@@ -66,25 +67,34 @@ enum SubagentRunner {
     OpenAI {
         client: openai::Client,
         model: String,
+        additional_params: HashMap<String, String>,
     },
     Anthropic {
         client: anthropic::Client,
         model: String,
+        additional_params: HashMap<String, String>,
     },
     Gemini {
         client: gemini::Client,
         model: String,
+        additional_params: HashMap<String, String>,
     },
 }
 
 impl SubagentRunner {
-    fn new(provider: &str, model: &str, api_key: Option<&str>) -> Result<Self> {
+    fn new(
+        provider: &str,
+        model: &str,
+        api_key: Option<&str>,
+        additional_params: HashMap<String, String>,
+    ) -> Result<Self> {
         match provider {
             "openai" => {
                 let client = Self::resolve_openai_client(api_key)?;
                 Ok(Self::OpenAI {
                     client,
                     model: model.to_string(),
+                    additional_params,
                 })
             }
             "anthropic" => {
@@ -92,6 +102,7 @@ impl SubagentRunner {
                 Ok(Self::Anthropic {
                     client,
                     model: model.to_string(),
+                    additional_params,
                 })
             }
             "google" | "gemini" => {
@@ -99,6 +110,7 @@ impl SubagentRunner {
                 Ok(Self::Gemini {
                     client,
                     model: model.to_string(),
+                    additional_params,
                 })
             }
             _ => Err(anyhow::anyhow!(
@@ -173,21 +185,51 @@ impl SubagentRunner {
 
         // Use shared tool registry for consistent tool attachment
         let result = match self {
-            Self::OpenAI { client, model } => {
-                let builder = client
-                    .agent(model)
-                    .preamble(preamble)
-                    .additional_params(json!({"max_completion_tokens": 4096}));
+            Self::OpenAI {
+                client,
+                model,
+                additional_params,
+            } => {
+                let builder = client.agent(model).preamble(preamble);
+                let builder = apply_completion_params(
+                    builder,
+                    Provider::OpenAI,
+                    model,
+                    4096,
+                    Some(additional_params),
+                );
                 let agent = crate::attach_core_tools!(builder).build();
                 agent.prompt(task).await
             }
-            Self::Anthropic { client, model } => {
-                let builder = client.agent(model).preamble(preamble).max_tokens(4096);
+            Self::Anthropic {
+                client,
+                model,
+                additional_params,
+            } => {
+                let builder = client.agent(model).preamble(preamble);
+                let builder = apply_completion_params(
+                    builder,
+                    Provider::Anthropic,
+                    model,
+                    4096,
+                    Some(additional_params),
+                );
                 let agent = crate::attach_core_tools!(builder).build();
                 agent.prompt(task).await
             }
-            Self::Gemini { client, model } => {
-                let builder = client.agent(model).preamble(preamble).max_tokens(4096);
+            Self::Gemini {
+                client,
+                model,
+                additional_params,
+            } => {
+                let builder = client.agent(model).preamble(preamble);
+                let builder = apply_completion_params(
+                    builder,
+                    Provider::Google,
+                    model,
+                    4096,
+                    Some(additional_params),
+                );
                 let agent = crate::attach_core_tools!(builder).build();
                 agent.prompt(task).await
             }
@@ -222,7 +264,13 @@ pub struct ParallelAnalyze {
 impl ParallelAnalyze {
     /// Create a new parallel analyzer with default timeout
     pub fn new(provider: &str, model: &str, api_key: Option<&str>) -> Result<Self> {
-        Self::with_timeout(provider, model, DEFAULT_SUBAGENT_TIMEOUT_SECS, api_key)
+        Self::with_timeout(
+            provider,
+            model,
+            DEFAULT_SUBAGENT_TIMEOUT_SECS,
+            api_key,
+            None,
+        )
     }
 
     /// Create a new parallel analyzer with custom timeout
@@ -231,10 +279,18 @@ impl ParallelAnalyze {
         model: &str,
         timeout_secs: u64,
         api_key: Option<&str>,
+        additional_params: Option<HashMap<String, String>>,
     ) -> Result<Self> {
+        let provider_name = provider_from_name(provider)?;
         // Create runner for the requested provider - no silent fallback
         // If the user configures Anthropic, they should get Anthropic or a clear error
-        let runner = SubagentRunner::new(provider, model, api_key).map_err(|e| {
+        let runner = SubagentRunner::new(
+            provider_name.name(),
+            model,
+            api_key,
+            additional_params.unwrap_or_default(),
+        )
+        .map_err(|e| {
             anyhow::anyhow!(
                 "Failed to create {} runner: {}. Check API key and network connectivity.",
                 provider,

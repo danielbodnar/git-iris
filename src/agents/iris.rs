@@ -9,7 +9,6 @@ use rig::completion::CompletionModel;
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
@@ -27,13 +26,13 @@ macro_rules! build_streaming_agent {
         let sub_builder = $builder_fn($fast_model, $api_key)?
             .name("analyze_subagent")
             .preamble("You are a specialized analysis sub-agent.");
-        let sub_builder = $self.apply_openai_params(sub_builder, 4096);
+        let sub_builder = $self.apply_completion_params(sub_builder, $fast_model, 4096)?;
         let sub_agent = crate::attach_core_tools!(sub_builder).build();
 
         // Build main agent with tools
         let builder = $builder_fn(&$self.model, $api_key)?
             .preamble($self.preamble.as_deref().unwrap_or("You are Iris."));
-        let builder = $self.apply_openai_params(builder, 16384);
+        let builder = $self.apply_completion_params(builder, &$self.model, 16384)?;
 
         let builder = crate::attach_core_tools!(builder)
             .tool(DebugTool::new(GitRepoInfo))
@@ -43,6 +42,7 @@ macro_rules! build_streaming_agent {
                 $fast_model,
                 $subagent_timeout,
                 $api_key,
+                $self.current_provider_additional_params().cloned(),
             )?))
             .tool(sub_agent);
 
@@ -77,7 +77,7 @@ You have access to Git tools, code analysis tools, and powerful sub-agent capabi
 
 **File Access Tools:**
 - **file_read** - Read file contents directly. Use `start_line` and `num_lines` for large files.
-- **file_analyzer** - Get metadata and structure analysis of files.
+- **project_docs** - Load README, AGENTS.md, and project conventions.
 - **code_search** - Search for patterns across files. Use sparingly; prefer file_read for known files.
 
 **Sub-Agent Tools:**
@@ -459,10 +459,17 @@ impl IrisAgent {
 
     /// Get the API key for the current provider from config
     fn get_api_key(&self) -> Option<&str> {
-        self.config
-            .as_ref()
-            .and_then(|c| c.get_provider_config(&self.provider))
-            .and_then(|pc| pc.api_key_if_set())
+        provider::current_provider_config(self.config.as_ref(), &self.provider)
+            .and_then(crate::providers::ProviderConfig::api_key_if_set)
+    }
+
+    fn current_provider(&self) -> Result<crate::providers::Provider> {
+        provider::provider_from_name(&self.provider)
+    }
+
+    fn current_provider_additional_params(&self) -> Option<&HashMap<String, String>> {
+        provider::current_provider_config(self.config.as_ref(), &self.provider)
+            .map(|provider_config| &provider_config.additional_params)
     }
 
     /// Build the actual agent for execution
@@ -496,7 +503,7 @@ Guidelines:
 - Highlight important issues, patterns, or insights
 - Keep your response focused and concise")
                     ;
-                let builder = self.apply_openai_params(builder, 4096);
+                let builder = self.apply_completion_params(builder, fast_model, 4096)?;
                 crate::attach_core_tools!(builder).build()
             }};
         }
@@ -512,6 +519,7 @@ Guidelines:
                         fast_model,
                         subagent_timeout,
                         api_key,
+                        self.current_provider_additional_params().cloned(),
                     )?))
             }};
         }
@@ -539,7 +547,7 @@ Guidelines:
 
                 // Build main agent
                 let builder = provider::openai_builder(&self.model, api_key)?.preamble(preamble);
-                let builder = self.apply_openai_params(builder, 16384);
+                let builder = self.apply_completion_params(builder, &self.model, 16384)?;
                 let builder = attach_main_tools!(builder).tool(sub_agent);
                 let agent = maybe_attach_update_tools!(builder);
                 Ok(DynAgent::OpenAI(agent))
@@ -550,7 +558,7 @@ Guidelines:
 
                 // Build main agent
                 let builder = provider::anthropic_builder(&self.model, api_key)?.preamble(preamble);
-                let builder = self.apply_openai_params(builder, 16384);
+                let builder = self.apply_completion_params(builder, &self.model, 16384)?;
                 let builder = attach_main_tools!(builder).tool(sub_agent);
                 let agent = maybe_attach_update_tools!(builder);
                 Ok(DynAgent::Anthropic(agent))
@@ -561,7 +569,7 @@ Guidelines:
 
                 // Build main agent
                 let builder = provider::gemini_builder(&self.model, api_key)?.preamble(preamble);
-                let builder = self.apply_openai_params(builder, 16384);
+                let builder = self.apply_completion_params(builder, &self.model, 16384)?;
                 let builder = attach_main_tools!(builder).tool(sub_agent);
                 let agent = maybe_attach_update_tools!(builder);
                 Ok(DynAgent::Gemini(agent))
@@ -570,33 +578,23 @@ Guidelines:
         }
     }
 
-    /// Apply OpenAI-specific token params.
-    /// Newer `OpenAI` models require `max_completion_tokens` instead of `max_tokens`.
-    /// We inject that via `additional_params` since rig's `AgentBuilder` only
-    /// serializes the legacy `max_tokens` field.
-    fn apply_openai_params<M>(&self, builder: AgentBuilder<M>, max_tokens: u64) -> AgentBuilder<M>
+    fn apply_completion_params<M>(
+        &self,
+        builder: AgentBuilder<M>,
+        model: &str,
+        max_tokens: u64,
+    ) -> Result<AgentBuilder<M>>
     where
         M: CompletionModel,
     {
-        if self.provider != "openai" {
-            return builder.max_tokens(max_tokens);
-        }
-
-        if Self::needs_max_completion_tokens(&self.model) {
-            builder.additional_params(json!({"max_completion_tokens": max_tokens}))
-        } else {
-            builder.max_tokens(max_tokens)
-        }
-    }
-
-    /// Models that require `max_completion_tokens` instead of `max_tokens`
-    fn needs_max_completion_tokens(model: &str) -> bool {
-        let model = model.to_lowercase();
-        model.starts_with("gpt-5")
-            || model.starts_with("gpt-4.1")
-            || model.starts_with("o1")
-            || model.starts_with("o3")
-            || model.starts_with("o4")
+        let provider = self.current_provider()?;
+        Ok(provider::apply_completion_params(
+            builder,
+            provider,
+            model,
+            max_tokens,
+            self.current_provider_additional_params(),
+        ))
     }
 
     /// Execute task using agent with tools and parse structured JSON response

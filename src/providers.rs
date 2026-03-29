@@ -141,11 +141,11 @@ impl FromStr for Provider {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let lower = s.to_lowercase();
-        // Handle legacy "claude" alias
-        let normalized = if lower == "claude" {
-            "anthropic"
-        } else {
-            &lower
+        // Handle legacy/common aliases
+        let normalized = match lower.as_str() {
+            "claude" => "anthropic",
+            "gemini" => "google",
+            _ => &lower,
         };
 
         Self::ALL
@@ -275,6 +275,7 @@ mod tests {
             Some(Provider::Anthropic)
         );
         assert_eq!("claude".parse::<Provider>().ok(), Some(Provider::Anthropic)); // Legacy alias
+        assert_eq!("gemini".parse::<Provider>().ok(), Some(Provider::Google)); // Common alias
         assert!("invalid".parse::<Provider>().is_err());
     }
 

@@ -482,9 +482,11 @@ impl Config {
 
     /// Get the provider configuration for a specific provider
     pub fn get_provider_config(&self, provider: &str) -> Option<&ProviderConfig> {
-        // Handle legacy "claude" alias
+        // Handle legacy/common aliases
         let name = if provider.eq_ignore_ascii_case("claude") {
             "anthropic"
+        } else if provider.eq_ignore_ascii_case("gemini") {
+            "google"
         } else {
             provider
         };

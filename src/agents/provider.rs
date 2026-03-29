@@ -7,11 +7,13 @@ use anyhow::Result;
 use rig::{
     agent::{Agent, AgentBuilder, PromptResponse},
     client::{CompletionClient, ProviderClient},
-    completion::{Prompt, PromptError},
+    completion::{CompletionModel, Prompt, PromptError},
     providers::{anthropic, gemini, openai},
 };
+use serde_json::{Map, Value, json};
+use std::collections::HashMap;
 
-use crate::providers::Provider;
+use crate::providers::{Provider, ProviderConfig};
 
 /// Completion model types for each provider
 pub type OpenAIModel = openai::completion::CompletionModel;
@@ -217,6 +219,69 @@ pub fn gemini_builder(model: &str, api_key: Option<&str>) -> Result<GeminiBuilde
     Ok(client.agent(model))
 }
 
+fn parse_additional_param_value(raw: &str) -> Value {
+    serde_json::from_str(raw).unwrap_or_else(|_| Value::String(raw.to_string()))
+}
+
+fn additional_params_json(
+    additional_params: Option<&HashMap<String, String>>,
+) -> Map<String, Value> {
+    let mut params = Map::new();
+    if let Some(additional_params) = additional_params {
+        for (key, value) in additional_params {
+            params.insert(key.clone(), parse_additional_param_value(value));
+        }
+    }
+    params
+}
+
+fn needs_max_completion_tokens(model: &str) -> bool {
+    let model = model.to_lowercase();
+    model.starts_with("gpt-5")
+        || model.starts_with("gpt-4.1")
+        || model.starts_with("o1")
+        || model.starts_with("o3")
+        || model.starts_with("o4")
+}
+
+pub fn apply_completion_params<M>(
+    mut builder: AgentBuilder<M>,
+    provider: Provider,
+    model: &str,
+    max_tokens: u64,
+    additional_params: Option<&HashMap<String, String>>,
+) -> AgentBuilder<M>
+where
+    M: CompletionModel,
+{
+    let mut params = additional_params_json(additional_params);
+
+    if provider == Provider::OpenAI && needs_max_completion_tokens(model) {
+        params.insert("max_completion_tokens".to_string(), json!(max_tokens));
+    } else {
+        builder = builder.max_tokens(max_tokens);
+    }
+
+    if params.is_empty() {
+        builder
+    } else {
+        builder.additional_params(Value::Object(params))
+    }
+}
+
+pub fn provider_from_name(provider: &str) -> Result<Provider> {
+    provider
+        .parse()
+        .map_err(|_| anyhow::anyhow!("Unsupported provider: {}", provider))
+}
+
+pub fn current_provider_config<'a>(
+    config: Option<&'a crate::config::Config>,
+    provider: &str,
+) -> Option<&'a ProviderConfig> {
+    config.and_then(|config| config.get_provider_config(provider))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -297,5 +362,30 @@ mod tests {
         let source = ApiKeySource::Config;
         let debug_str = format!("{:?}", source);
         assert!(debug_str.contains("Config"));
+    }
+
+    #[test]
+    fn test_apply_completion_params_parses_json_like_additional_params() {
+        let mut additional_params = HashMap::new();
+        additional_params.insert("temperature".to_string(), "0.7".to_string());
+        additional_params.insert("reasoning".to_string(), r#"{"effort":"low"}"#.to_string());
+
+        let params = additional_params_json(Some(&additional_params));
+        assert_eq!(params.get("temperature"), Some(&json!(0.7)));
+        assert_eq!(params.get("reasoning"), Some(&json!({"effort": "low"})));
+    }
+
+    #[test]
+    fn test_provider_from_name_supports_aliases() {
+        assert_eq!(provider_from_name("openai").ok(), Some(Provider::OpenAI));
+        assert_eq!(provider_from_name("claude").ok(), Some(Provider::Anthropic));
+        assert_eq!(provider_from_name("gemini").ok(), Some(Provider::Google));
+    }
+
+    #[test]
+    fn test_needs_max_completion_tokens_for_gpt5_family() {
+        assert!(needs_max_completion_tokens("gpt-5.4"));
+        assert!(needs_max_completion_tokens("o3"));
+        assert!(!needs_max_completion_tokens("claude-opus-4-6"));
     }
 }
