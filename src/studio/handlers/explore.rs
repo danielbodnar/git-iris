@@ -163,6 +163,16 @@ fn editor_hint_command(editor: &str, line: usize, path: &Path) -> String {
     format!("{editor} +{line} {}", shell_quote(&path.to_string_lossy()))
 }
 
+fn git_show_command(hash: &str, file: Option<&Path>) -> String {
+    match file {
+        Some(path) => format!(
+            "git show {hash} -- {}",
+            shell_quote(&path.to_string_lossy())
+        ),
+        None => format!("git show {hash}"),
+    }
+}
+
 fn handle_code_view_key(state: &mut StudioState, key: KeyEvent) -> Vec<SideEffect> {
     match key.code {
         // Navigation - single line
@@ -425,7 +435,13 @@ fn adjust_file_log_scroll(state: &mut StudioState) {
 }
 
 fn handle_context_key(state: &mut StudioState, key: KeyEvent) -> Vec<SideEffect> {
-    let log_len = state.modes.explore.file_log.len();
+    let show_global_log = state.modes.explore.show_global_log;
+    let active_log = if show_global_log {
+        &state.modes.explore.global_log
+    } else {
+        &state.modes.explore.file_log
+    };
+    let log_len = active_log.len();
 
     match key.code {
         // Navigation
@@ -482,18 +498,17 @@ fn handle_context_key(state: &mut StudioState, key: KeyEvent) -> Vec<SideEffect>
             vec![]
         }
         KeyCode::Enter => {
-            // TODO: View selected commit details or checkout that version
             if log_len > 0 {
                 let selected = state.modes.explore.file_log_selected;
-                if let Some(entry) = state.modes.explore.file_log.get(selected) {
-                    // For now, copy the commit hash to clipboard
-                    let hash = entry.hash.clone();
-                    state.notify(Notification::info(format!(
-                        "Commit: {} - {}",
-                        &hash[..7],
-                        entry.message
-                    )));
-                    return vec![SideEffect::CopyToClipboard(hash)];
+                if let Some(entry) = active_log.get(selected) {
+                    let file = if show_global_log {
+                        None
+                    } else {
+                        state.modes.explore.current_file.as_deref()
+                    };
+                    let command = git_show_command(&entry.hash, file);
+                    state.notify(Notification::success("git show command copied"));
+                    return vec![SideEffect::CopyToClipboard(command)];
                 }
             }
             vec![]
@@ -502,7 +517,7 @@ fn handle_context_key(state: &mut StudioState, key: KeyEvent) -> Vec<SideEffect>
             // Copy selected commit hash
             if log_len > 0 {
                 let selected = state.modes.explore.file_log_selected;
-                if let Some(entry) = state.modes.explore.file_log.get(selected) {
+                if let Some(entry) = active_log.get(selected) {
                     let hash = entry.short_hash.clone();
                     state.notify(Notification::success("Commit hash copied"));
                     return vec![SideEffect::CopyToClipboard(hash)];
