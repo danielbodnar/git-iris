@@ -406,7 +406,7 @@ static CHANGELOG_WAITING_MESSAGES: std::sync::LazyLock<Vec<ColoredMessage>> =
                 token: tokens::SUCCESS,
             },
             ColoredMessage {
-                text: Cow::Borrowed("📝 Documenting the journey..."),
+                text: Cow::Borrowed("📝 Documenting the release..."),
                 token: tokens::WARNING,
             },
             ColoredMessage {
