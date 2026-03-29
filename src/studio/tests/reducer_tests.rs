@@ -80,11 +80,13 @@ fn test_agent_result_commit_messages() {
             emoji: Some("✨".to_string()),
             title: "Add feature".to_string(),
             message: "Details here".to_string(),
+            completion_message: None,
         },
         GeneratedMessage {
             emoji: Some("🐛".to_string()),
             title: "Fix bug".to_string(),
             message: "More details".to_string(),
+            completion_message: None,
         },
     ];
 
@@ -136,16 +138,19 @@ fn test_message_variant_navigation() {
             emoji: None,
             title: "First".to_string(),
             message: String::new(),
+            completion_message: None,
         },
         GeneratedMessage {
             emoji: None,
             title: "Second".to_string(),
             message: String::new(),
+            completion_message: None,
         },
         GeneratedMessage {
             emoji: None,
             title: "Third".to_string(),
             message: String::new(),
+            completion_message: None,
         },
     ];
     state
@@ -216,6 +221,7 @@ fn test_generate_commit_produces_agent_effect() {
             instructions: None,
             preset: "default".to_string(),
             use_gitmoji: true,
+            amend: false,
         },
         &mut history,
     );

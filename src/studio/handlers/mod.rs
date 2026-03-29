@@ -215,7 +215,7 @@ pub fn get_keybindings(mode: Mode) -> Vec<(&'static str, &'static str)> {
                 ("Enter", "Open/select"),
                 ("w", "Ask why"),
                 ("H", "Toggle heat map"),
-                ("o", "Open in editor"),
+                ("o", "Copy editor command"),
             ]);
         }
         Mode::Commit => {

@@ -1,6 +1,7 @@
 //! Explore mode key handling for Iris Studio
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use std::path::Path;
 
 use crate::studio::events::SideEffect;
 use crate::studio::state::{Notification, PanelId, StudioState};
@@ -152,6 +153,14 @@ fn clear_selection(state: &mut StudioState) {
     state.modes.explore.selection = None;
     state.modes.explore.selection_anchor = None;
     state.modes.explore.code_view.clear_selection();
+}
+
+fn shell_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\"'\"'"))
+}
+
+fn editor_hint_command(editor: &str, line: usize, path: &Path) -> String {
+    format!("{editor} +{line} {}", shell_quote(&path.to_string_lossy()))
 }
 
 fn handle_code_view_key(state: &mut StudioState, key: KeyEvent) -> Vec<SideEffect> {
@@ -369,21 +378,27 @@ fn handle_code_view_key(state: &mut StudioState, key: KeyEvent) -> Vec<SideEffec
             }
         }
 
-        // Open in $EDITOR
+        // Copy an $EDITOR command for the current file/line
         KeyCode::Char('o') => {
-            if state.modes.explore.current_file.is_some() {
-                // TODO: Full implementation needs terminal suspend/restore
-                // For now, show a message with the command that would be run
-                let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vim".to_string());
-                state.notify(Notification::info(format!(
-                    "Open in editor: use '{} +{} <file>' outside TUI",
-                    editor, state.modes.explore.current_line
-                )));
+            if let Some(path) = state.modes.explore.current_file.clone() {
+                let editor = std::env::var("VISUAL")
+                    .ok()
+                    .filter(|value| !value.is_empty())
+                    .or_else(|| {
+                        std::env::var("EDITOR")
+                            .ok()
+                            .filter(|value| !value.is_empty())
+                    })
+                    .unwrap_or_else(|| "vim".to_string());
+                let command = editor_hint_command(&editor, state.modes.explore.current_line, &path);
+                state.notify(Notification::success("Editor command copied"));
+                state.mark_dirty();
+                vec![SideEffect::CopyToClipboard(command)]
             } else {
                 state.notify(Notification::warning("No file selected"));
+                state.mark_dirty();
+                vec![]
             }
-            state.mark_dirty();
-            vec![]
         }
 
         _ => vec![],

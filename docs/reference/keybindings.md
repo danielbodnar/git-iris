@@ -283,7 +283,7 @@ Release notes generation.
 2. j/k               → Navigate
 3. l                 → Expand directory
 4. w                 → Ask "why" about file
-5. o                 → Open in editor
+5. o                 → Copy editor command
 ```
 
 ## Vim-Style Navigation

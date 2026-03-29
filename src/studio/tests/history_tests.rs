@@ -16,8 +16,8 @@ fn test_new_history() {
 fn test_add_chat_message() {
     let mut history = History::new();
 
-    history.add_chat_message(ChatRole::User, "Hello, Iris!".to_string());
-    history.add_chat_message(ChatRole::Iris, "Hello! How can I help?".to_string());
+    history.add_chat_message(ChatRole::User, "Hello, Iris!");
+    history.add_chat_message(ChatRole::Iris, "Hello! How can I help?");
 
     assert_eq!(history.chat_messages().len(), 2);
     assert_eq!(history.chat_messages()[0].role, ChatRole::User);
@@ -32,6 +32,7 @@ fn test_record_content() {
         emoji: Some("✨".to_string()),
         title: "Add new feature".to_string(),
         message: "Implement the thing".to_string(),
+        completion_message: None,
     };
 
     history.record_content(
@@ -59,6 +60,7 @@ fn test_content_preview() {
         emoji: Some("🔧".to_string()),
         title: "Fix the bug".to_string(),
         message: "Details here".to_string(),
+        completion_message: None,
     };
 
     let data = ContentData::Commit(msg);
@@ -68,12 +70,12 @@ fn test_content_preview() {
 #[test]
 fn test_history_trimming() {
     let mut history = History::new();
-    history.max_events = 10;
 
-    for i in 0..20 {
-        history.add_chat_message(ChatRole::User, format!("Message {}", i));
+    for i in 0..1_500 {
+        let message = format!("Message {}", i);
+        history.add_chat_message(ChatRole::User, &message);
     }
 
-    // Events should be trimmed, but chat messages aren't (different storage)
-    assert!(history.event_count() <= 10);
+    assert!(history.event_count() <= 1_000);
+    assert!(history.chat_messages().len() <= 500);
 }
