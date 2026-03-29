@@ -51,6 +51,10 @@ pub enum DynAgent {
 
 impl DynAgent {
     /// Simple prompt - returns response string
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the underlying provider request fails.
     pub async fn prompt(&self, msg: &str) -> Result<String, PromptError> {
         match self {
             Self::OpenAI(a) => a.prompt(msg).await,
@@ -60,6 +64,10 @@ impl DynAgent {
     }
 
     /// Multi-turn prompt with specified depth for tool calling
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the underlying provider request fails.
     pub async fn prompt_multi_turn(&self, msg: &str, depth: usize) -> Result<String, PromptError> {
         match self {
             Self::OpenAI(a) => a.prompt(msg).max_turns(depth).await,
@@ -69,6 +77,10 @@ impl DynAgent {
     }
 
     /// Multi-turn prompt with extended details (token usage, etc.)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the underlying provider request fails.
     pub async fn prompt_extended(
         &self,
         msg: &str,
@@ -240,9 +252,12 @@ fn parse_additional_param_value(raw: &str) -> Value {
     serde_json::from_str(raw).unwrap_or_else(|_| Value::String(raw.to_string()))
 }
 
-fn additional_params_json(
-    additional_params: Option<&HashMap<String, String>>,
-) -> Map<String, Value> {
+fn additional_params_json<S>(
+    additional_params: Option<&HashMap<String, String, S>>,
+) -> Map<String, Value>
+where
+    S: std::hash::BuildHasher,
+{
     let mut params = Map::new();
     if let Some(additional_params) = additional_params {
         for (key, value) in additional_params {
@@ -256,13 +271,16 @@ fn supports_openai_reasoning_defaults(model: &str) -> bool {
     model.to_lowercase().starts_with("gpt-5")
 }
 
-fn completion_params_json(
-    additional_params: Option<&HashMap<String, String>>,
+fn completion_params_json<S>(
+    additional_params: Option<&HashMap<String, String, S>>,
     provider: Provider,
     model: &str,
     max_tokens: u64,
     profile: CompletionProfile,
-) -> Map<String, Value> {
+) -> Map<String, Value>
+where
+    S: std::hash::BuildHasher,
+{
     let mut params = additional_params_json(additional_params);
 
     if provider == Provider::OpenAI && needs_max_completion_tokens(model) {
@@ -291,16 +309,17 @@ fn needs_max_completion_tokens(model: &str) -> bool {
         || model.starts_with("o4")
 }
 
-pub fn apply_completion_params<M>(
+pub fn apply_completion_params<M, S>(
     mut builder: AgentBuilder<M>,
     provider: Provider,
     model: &str,
     max_tokens: u64,
-    additional_params: Option<&HashMap<String, String>>,
+    additional_params: Option<&HashMap<String, String, S>>,
     profile: CompletionProfile,
 ) -> AgentBuilder<M>
 where
     M: CompletionModel,
+    S: std::hash::BuildHasher,
 {
     if !(provider == Provider::OpenAI && needs_max_completion_tokens(model)) {
         builder = builder.max_tokens(max_tokens);
@@ -315,12 +334,18 @@ where
     }
 }
 
+/// Parse a configured provider name into the canonical provider enum.
+///
+/// # Errors
+///
+/// Returns an error when the provider name is not supported.
 pub fn provider_from_name(provider: &str) -> Result<Provider> {
     provider
         .parse()
         .map_err(|_| anyhow::anyhow!("Unsupported provider: {}", provider))
 }
 
+#[must_use]
 pub fn current_provider_config<'a>(
     config: Option<&'a crate::config::Config>,
     provider: &str,
@@ -423,7 +448,7 @@ mod tests {
 
     #[test]
     fn test_completion_params_use_profile_specific_openai_reasoning_defaults() {
-        let main_params = completion_params_json(
+        let main_params = completion_params_json::<std::collections::hash_map::RandomState>(
             None,
             Provider::OpenAI,
             "gpt-5.4",
@@ -439,7 +464,7 @@ mod tests {
             Some(&json!(16_384))
         );
 
-        let status_params = completion_params_json(
+        let status_params = completion_params_json::<std::collections::hash_map::RandomState>(
             None,
             Provider::OpenAI,
             "gpt-5.4-mini",
@@ -471,7 +496,7 @@ mod tests {
 
     #[test]
     fn test_completion_params_skip_openai_reasoning_defaults_for_non_gpt5_models() {
-        let params = completion_params_json(
+        let params = completion_params_json::<std::collections::hash_map::RandomState>(
             None,
             Provider::OpenAI,
             "gpt-4.1",

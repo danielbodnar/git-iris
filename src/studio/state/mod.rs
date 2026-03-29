@@ -41,6 +41,7 @@ pub enum Mode {
 
 impl Mode {
     /// Get the display name for this mode
+    #[must_use]
     pub fn display_name(&self) -> &'static str {
         match self {
             Mode::Explore => "Explore",
@@ -53,6 +54,7 @@ impl Mode {
     }
 
     /// Get the keyboard shortcut for this mode
+    #[must_use]
     pub fn shortcut(&self) -> char {
         match self {
             Mode::Explore => 'E',
@@ -65,6 +67,7 @@ impl Mode {
     }
 
     /// Check if this mode is available (implemented)
+    #[must_use]
     pub fn is_available(&self) -> bool {
         matches!(
             self,
@@ -78,6 +81,7 @@ impl Mode {
     }
 
     /// Get all modes in order
+    #[must_use]
     pub fn all() -> &'static [Mode] {
         &[
             Mode::Explore,
@@ -154,16 +158,19 @@ pub struct GitStatus {
 
 impl GitStatus {
     /// Check if the current branch matches the repository primary branch.
+    #[must_use]
     pub fn is_primary_branch(&self, primary_branch: Option<&str>) -> bool {
         same_branch_ref(Some(self.branch.as_str()), primary_branch)
     }
 
     /// Check if there are any changes
+    #[must_use]
     pub fn has_changes(&self) -> bool {
         self.staged_count > 0 || self.modified_count > 0 || self.untracked_count > 0
     }
 
     /// Check if there are staged changes ready to commit
+    #[must_use]
     pub fn has_staged(&self) -> bool {
         self.staged_count > 0
     }
@@ -191,6 +198,7 @@ pub struct Notification {
 }
 
 impl Notification {
+    #[must_use]
     pub fn info(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
@@ -979,6 +987,7 @@ pub struct StudioState {
 impl StudioState {
     /// Create new studio state
     /// Note: Companion service is initialized asynchronously via `load_companion_async()` in app for fast startup
+    #[must_use]
     pub fn new(config: Config, repo: Option<Arc<GitRepo>>) -> Self {
         // Apply CLI overrides to commit mode
         let mut modes = ModeStates::default();

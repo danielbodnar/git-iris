@@ -35,6 +35,7 @@ pub enum FileGitStatus {
 
 impl FileGitStatus {
     /// Get the indicator character for this status
+    #[must_use]
     pub fn indicator(self) -> &'static str {
         match self {
             Self::Normal => " ",
@@ -48,6 +49,7 @@ impl FileGitStatus {
     }
 
     /// Get the style for this status
+    #[must_use]
     pub fn style(self) -> Style {
         match self {
             Self::Normal => theme::dimmed(),
@@ -108,6 +110,7 @@ impl TreeNode {
     }
 
     /// Set git status
+    #[must_use]
     pub fn with_status(mut self, status: FileGitStatus) -> Self {
         self.git_status = status;
         self
@@ -176,6 +179,7 @@ impl Default for FileTreeState {
 
 impl FileTreeState {
     /// Create new empty file tree state
+    #[must_use]
     pub fn new() -> Self {
         Self {
             root: Vec::new(),
@@ -188,6 +192,7 @@ impl FileTreeState {
     }
 
     /// Check if tree is empty
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.root.is_empty()
     }
@@ -201,6 +206,7 @@ impl FileTreeState {
     }
 
     /// Build tree from a list of file paths
+    #[must_use]
     pub fn from_paths(paths: &[PathBuf], git_statuses: &[(PathBuf, FileGitStatus)]) -> Self {
         let mut state = Self::new();
         let mut root_nodes: Vec<TreeNode> = Vec::new();
@@ -463,11 +469,13 @@ impl FileTreeState {
     }
 
     /// Get current scroll offset
+    #[must_use]
     pub fn scroll_offset(&self) -> usize {
         self.scroll_offset
     }
 
     /// Get selected index
+    #[must_use]
     pub fn selected_index(&self) -> usize {
         self.selected
     }
@@ -488,6 +496,7 @@ impl FileTreeState {
 
     /// Check if the clicked row matches the currently selected item
     /// Used for double-click detection
+    #[must_use]
     pub fn is_row_selected(&self, row: usize) -> bool {
         let target_index = self.scroll_offset + row;
         target_index == self.selected

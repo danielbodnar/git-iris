@@ -5,6 +5,7 @@ use git2::FileMode;
 use std::fmt::Write;
 
 /// Formats a commit result into a human-readable string
+#[must_use]
 pub fn format_commit_result(result: &CommitResult, message: &str) -> String {
     let mut output = format!(
         "[{} {}] {}\n",

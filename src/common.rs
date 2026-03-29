@@ -65,6 +65,10 @@ impl CommonParams {
         }
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the requested provider is invalid.
     pub fn apply_to_config(&self, config: &mut Config) -> Result<bool> {
         let mut changes_made = false;
 
@@ -118,6 +122,7 @@ impl CommonParams {
     }
 
     /// Check if the provided preset is valid for the specified preset type
+    #[must_use]
     pub fn is_valid_preset_for_type(&self, preset_type: PresetType) -> bool {
         if let Some(preset_name) = &self.preset {
             let library = get_instruction_preset_library();
@@ -129,6 +134,10 @@ impl CommonParams {
 }
 
 /// Validates that a provider name is available in the system
+///
+/// # Errors
+///
+/// Returns an error string when the provider name is not supported.
 pub fn available_providers_parser(s: &str) -> Result<String, String> {
     match s.parse::<Provider>() {
         Ok(provider) => Ok(provider.name().to_string()),

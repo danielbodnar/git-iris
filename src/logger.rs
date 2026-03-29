@@ -61,6 +61,10 @@ impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for UnifiedWriter {
 /// `debug` enables debug-level output for git-iris and rig crates. When false,
 /// only warnings and errors pass through the tracing filter. This must be called
 /// after CLI flags are parsed so `--log` can raise the level.
+///
+/// # Errors
+///
+/// Returns an error when the tracing subscriber cannot be initialized.
 pub fn init(debug: bool) -> Result<(), Box<dyn std::error::Error>> {
     use std::sync::{Once, OnceLock};
     static INIT: Once = Once::new();
@@ -133,10 +137,16 @@ pub fn set_verbose_logging(enabled: bool) {
 }
 
 /// Check if a log file is already configured
+#[must_use]
 pub fn has_log_file() -> bool {
     LOG_FILE.lock().is_some()
 }
 
+/// Configure the log file destination.
+///
+/// # Errors
+///
+/// Returns an error when the log file cannot be opened for append.
 pub fn set_log_file(file_path: &str) -> std::io::Result<()> {
     let file = OpenOptions::new()
         .create(true)

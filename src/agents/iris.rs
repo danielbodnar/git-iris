@@ -451,6 +451,10 @@ pub struct IrisAgent {
 
 impl IrisAgent {
     /// Create a new Iris agent with the given provider and model
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the provider or model configuration is invalid.
     pub fn new(provider: &str, model: &str) -> Result<Self> {
         Ok(Self {
             provider: provider.to_string(),
@@ -892,6 +896,10 @@ Guidelines:
     /// Execute a task with the given capability and user prompt
     ///
     /// This now automatically uses structured output based on the capability type
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when capability loading, agent construction, or generation fails.
     pub async fn execute_task(
         &mut self,
         capability: &str,
@@ -990,6 +998,10 @@ Guidelines:
     /// The callback receives `(chunk, aggregated_text)` for each delta.
     ///
     /// Returns the final structured response after streaming completes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when capability loading, agent construction, or streaming fails.
     pub async fn execute_task_streaming<F>(
         &mut self,
         capability: &str,
@@ -1227,11 +1239,16 @@ Guidelines:
     }
 
     /// Get the current capability being executed
+    #[must_use]
     pub fn current_capability(&self) -> Option<&str> {
         self.current_capability.as_deref()
     }
 
     /// Simple single-turn execution for basic queries
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the provider request fails.
     pub async fn chat(&self, message: &str) -> Result<String> {
         let agent = self.build_agent()?;
         let response = agent.prompt(message).await?;
@@ -1244,6 +1261,7 @@ Guidelines:
     }
 
     /// Get provider configuration
+    #[must_use]
     pub fn provider_config(&self) -> &HashMap<String, String> {
         &self.provider_config
     }
@@ -1278,6 +1296,7 @@ pub struct IrisAgentBuilder {
 
 impl IrisAgentBuilder {
     /// Create a new builder
+    #[must_use]
     pub fn new() -> Self {
         Self {
             provider: "openai".to_string(),
@@ -1305,6 +1324,10 @@ impl IrisAgentBuilder {
     }
 
     /// Build the `IrisAgent`
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the configured provider or model cannot build an agent.
     pub fn build(self) -> Result<IrisAgent> {
         let mut agent = IrisAgent::new(&self.provider, &self.model)?;
 

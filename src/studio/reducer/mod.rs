@@ -494,7 +494,7 @@ pub fn reduce(
                 && let Ok(new_branch) = repo.get_current_branch()
                 && new_branch != state.git_status.branch
             {
-                state.git_status.branch = new_branch.clone();
+                new_branch.clone_into(&mut state.git_status.branch);
 
                 // Branch switched! Load branch memory and check for welcome
                 if let Some(ref companion) = state.companion {

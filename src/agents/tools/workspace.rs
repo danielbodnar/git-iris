@@ -108,6 +108,7 @@ impl Default for Workspace {
 }
 
 impl Workspace {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             data: Arc::new(Mutex::new(WorkspaceData::default())),

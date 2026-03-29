@@ -58,6 +58,7 @@ pub struct MarkdownReview {
 
 impl MarkdownReview {
     /// Render the markdown content with `SilkCircuit` terminal styling
+    #[must_use]
     pub fn format(&self) -> String {
         render_markdown_for_terminal(&self.content)
     }
@@ -73,6 +74,7 @@ impl MarkdownReview {
 /// - Bullet lists with Coral bullets
 /// - Severity badges [CRITICAL], [HIGH], etc.
 #[allow(clippy::too_many_lines)]
+#[must_use]
 pub fn render_markdown_for_terminal(markdown: &str) -> String {
     let mut output = String::new();
     let mut in_code_block = false;

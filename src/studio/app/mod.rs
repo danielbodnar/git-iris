@@ -164,6 +164,7 @@ pub struct StudioApp {
 
 impl StudioApp {
     /// Create a new Studio application
+    #[must_use]
     pub fn new(
         config: Config,
         repo: Option<Arc<GitRepo>>,
@@ -385,6 +386,10 @@ impl StudioApp {
     }
 
     /// Update git status from repository
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when repository status cannot be refreshed.
     pub fn refresh_git_status(&mut self) -> Result<()> {
         let preferred_commit_path = self.current_commit_selection_path();
 
@@ -879,6 +884,10 @@ impl StudioApp {
     }
 
     /// Run the TUI application
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when terminal setup, the main loop, or cleanup fails.
     pub fn run(&mut self) -> Result<ExitResult> {
         // Install panic hook to ensure terminal is restored on panic
         let original_hook = std::panic::take_hook();
@@ -2642,6 +2651,10 @@ impl Drop for StudioApp {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /// Run Iris Studio
+///
+/// # Errors
+///
+/// Returns an error when Studio initialization or execution fails.
 pub fn run_studio(
     config: Config,
     repo: Option<Arc<GitRepo>>,

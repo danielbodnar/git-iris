@@ -34,6 +34,7 @@ impl GitCommitService {
     /// * `repo` - The git repository to operate on
     /// * `use_gitmoji` - Whether to apply gitmoji to commit messages
     /// * `verify` - Whether to run pre/post-commit hooks
+    #[must_use]
     pub fn new(repo: Arc<GitRepo>, use_gitmoji: bool, verify: bool) -> Self {
         Self {
             repo,
@@ -43,11 +44,13 @@ impl GitCommitService {
     }
 
     /// Create from an existing `GitRepo` (convenience constructor)
+    #[must_use]
     pub fn from_repo(repo: GitRepo, use_gitmoji: bool, verify: bool) -> Self {
         Self::new(Arc::new(repo), use_gitmoji, verify)
     }
 
     /// Check if the repository is a remote repository
+    #[must_use]
     pub fn is_remote(&self) -> bool {
         self.repo.is_remote()
     }
@@ -58,6 +61,10 @@ impl GitCommitService {
     /// - verify is false (hooks disabled)
     /// - repository is remote (hooks don't apply)
     /// - pre-commit hook succeeds
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when hook verification is enabled and the pre-commit hook fails.
     pub fn pre_commit(&self) -> Result<()> {
         if self.is_remote() {
             log_debug!("Skipping pre-commit hook for remote repository");
@@ -85,6 +92,10 @@ impl GitCommitService {
     ///
     /// # Returns
     /// The result of the commit operation
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is remote, hooks fail, or Git cannot create the commit.
     pub fn perform_commit(&self, message: &str) -> Result<CommitResult> {
         if self.is_remote() {
             return Err(anyhow::anyhow!("Cannot commit to a remote repository"));
@@ -138,6 +149,10 @@ impl GitCommitService {
     ///
     /// # Returns
     /// The result of the amend operation
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the repository is remote, hooks fail, or Git cannot amend the commit.
     pub fn perform_amend(&self, message: &str) -> Result<CommitResult> {
         if self.is_remote() {
             return Err(anyhow::anyhow!(
@@ -182,11 +197,16 @@ impl GitCommitService {
     /// Get the message of the HEAD commit
     ///
     /// Useful for amend operations to provide original context
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the HEAD commit cannot be read.
     pub fn get_head_commit_message(&self) -> Result<String> {
         self.repo.get_head_commit_message()
     }
 
     /// Get a reference to the underlying repository
+    #[must_use]
     pub fn repo(&self) -> &GitRepo {
         &self.repo
     }

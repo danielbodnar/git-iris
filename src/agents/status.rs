@@ -55,6 +55,7 @@ pub struct IrisStatus {
 }
 
 impl IrisStatus {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             phase: IrisPhase::Initializing,
@@ -69,6 +70,7 @@ impl IrisStatus {
     }
 
     /// Create a dynamic status with LLM-generated message (constrained to 80 chars)
+    #[must_use]
     pub fn dynamic(phase: IrisPhase, message: String, step: usize, total: Option<usize>) -> Self {
         let token = match phase {
             IrisPhase::Initializing | IrisPhase::PlanExpansion => tokens::ACCENT_SECONDARY,
@@ -100,6 +102,7 @@ impl IrisStatus {
     }
 
     /// Create dynamic streaming status with live token counting
+    #[must_use]
     pub fn streaming(
         message: String,
         tokens: TokenMetrics,
@@ -140,6 +143,7 @@ impl IrisStatus {
     }
 
     /// Create error status
+    #[must_use]
     pub fn error(error: &str) -> Self {
         let constrained_message = if error.len() > 35 {
             format!("❌ {}...", truncate_at_char_boundary(error, 32))
@@ -160,6 +164,7 @@ impl IrisStatus {
     }
 
     /// Create completed status
+    #[must_use]
     pub fn completed() -> Self {
         Self {
             phase: IrisPhase::Completed,
@@ -173,11 +178,13 @@ impl IrisStatus {
         }
     }
 
+    #[must_use]
     pub fn duration(&self) -> Duration {
         self.started_at.elapsed()
     }
 
     #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
+    #[must_use]
     pub fn progress_percentage(&self) -> f32 {
         if let Some(total) = self.total_steps {
             (self.current_step as f32 / total as f32) * 100.0
@@ -187,6 +194,7 @@ impl IrisStatus {
     }
 
     /// Format status for display - clean and minimal
+    #[must_use]
     pub fn format_for_display(&self) -> String {
         // Just the message - clean and elegant
         self.message.clone()
@@ -205,6 +213,7 @@ pub struct IrisStatusTracker {
 }
 
 impl IrisStatusTracker {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             status: Arc::new(Mutex::new(IrisStatus::new())),
@@ -262,6 +271,7 @@ impl IrisStatusTracker {
         }
     }
 
+    #[must_use]
     pub fn get_current(&self) -> IrisStatus {
         self.status.lock().map_or_else(
             |_| IrisStatus::error("Status lock poisoned"),
@@ -269,6 +279,7 @@ impl IrisStatusTracker {
         )
     }
 
+    #[must_use]
     pub fn get_for_spinner(&self) -> ColoredMessage {
         let status = self.get_current();
         ColoredMessage {
@@ -308,6 +319,7 @@ pub fn enable_agent_mode() {
 }
 
 /// Check if agent mode is enabled
+#[must_use]
 pub fn is_agent_mode_enabled() -> bool {
     AGENT_MODE_ENABLED.load(std::sync::atomic::Ordering::Relaxed)
 }

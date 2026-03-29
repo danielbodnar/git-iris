@@ -36,6 +36,7 @@ pub enum DiffLineType {
 
 impl DiffLineType {
     /// Get style for this line type
+    #[must_use]
     pub fn style(self) -> Style {
         match self {
             Self::Context => theme::diff_context(),
@@ -50,6 +51,7 @@ impl DiffLineType {
     }
 
     /// Get the line prefix character
+    #[must_use]
     pub fn prefix(self) -> &'static str {
         match self {
             Self::Context => " ",
@@ -187,6 +189,7 @@ impl FileDiff {
     }
 
     /// Get total lines changed (added + removed)
+    #[must_use]
     pub fn lines_changed(&self) -> (usize, usize) {
         let mut added = 0;
         let mut removed = 0;
@@ -203,6 +206,7 @@ impl FileDiff {
     }
 
     /// Get all lines for display
+    #[must_use]
     pub fn all_lines(&self) -> Vec<DiffLine> {
         let mut lines = Vec::new();
 
@@ -266,6 +270,7 @@ impl Default for DiffViewState {
 
 impl DiffViewState {
     /// Create new diff view state
+    #[must_use]
     pub fn new() -> Self {
         Self {
             diffs: Vec::new(),
@@ -295,11 +300,13 @@ impl DiffViewState {
     }
 
     /// Get current file diff
+    #[must_use]
     pub fn current_diff(&self) -> Option<&FileDiff> {
         self.diffs.get(self.selected_file)
     }
 
     /// Get number of files
+    #[must_use]
     pub fn file_count(&self) -> usize {
         self.diffs.len()
     }
@@ -381,16 +388,19 @@ impl DiffViewState {
     }
 
     /// Get cached lines
+    #[must_use]
     pub fn lines(&self) -> &[DiffLine] {
         &self.cached_lines
     }
 
     /// Get scroll offset
+    #[must_use]
     pub fn scroll_offset(&self) -> usize {
         self.scroll_offset
     }
 
     /// Get selected file index
+    #[must_use]
     pub fn selected_file_index(&self) -> usize {
         self.selected_file
     }
@@ -407,6 +417,7 @@ impl DiffViewState {
     }
 
     /// Get all file paths in the diff
+    #[must_use]
     pub fn file_paths(&self) -> Vec<&std::path::Path> {
         self.diffs.iter().map(|d| d.path.as_path()).collect()
     }
@@ -417,6 +428,7 @@ impl DiffViewState {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /// Parse a unified diff string into `FileDiff` structs
+#[must_use]
 pub fn parse_diff(diff_text: &str) -> Vec<FileDiff> {
     let mut diffs = Vec::new();
     let mut current_diff: Option<FileDiff> = None;
@@ -661,6 +673,7 @@ fn render_diff_line(line: &DiffLine, line_num_width: usize, width: usize) -> Lin
 }
 
 /// Render a compact summary of changes
+#[must_use]
 pub fn render_diff_summary(diff: &FileDiff) -> Line<'static> {
     let (added, removed) = diff.lines_changed();
     let path = diff.path.display().to_string();

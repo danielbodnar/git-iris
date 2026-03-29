@@ -10,6 +10,11 @@ use crate::log_debug;
 /// # Returns
 ///
 /// A Result containing a boolean indicating if inside a work tree or an error.
+///
+/// # Errors
+///
+/// Returns an error only if the Git command cannot be spawned. Git reporting a
+/// non-repository directory is normalized to `Ok(false)`.
 pub fn is_inside_work_tree() -> Result<bool> {
     let status = Command::new("git")
         .args(["rev-parse", "--is-inside-work-tree"])
@@ -24,6 +29,7 @@ pub fn is_inside_work_tree() -> Result<bool> {
 }
 
 /// Determines if the given diff represents a binary file.
+#[must_use]
 pub fn is_binary_diff(diff: &str) -> bool {
     diff.contains("Binary files")
         || diff.contains("GIT binary patch")
@@ -39,6 +45,10 @@ pub fn is_binary_diff(diff: &str) -> bool {
 /// # Returns
 ///
 /// A Result containing the output as a String or an error.
+///
+/// # Errors
+///
+/// Returns an error when the Git command fails or emits invalid UTF-8 output.
 pub fn run_git_command(args: &[&str]) -> Result<String> {
     let output = Command::new("git")
         .args(args)
@@ -62,6 +72,7 @@ pub fn run_git_command(args: &[&str]) -> Result<String> {
 ///
 /// Excludes common directories and files that don't contribute meaningfully
 /// to commit context (build artifacts, lock files, IDE configs, etc.)
+#[must_use]
 pub fn should_exclude_file(path: &str) -> bool {
     log_debug!("Checking if file should be excluded: {}", path);
     let exclude_patterns = vec![

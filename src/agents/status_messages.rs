@@ -34,6 +34,7 @@ pub struct StatusContext {
 }
 
 impl StatusContext {
+    #[must_use]
     pub fn new(task_type: &str, activity: &str) -> Self {
         Self {
             task_type: task_type.to_string(),
@@ -47,31 +48,37 @@ impl StatusContext {
         }
     }
 
+    #[must_use]
     pub fn with_branch(mut self, branch: impl Into<String>) -> Self {
         self.branch = Some(branch.into());
         self
     }
 
+    #[must_use]
     pub fn with_file_count(mut self, count: usize) -> Self {
         self.file_count = Some(count);
         self
     }
 
+    #[must_use]
     pub fn with_files(mut self, files: Vec<String>) -> Self {
         self.files = files;
         self
     }
 
+    #[must_use]
     pub fn with_regeneration(mut self, is_regen: bool) -> Self {
         self.is_regeneration = is_regen;
         self
     }
 
+    #[must_use]
     pub fn with_change_summary(mut self, summary: impl Into<String>) -> Self {
         self.change_summary = Some(summary.into());
         self
     }
 
+    #[must_use]
     pub fn with_content_hint(mut self, hint: impl Into<String>) -> Self {
         self.current_content_hint = Some(hint.into());
         self
@@ -124,6 +131,7 @@ impl StatusMessageGenerator {
     /// * `provider` - LLM provider name (e.g., "anthropic", "openai")
     /// * `fast_model` - Model to use for quick generations
     /// * `api_key` - Optional API key (falls back to env var if not provided)
+    #[must_use]
     pub fn new(
         provider: impl Into<String>,
         fast_model: impl Into<String>,
@@ -140,6 +148,7 @@ impl StatusMessageGenerator {
     }
 
     /// Set custom timeout in milliseconds
+    #[must_use]
     pub fn with_timeout_ms(mut self, ms: u64) -> Self {
         self.timeout_ms = ms;
         self
@@ -197,6 +206,7 @@ impl StatusMessageGenerator {
     }
 
     /// Create a channel for receiving status messages
+    #[must_use]
     pub fn create_channel() -> (
         mpsc::UnboundedSender<StatusMessage>,
         mpsc::UnboundedReceiver<StatusMessage>,
@@ -444,6 +454,7 @@ pub struct StatusMessageBatch {
 }
 
 impl StatusMessageBatch {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -454,6 +465,7 @@ impl StatusMessageBatch {
     }
 
     /// Get the current message (if any)
+    #[must_use]
     pub fn current(&self) -> Option<&StatusMessage> {
         self.messages.get(self.current_index)
     }
@@ -466,11 +478,13 @@ impl StatusMessageBatch {
     }
 
     /// Check if we have any messages
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.messages.is_empty()
     }
 
     /// Number of messages in batch
+    #[must_use]
     pub fn len(&self) -> usize {
         self.messages.len()
     }

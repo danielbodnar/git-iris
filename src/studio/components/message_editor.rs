@@ -39,6 +39,7 @@ impl Default for MessageEditorState {
 
 impl MessageEditorState {
     /// Create a new message editor state
+    #[must_use]
     pub fn new() -> Self {
         let mut textarea = TextArea::default();
         textarea.set_cursor_line_style(Style::default().bg(theme::bg_highlight_color()));
@@ -89,11 +90,13 @@ impl MessageEditorState {
     }
 
     /// Get current message count
+    #[must_use]
     pub fn message_count(&self) -> usize {
         self.generated_messages.len()
     }
 
     /// Get currently selected index
+    #[must_use]
     pub fn selected_index(&self) -> usize {
         self.selected_message
     }
@@ -210,6 +213,7 @@ impl MessageEditorState {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /// Format a generated message for display
+#[must_use]
 pub fn format_message(msg: &GeneratedMessage) -> String {
     let emoji = msg.emoji.as_deref().unwrap_or("");
     let title = if emoji.is_empty() {
@@ -389,6 +393,7 @@ fn render_message_view(frame: &mut Frame, area: Rect, state: &MessageEditorState
 }
 
 /// Render a compact message preview (for lists)
+#[must_use]
 pub fn render_message_preview(msg: &GeneratedMessage, width: usize) -> Line<'static> {
     let emoji = msg.emoji.as_deref().unwrap_or("");
     let title_width = if emoji.is_empty() {

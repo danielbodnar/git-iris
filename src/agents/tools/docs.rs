@@ -345,8 +345,7 @@ fn render_context_doc(
     let summary_source = if intro.trim().is_empty() {
         sections
             .first()
-            .map(|section| section.body.as_str())
-            .unwrap_or(content)
+            .map_or(content, |section| section.body.as_str())
     } else {
         intro.as_str()
     };

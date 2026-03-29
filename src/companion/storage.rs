@@ -18,6 +18,10 @@ pub struct CompanionStorage {
 
 impl CompanionStorage {
     /// Create a new storage instance for the given repository
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the companion storage directories cannot be created.
     pub fn new(repo_path: &Path) -> Result<Self> {
         let base_dir = Self::base_dir()?;
         let repo_hash = Self::hash_path(repo_path);
@@ -71,24 +75,40 @@ impl CompanionStorage {
     }
 
     /// Save session state
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the session cannot be serialized or written.
     pub fn save_session(&self, session: &SessionState) -> Result<()> {
         let path = self.session_path();
         Self::atomic_write(&path, session)
     }
 
     /// Load session state
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the session file exists but cannot be read or parsed.
     pub fn load_session(&self) -> Result<Option<SessionState>> {
         let path = self.session_path();
         Self::load_json(&path)
     }
 
     /// Save branch memory
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the branch memory cannot be serialized or written.
     pub fn save_branch_memory(&self, memory: &BranchMemory) -> Result<()> {
         let path = self.branch_path(&memory.branch_name);
         Self::atomic_write(&path, memory)
     }
 
     /// Load branch memory
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the branch memory file exists but cannot be read or parsed.
     pub fn load_branch_memory(&self, branch: &str) -> Result<Option<BranchMemory>> {
         let path = self.branch_path(branch);
         Self::load_json(&path)
@@ -134,6 +154,10 @@ impl CompanionStorage {
     }
 
     /// List all branch memories for this repo
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the branch memory directory cannot be read.
     pub fn list_branches(&self) -> Result<Vec<String>> {
         let mut branches = Vec::new();
 
@@ -153,6 +177,10 @@ impl CompanionStorage {
     }
 
     /// Delete session data
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the session file exists but cannot be removed.
     pub fn clear_session(&self) -> Result<()> {
         let path = self.session_path();
         if path.exists() {

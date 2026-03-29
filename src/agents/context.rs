@@ -60,6 +60,7 @@ pub enum TaskContext {
 impl TaskContext {
     /// Create context for the gen (commit message) command.
     /// Always uses staged changes only.
+    #[must_use]
     pub fn for_gen() -> Self {
         Self::Staged {
             include_unstaged: false,
@@ -68,6 +69,7 @@ impl TaskContext {
 
     /// Create context for amending the previous commit.
     /// The agent will see the combined diff from HEAD^1 to staged state.
+    #[must_use]
     pub fn for_amend(original_message: String) -> Self {
         Self::Amend { original_message }
     }
@@ -79,6 +81,10 @@ impl TaskContext {
     /// - `--to` on its own compares `<fallback-base>..to`
     /// - `--commit` is mutually exclusive with `--from/--to`
     /// - `--include-unstaged` is incompatible with range comparisons
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the provided flag combination is invalid.
     pub fn for_review(
         commit: Option<String>,
         from: Option<String>,
@@ -93,6 +99,10 @@ impl TaskContext {
     /// CLI and Studio should prefer a repo-aware base from `GitRepo::get_default_base_ref()`.
     /// This lets branch comparisons follow the repository's actual primary branch
     /// instead of relying on the legacy `"main"` fallback.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the provided flag combination is invalid.
     pub fn for_review_with_base(
         commit: Option<String>,
         from: Option<String>,
@@ -136,6 +146,7 @@ impl TaskContext {
     /// - `from` only: Compare `from..HEAD`
     /// - `to` only: Compare `<fallback-base>..to`
     /// - Neither: Compare `<fallback-base>..HEAD`
+    #[must_use]
     pub fn for_pr(from: Option<String>, to: Option<String>) -> Self {
         Self::for_pr_with_base(from, to, "main")
     }
@@ -143,6 +154,7 @@ impl TaskContext {
     /// Create PR context with an explicit default comparison base.
     ///
     /// CLI and Studio should prefer a repo-aware base from `GitRepo::get_default_base_ref()`.
+    #[must_use]
     pub fn for_pr_with_base(from: Option<String>, to: Option<String>, default_base: &str) -> Self {
         match (from, to) {
             (Some(f), Some(t)) => Self::Range { from: f, to: t },
@@ -165,6 +177,7 @@ impl TaskContext {
     ///
     /// These always require a `from` reference; `to` defaults to HEAD.
     /// Automatically sets today's date if not provided.
+    #[must_use]
     pub fn for_changelog(
         from: String,
         to: Option<String>,
@@ -180,11 +193,13 @@ impl TaskContext {
     }
 
     /// Generate a human-readable prompt context string for the agent.
+    #[must_use]
     pub fn to_prompt_context(&self) -> String {
         serde_json::to_string_pretty(self).unwrap_or_else(|_| format!("{self:?}"))
     }
 
     /// Generate a hint for which `git_diff` call the agent should make.
+    #[must_use]
     pub fn diff_hint(&self) -> String {
         match self {
             Self::Staged { include_unstaged } => {
@@ -208,11 +223,13 @@ impl TaskContext {
     }
 
     /// Check if this context represents a range comparison (vs staged/single commit)
+    #[must_use]
     pub fn is_range(&self) -> bool {
         matches!(self, Self::Range { .. })
     }
 
     /// Check if this context involves unstaged changes
+    #[must_use]
     pub fn includes_unstaged(&self) -> bool {
         matches!(
             self,
@@ -223,11 +240,13 @@ impl TaskContext {
     }
 
     /// Check if this is an amend operation
+    #[must_use]
     pub fn is_amend(&self) -> bool {
         matches!(self, Self::Amend { .. })
     }
 
     /// Get the original commit message if this is an amend context
+    #[must_use]
     pub fn original_message(&self) -> Option<&str> {
         match self {
             Self::Amend { original_message } => Some(original_message),

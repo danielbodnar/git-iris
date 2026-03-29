@@ -75,6 +75,7 @@ pub fn get_gitmoji_list() -> String {
     emoji_list.join("\n")
 }
 
+#[must_use]
 pub fn get_gitmoji_prompt_guide() -> String {
     let entries = PROMPT_GITMOJI_KEYS
         .iter()
@@ -92,6 +93,7 @@ pub fn get_gitmoji_prompt_guide() -> String {
 }
 
 /// Post-processes a commit message, applying gitmoji if enabled
+#[must_use]
 pub fn process_commit_message(message: String, use_gitmoji: bool) -> String {
     if use_gitmoji {
         apply_gitmoji(&message)

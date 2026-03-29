@@ -113,6 +113,10 @@ impl Default for Config {
 
 impl Config {
     /// Load configuration (personal + project overlay)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when personal or project configuration cannot be read or parsed.
     pub fn load() -> Result<Self> {
         let config_path = Self::get_personal_config_path()?;
         let mut config = if config_path.exists() {
@@ -137,6 +141,10 @@ impl Config {
     }
 
     /// Load project-specific configuration
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the project configuration file is missing or invalid.
     pub fn load_project_config() -> Result<Self> {
         let (config, _) = Self::load_project_config_with_source()?;
         Ok(config)
@@ -169,6 +177,10 @@ impl Config {
     }
 
     /// Get path to project config file
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the current repository root cannot be resolved.
     pub fn get_project_config_path() -> Result<PathBuf> {
         let repo_root = GitRepo::get_repo_root()?;
         Ok(repo_root.join(PROJECT_CONFIG_FILENAME))
@@ -252,10 +264,10 @@ impl Config {
             let entry = self.providers.entry(provider_name.clone()).or_default();
 
             if !proj_config.model.is_empty() {
-                entry.model = proj_config.model.clone();
+                proj_config.model.clone_into(&mut entry.model);
             }
             if proj_config.fast_model.is_some() {
-                entry.fast_model = proj_config.fast_model.clone();
+                entry.fast_model.clone_from(&proj_config.fast_model);
             }
             if proj_config.token_limit.is_some() {
                 entry.token_limit = proj_config.token_limit;
@@ -307,6 +319,10 @@ impl Config {
     }
 
     /// Save configuration to personal config file
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the personal configuration file cannot be serialized or written.
     pub fn save(&self) -> Result<()> {
         if self.is_project_config {
             return Ok(());
@@ -320,6 +336,10 @@ impl Config {
     }
 
     /// Save as project-specific configuration (strips API keys)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the project configuration file cannot be serialized or written.
     pub fn save_as_project_config(&self) -> Result<()> {
         let config_path = Self::get_project_config_path()?;
 
@@ -379,6 +399,10 @@ impl Config {
     }
 
     /// Get path to personal config file
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the config directory cannot be resolved or created.
     pub fn get_personal_config_path() -> Result<PathBuf> {
         let mut path = Self::resolve_personal_config_dir(
             std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from),
@@ -390,6 +414,10 @@ impl Config {
     }
 
     /// Check environment prerequisites
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the current working directory is not inside a Git repository.
     pub fn check_environment(&self) -> Result<()> {
         if !GitRepo::is_inside_work_tree()? {
             return Err(anyhow!(
@@ -410,6 +438,7 @@ impl Config {
     }
 
     /// Get effective preset name (temp overrides saved)
+    #[must_use]
     pub fn get_effective_preset_name(&self) -> &str {
         self.temp_preset
             .as_deref()
@@ -417,6 +446,7 @@ impl Config {
     }
 
     /// Get effective instructions (combines preset + custom)
+    #[must_use]
     pub fn get_effective_instructions(&self) -> String {
         let preset_library = get_instruction_preset_library();
         let preset_instructions = self
@@ -439,6 +469,10 @@ impl Config {
 
     /// Update configuration with new values
     #[allow(clippy::too_many_arguments, clippy::needless_pass_by_value)]
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the provider is invalid or the provider config cannot be updated.
     pub fn update(
         &mut self,
         provider: Option<String>,
@@ -503,6 +537,7 @@ impl Config {
     }
 
     /// Get the provider configuration for a specific provider
+    #[must_use]
     pub fn get_provider_config(&self, provider: &str) -> Option<&ProviderConfig> {
         // Handle legacy/common aliases
         let name = if provider.eq_ignore_ascii_case("claude") {
@@ -519,11 +554,16 @@ impl Config {
     }
 
     /// Get the current provider as `Provider` enum
+    #[must_use]
     pub fn provider(&self) -> Option<Provider> {
         self.default_provider.parse().ok()
     }
 
     /// Validate that the current provider is properly configured
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the provider is invalid or no API key is configured.
     pub fn validate(&self) -> Result<()> {
         let provider: Provider = self
             .default_provider

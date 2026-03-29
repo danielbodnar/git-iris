@@ -39,6 +39,7 @@ pub type ContentUpdateSender = mpsc::Sender<ContentUpdate>;
 pub type ContentUpdateReceiver = mpsc::Receiver<ContentUpdate>;
 
 /// Create a new bounded content update channel
+#[must_use]
 pub fn create_content_update_channel() -> (ContentUpdateSender, ContentUpdateReceiver) {
     mpsc::channel(CONTENT_UPDATE_CHANNEL_CAPACITY)
 }
@@ -66,6 +67,7 @@ pub struct UpdateCommitArgs {
 }
 
 impl UpdateCommitTool {
+    #[must_use]
     pub fn new(sender: ContentUpdateSender) -> Self {
         Self {
             sender: Arc::new(sender),
@@ -136,6 +138,7 @@ pub struct UpdatePRArgs {
 }
 
 impl UpdatePRTool {
+    #[must_use]
     pub fn new(sender: ContentUpdateSender) -> Self {
         Self {
             sender: Arc::new(sender),
@@ -194,6 +197,7 @@ pub struct UpdateReviewArgs {
 }
 
 impl UpdateReviewTool {
+    #[must_use]
     pub fn new(sender: ContentUpdateSender) -> Self {
         Self {
             sender: Arc::new(sender),

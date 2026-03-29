@@ -14,6 +14,7 @@ pub struct ColoredMessage {
 
 impl ColoredMessage {
     /// Get the resolved color from the current theme
+    #[must_use]
     pub fn color(&self) -> Color {
         Color::from(theme::current().color(self.token))
     }
@@ -333,6 +334,7 @@ pub fn get_review_waiting_message() -> ColoredMessage {
 }
 
 /// Get a waiting message appropriate for the given capability
+#[must_use]
 pub fn get_capability_message(capability: &str) -> ColoredMessage {
     match capability {
         "review" => get_review_waiting_message(),

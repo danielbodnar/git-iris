@@ -19,6 +19,7 @@ pub struct FileFocus {
 
 impl FileFocus {
     /// Create a new file focus
+    #[must_use]
     pub fn new(path: PathBuf, line: usize) -> Self {
         Self {
             path,
@@ -49,6 +50,7 @@ pub struct BranchMemory {
 
 impl BranchMemory {
     /// Create new branch memory
+    #[must_use]
     pub fn new(branch_name: String) -> Self {
         let now = Utc::now();
         Self {
@@ -89,16 +91,19 @@ impl BranchMemory {
     }
 
     /// Time since last visit
+    #[must_use]
     pub fn time_since_last_visit(&self) -> chrono::Duration {
         Utc::now() - self.last_visited
     }
 
     /// Check if this is a returning visit (visited before more than 5 minutes ago)
+    #[must_use]
     pub fn is_returning_visit(&self) -> bool {
         self.session_count > 0 && self.time_since_last_visit() > chrono::Duration::minutes(5)
     }
 
     /// Generate a welcome message if returning
+    #[must_use]
     pub fn welcome_message(&self) -> Option<String> {
         if !self.is_returning_visit() {
             return None;

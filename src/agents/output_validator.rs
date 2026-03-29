@@ -41,6 +41,10 @@ impl<T> ValidationResult<T> {
 }
 
 /// Validate and parse JSON with schema validation and error recovery
+///
+/// # Errors
+///
+/// Returns an error when the JSON cannot be parsed even after recovery attempts.
 pub fn validate_and_parse<T>(json_str: &str) -> Result<ValidationResult<T>>
 where
     T: JsonSchema + DeserializeOwned,

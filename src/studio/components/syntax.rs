@@ -23,23 +23,27 @@ pub struct SyntaxHighlighter {
 
 impl SyntaxHighlighter {
     /// Create a new highlighter for the given file extension
+    #[must_use]
     pub fn for_extension(ext: &str) -> Self {
         let syntax = SYNTAX_SET.find_syntax_by_extension(ext);
         Self { syntax }
     }
 
     /// Create a new highlighter for the given file path
+    #[must_use]
     pub fn for_path(path: &std::path::Path) -> Self {
         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
         Self::for_extension(ext)
     }
 
     /// Check if syntax highlighting is available
+    #[must_use]
     pub fn is_available(&self) -> bool {
         self.syntax.is_some()
     }
 
     /// Highlight a single line, returning styled spans
+    #[must_use]
     pub fn highlight_line(&self, line: &str) -> Vec<(Style, String)> {
         let Some(syntax) = self.syntax else {
             // No syntax highlighting - return plain
@@ -78,6 +82,7 @@ impl SyntaxHighlighter {
     }
 
     /// Highlight multiple lines
+    #[must_use]
     pub fn highlight_lines(&self, lines: &[String]) -> Vec<Vec<(Style, String)>> {
         lines.iter().map(|line| self.highlight_line(line)).collect()
     }

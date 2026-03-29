@@ -22,6 +22,7 @@ impl Provider {
     pub const ALL: &'static [Provider] = &[Provider::OpenAI, Provider::Anthropic, Provider::Google];
 
     /// Provider name as used in config files and CLI
+    #[must_use]
     pub const fn name(&self) -> &'static str {
         match self {
             Self::OpenAI => "openai",
@@ -31,6 +32,7 @@ impl Provider {
     }
 
     /// Default model for complex analysis tasks
+    #[must_use]
     pub const fn default_model(&self) -> &'static str {
         match self {
             Self::OpenAI => "gpt-5.4",
@@ -40,6 +42,7 @@ impl Provider {
     }
 
     /// Fast model for simple tasks (status updates, parsing)
+    #[must_use]
     pub const fn default_fast_model(&self) -> &'static str {
         match self {
             Self::OpenAI => "gpt-5.4-mini",
@@ -49,6 +52,7 @@ impl Provider {
     }
 
     /// Context window size (max tokens)
+    #[must_use]
     pub const fn context_window(&self) -> usize {
         match self {
             Self::OpenAI => 128_000,
@@ -58,6 +62,7 @@ impl Provider {
     }
 
     /// Environment variable name for the API key
+    #[must_use]
     pub const fn api_key_env(&self) -> &'static str {
         match self {
             Self::OpenAI => "OPENAI_API_KEY",
@@ -70,6 +75,7 @@ impl Provider {
     ///
     /// Returns the expected prefixes for the provider's API keys.
     /// `OpenAI` has multiple valid prefixes (sk-, sk-proj-).
+    #[must_use]
     pub fn api_key_prefixes(&self) -> &'static [&'static str] {
         match self {
             Self::OpenAI => &["sk-", "sk-proj-"],
@@ -81,6 +87,7 @@ impl Provider {
     /// Expected API key prefix for basic format validation (primary prefix)
     ///
     /// Returns the primary expected prefix for display in error messages.
+    #[must_use]
     pub const fn api_key_prefix(&self) -> Option<&'static str> {
         match self {
             Self::OpenAI => Some("sk-"),
@@ -98,6 +105,10 @@ impl Provider {
     /// Returns `Ok(())` if valid, or a warning message if potentially invalid.
     /// Note: A valid format doesn't guarantee the key works - it may still be
     /// expired or revoked. This just catches typos.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error string when the key format is clearly invalid for the provider.
     pub fn validate_api_key_format(&self, key: &str) -> Result<(), String> {
         // Check minimum length (API keys are typically 30+ chars)
         if key.len() < 20 {
@@ -212,6 +223,7 @@ impl fmt::Debug for ProviderConfig {
 
 impl ProviderConfig {
     /// Create config with defaults for a provider
+    #[must_use]
     pub fn with_defaults(provider: Provider) -> Self {
         Self {
             api_key: String::new(),
@@ -223,6 +235,7 @@ impl ProviderConfig {
     }
 
     /// Get effective model (configured or default)
+    #[must_use]
     pub fn effective_model(&self, provider: Provider) -> &str {
         if self.model.is_empty() {
             provider.default_model()
@@ -232,6 +245,7 @@ impl ProviderConfig {
     }
 
     /// Get effective fast model (configured or default)
+    #[must_use]
     pub fn effective_fast_model(&self, provider: Provider) -> &str {
         self.fast_model
             .as_deref()
@@ -239,12 +253,14 @@ impl ProviderConfig {
     }
 
     /// Get effective token limit (configured or default)
+    #[must_use]
     pub fn effective_token_limit(&self, provider: Provider) -> usize {
         self.token_limit
             .unwrap_or_else(|| provider.context_window())
     }
 
     /// Check if this config has an API key set
+    #[must_use]
     pub fn has_api_key(&self) -> bool {
         !self.api_key.is_empty()
     }
@@ -254,6 +270,7 @@ impl ProviderConfig {
     /// This is the canonical way to extract an API key for passing to
     /// provider builders. Returns `None` for empty strings, allowing
     /// fallback to environment variables.
+    #[must_use]
     pub fn api_key_if_set(&self) -> Option<&str> {
         if self.api_key.is_empty() {
             None

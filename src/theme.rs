@@ -121,6 +121,7 @@ fn has_iris_derivations(theme: &Theme) -> bool {
         && theme.has_style(STYLE_MODE_INACTIVE)
 }
 
+#[must_use]
 pub fn current() -> Arc<Theme> {
     let current = core::current();
     if has_iris_derivations(&current) {
@@ -138,6 +139,11 @@ pub fn set_theme(mut theme: Theme) {
     core::set_theme(theme);
 }
 
+/// Load and activate a theme from an explicit file path.
+///
+/// # Errors
+///
+/// Returns an error when the theme file cannot be read or parsed.
 pub fn load_theme(path: &Path) -> Result<(), OpalineError> {
     let mut theme = core::load_from_file(path)?;
     derive_iris_theme(&mut theme);
@@ -145,6 +151,11 @@ pub fn load_theme(path: &Path) -> Result<(), OpalineError> {
     Ok(())
 }
 
+/// Load and activate a theme by name from the available theme directories.
+///
+/// # Errors
+///
+/// Returns an error when no theme with the given name can be found or loaded.
 pub fn load_theme_by_name(name: &str) -> Result<(), OpalineError> {
     if let Some(mut theme) = load_from_theme_dirs(name, core::app_theme_dirs(APP_NAME))? {
         derive_iris_theme(&mut theme);
@@ -163,6 +174,7 @@ pub fn load_theme_by_name(name: &str) -> Result<(), OpalineError> {
     })
 }
 
+#[must_use]
 pub fn list_available_themes() -> Vec<ThemeInfo> {
     let mut themes = Vec::new();
 

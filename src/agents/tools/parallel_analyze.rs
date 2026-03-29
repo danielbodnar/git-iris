@@ -268,6 +268,10 @@ pub struct ParallelAnalyze {
 
 impl ParallelAnalyze {
     /// Create a new parallel analyzer with default timeout
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the requested provider runner cannot be created.
     pub fn new(provider: &str, model: &str, api_key: Option<&str>) -> Result<Self> {
         Self::with_timeout(
             provider,
@@ -279,6 +283,10 @@ impl ParallelAnalyze {
     }
 
     /// Create a new parallel analyzer with custom timeout
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the requested provider runner cannot be created.
     pub fn with_timeout(
         provider: &str,
         model: &str,

@@ -2,13 +2,15 @@ use crate::config::Config;
 
 #[test]
 fn explicit_project_defaults_override_personal_config() {
-    let mut personal_config = Config::default();
-    personal_config.default_provider = "anthropic".to_string();
-    personal_config.use_gitmoji = false;
-    personal_config.instructions = "personal instructions".to_string();
-    personal_config.instruction_preset = "conventional".to_string();
-    personal_config.theme = "midnight".to_string();
-    personal_config.subagent_timeout_secs = 300;
+    let mut personal_config = Config {
+        default_provider: "anthropic".to_string(),
+        use_gitmoji: false,
+        instructions: "personal instructions".to_string(),
+        instruction_preset: "conventional".to_string(),
+        theme: "midnight".to_string(),
+        subagent_timeout_secs: 300,
+        ..Config::default()
+    };
 
     let project_toml = r#"
 default_provider = "openai"

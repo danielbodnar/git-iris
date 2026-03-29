@@ -16,11 +16,13 @@ pub struct MarkdownReleaseNotes {
 
 impl MarkdownReleaseNotes {
     /// Render the markdown content with terminal styling
+    #[must_use]
     pub fn format(&self) -> String {
         render_markdown_for_terminal(&self.content)
     }
 
     /// Get the raw markdown content (for file output, etc.)
+    #[must_use]
     pub fn raw_content(&self) -> &str {
         &self.content
     }

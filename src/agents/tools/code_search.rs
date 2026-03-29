@@ -27,6 +27,7 @@ impl Default for CodeSearch {
 }
 
 impl CodeSearch {
+    #[must_use]
     pub fn new() -> Self {
         Self
     }

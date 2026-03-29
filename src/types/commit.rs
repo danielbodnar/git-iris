@@ -20,6 +20,7 @@ pub struct GeneratedMessage {
 }
 
 /// Formats a commit message from a `GeneratedMessage`
+#[must_use]
 pub fn format_commit_message(response: &GeneratedMessage) -> String {
     let mut message = String::new();
 

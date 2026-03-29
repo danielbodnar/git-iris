@@ -36,6 +36,10 @@ pub struct CompanionService {
 
 impl CompanionService {
     /// Create a new companion service for the given repository
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when companion storage cannot be initialized.
     pub fn new(repo_path: PathBuf, branch: &str) -> Result<Self> {
         let (event_tx, event_rx) = mpsc::unbounded_channel();
 
@@ -46,7 +50,7 @@ impl CompanionService {
         // Session data should never block companion startup.
         let session = match storage.load_session() {
             Ok(Some(mut session)) if session.branch == branch => {
-                session.repo_path = repo_path.clone();
+                repo_path.clone_into(&mut session.repo_path);
                 session
             }
             Ok(Some(session)) => {
@@ -92,21 +96,34 @@ impl CompanionService {
     }
 
     /// Get the current session state
+    #[must_use]
     pub fn session(&self) -> &Arc<parking_lot::RwLock<SessionState>> {
         &self.session
     }
 
     /// Load branch memory for the given branch
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the branch memory cannot be read or parsed.
     pub fn load_branch_memory(&self, branch: &str) -> Result<Option<BranchMemory>> {
         self.storage.load_branch_memory(branch)
     }
 
     /// Save branch memory
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the branch memory cannot be serialized or written.
     pub fn save_branch_memory(&self, memory: &BranchMemory) -> Result<()> {
         self.storage.save_branch_memory(memory)
     }
 
     /// Save current session state
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the session cannot be serialized or written.
     pub fn save_session(&self) -> Result<()> {
         let session = self.session.read();
         self.storage.save_session(&session)
@@ -130,11 +147,13 @@ impl CompanionService {
     }
 
     /// Check if file watcher is active
+    #[must_use]
     pub fn has_watcher(&self) -> bool {
         self.watcher.is_some()
     }
 
     /// Get repository path
+    #[must_use]
     pub fn repo_path(&self) -> &PathBuf {
         &self.repo_path
     }

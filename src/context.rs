@@ -47,6 +47,7 @@ impl fmt::Display for ChangeType {
 }
 
 impl CommitContext {
+    #[must_use]
     pub fn new(
         branch: String,
         recent_commits: Vec<RecentCommit>,

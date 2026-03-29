@@ -38,11 +38,16 @@ pub struct CodeViewState {
 
 impl CodeViewState {
     /// Create new code view state
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Load file content from path
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the file cannot be read.
     pub fn load_file(&mut self, path: &Path) -> std::io::Result<()> {
         let content = fs::read_to_string(path)?;
         self.lines = content.lines().map(String::from).collect();
@@ -54,26 +59,31 @@ impl CodeViewState {
     }
 
     /// Get current file path
+    #[must_use]
     pub fn current_file(&self) -> Option<&Path> {
         self.current_file.as_deref()
     }
 
     /// Get all lines
+    #[must_use]
     pub fn lines(&self) -> &[String] {
         &self.lines
     }
 
     /// Get line count
+    #[must_use]
     pub fn line_count(&self) -> usize {
         self.lines.len()
     }
 
     /// Get scroll offset
+    #[must_use]
     pub fn scroll_offset(&self) -> usize {
         self.scroll_offset
     }
 
     /// Get selected line (1-indexed)
+    #[must_use]
     pub fn selected_line(&self) -> usize {
         self.selected_line
     }
@@ -86,6 +96,7 @@ impl CodeViewState {
     }
 
     /// Get selection range
+    #[must_use]
     pub fn selection(&self) -> Option<(usize, usize)> {
         self.selection
     }
@@ -159,6 +170,7 @@ impl CodeViewState {
     }
 
     /// Check if file is loaded
+    #[must_use]
     pub fn is_loaded(&self) -> bool {
         self.current_file.is_some()
     }

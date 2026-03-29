@@ -18,6 +18,11 @@ tokio::task_local! {
 
 /// Generate a JSON schema for tool parameters that's `OpenAI`-compatible.
 /// `OpenAI` tool schemas require the `required` array to list every property.
+///
+/// # Panics
+///
+/// Panics if the generated schema cannot be serialized to JSON.
+#[must_use]
 pub fn parameters_schema<T: schemars::JsonSchema>() -> Value {
     use schemars::schema_for;
 
@@ -45,6 +50,10 @@ fn enforce_required_properties(value: &mut Value) {
 
 /// Get the current repository from the working directory.
 /// This is a common operation used by most tools.
+///
+/// # Errors
+///
+/// Returns an error when the active repository root cannot be resolved.
 pub fn get_current_repo() -> anyhow::Result<GitRepo> {
     let repo_root = current_repo_root()?;
     GitRepo::new(&repo_root)
@@ -61,6 +70,10 @@ where
 }
 
 /// Get the repo root bound to the current task, falling back to the current directory.
+///
+/// # Errors
+///
+/// Returns an error when the current directory cannot be resolved to a Git repository.
 pub fn current_repo_root() -> anyhow::Result<PathBuf> {
     if let Ok(repo_root) = ACTIVE_REPO_ROOT.try_with(Clone::clone) {
         return Ok(repo_root);

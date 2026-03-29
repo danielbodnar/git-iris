@@ -1,3 +1,9 @@
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::missing_panics_doc,
+    clippy::must_use_candidate
+)]
+
 use git_iris::config::Config;
 use git_iris::context::{ChangeType, CommitContext, RecentCommit, StagedFile};
 use git_iris::git::GitRepo;

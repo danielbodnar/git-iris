@@ -33,6 +33,10 @@ impl ChangelogGenerator {
     ///
     /// A Result indicating success or an error
     #[allow(clippy::too_many_lines)]
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the changelog cannot be read, parsed, or written.
     pub fn update_changelog_file(
         changelog_content: &str,
         changelog_path: &str,
@@ -86,7 +90,8 @@ impl ChangelogGenerator {
         // If version_name is provided, override the existing version
         if let Some(version) = version_name {
             if version_content.contains("## [") {
-                let re = regex::Regex::new(r"## \[([^\]]+)\]").expect("Failed to compile regex");
+                let re = regex::Regex::new(r"## \[([^\]]+)\]")
+                    .context("Failed to compile changelog version regex")?;
                 version_content = re
                     .replace(&version_content, &format!("## [{version}]"))
                     .to_string();
@@ -120,16 +125,15 @@ impl ChangelogGenerator {
 
             if version_line.contains("## [") && version_line.contains(']') {
                 // Insert the date right after the closing bracket
-                let bracket_pos = version_line
-                    .rfind(']')
-                    .expect("Failed to find closing bracket in version line");
-                version_content = format!(
-                    "{} - {}{}",
-                    &version_content[..=bracket_pos],
-                    commit_date,
-                    &version_content[bracket_pos + 1..]
-                );
-                log_debug!("Added date to version line: {}", commit_date);
+                if let Some(bracket_pos) = version_line.rfind(']') {
+                    version_content = format!(
+                        "{} - {}{}",
+                        &version_content[..=bracket_pos],
+                        commit_date,
+                        &version_content[bracket_pos + 1..]
+                    );
+                    log_debug!("Added date to version line: {}", commit_date);
+                }
             }
         }
 

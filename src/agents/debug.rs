@@ -62,6 +62,10 @@ fn debug_artifacts_dir() -> io::Result<PathBuf> {
 }
 
 /// Write debug artifact with restrictive permissions and return the file path.
+///
+/// # Errors
+///
+/// Returns an error when the artifact directory or file cannot be created.
 pub fn write_debug_artifact(filename: &str, contents: &str) -> io::Result<PathBuf> {
     let mut path = debug_artifacts_dir()?;
     path.push(filename);

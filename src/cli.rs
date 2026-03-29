@@ -445,6 +445,7 @@ fn get_styles() -> Styles {
 }
 
 /// Parse the command-line arguments
+#[must_use]
 pub fn parse_args() -> Cli {
     Cli::parse()
 }
@@ -461,6 +462,10 @@ fn get_dynamic_help() -> String {
 }
 
 /// Main function to parse arguments and handle the command
+///
+/// # Errors
+///
+/// Returns an error when command handling fails.
 pub async fn main() -> anyhow::Result<()> {
     let cli = parse_args();
 
@@ -1030,6 +1035,10 @@ async fn handle_release_notes(
 
 /// Handle the command based on parsed arguments
 #[allow(clippy::too_many_lines)]
+///
+/// # Errors
+///
+/// Returns an error when the selected command fails.
 pub async fn handle_command(
     command: Commands,
     repository_url: Option<String>,

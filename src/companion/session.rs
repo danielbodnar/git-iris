@@ -23,6 +23,7 @@ pub struct FileActivity {
 
 impl FileActivity {
     /// Create a new file activity record
+    #[must_use]
     pub fn new(path: PathBuf) -> Self {
         let now = Utc::now();
         Self {
@@ -64,6 +65,7 @@ pub struct SessionState {
 
 impl SessionState {
     /// Create a new session
+    #[must_use]
     pub fn new(repo_path: PathBuf, branch: String) -> Self {
         let now = Utc::now();
         Self {
@@ -97,16 +99,19 @@ impl SessionState {
     }
 
     /// Get session duration
+    #[must_use]
     pub fn duration(&self) -> chrono::Duration {
         Utc::now() - self.started_at
     }
 
     /// Get number of files touched
+    #[must_use]
     pub fn files_count(&self) -> usize {
         self.files_touched.len()
     }
 
     /// Get files ordered by most recently touched
+    #[must_use]
     pub fn recent_files(&self) -> Vec<&FileActivity> {
         let mut files: Vec<_> = self.files_touched.values().collect();
         files.sort_by_key(|f| std::cmp::Reverse(f.last_touched));
@@ -114,6 +119,7 @@ impl SessionState {
     }
 
     /// Get time since last commit (if any)
+    #[must_use]
     pub fn time_since_last_commit(&self) -> Option<chrono::Duration> {
         self.last_commit_at
             .map(|last_commit_at| Utc::now() - last_commit_at)

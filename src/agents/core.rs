@@ -16,6 +16,7 @@ pub struct AgentBackend {
 }
 
 impl AgentBackend {
+    #[must_use]
     pub fn new(provider_name: String, model: String, fast_model: String) -> Self {
         Self {
             provider_name,
@@ -25,6 +26,10 @@ impl AgentBackend {
     }
 
     /// Create backend from Git-Iris configuration
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the configured provider name is invalid or missing configuration.
     pub fn from_config(config: &Config) -> Result<Self> {
         let provider: crate::providers::Provider = config
             .default_provider
@@ -53,6 +58,7 @@ pub struct AgentContext {
 }
 
 impl AgentContext {
+    #[must_use]
     pub fn new(config: Config, git_repo: GitRepo) -> Self {
         Self {
             config,
@@ -60,10 +66,12 @@ impl AgentContext {
         }
     }
 
+    #[must_use]
     pub fn repo(&self) -> &GitRepo {
         &self.git_repo
     }
 
+    #[must_use]
     pub fn config(&self) -> &Config {
         &self.config
     }
@@ -80,6 +88,7 @@ pub struct TaskResult {
 }
 
 impl TaskResult {
+    #[must_use]
     pub fn success(message: String) -> Self {
         Self {
             success: true,
@@ -90,6 +99,7 @@ impl TaskResult {
         }
     }
 
+    #[must_use]
     pub fn success_with_data(message: String, data: serde_json::Value) -> Self {
         Self {
             success: true,
@@ -100,6 +110,7 @@ impl TaskResult {
         }
     }
 
+    #[must_use]
     pub fn failure(message: String) -> Self {
         Self {
             success: false,
@@ -110,11 +121,13 @@ impl TaskResult {
         }
     }
 
+    #[must_use]
     pub fn with_confidence(mut self, confidence: f64) -> Self {
         self.confidence = confidence;
         self
     }
 
+    #[must_use]
     pub fn with_execution_time(mut self, duration: std::time::Duration) -> Self {
         self.execution_time = Some(duration);
         self

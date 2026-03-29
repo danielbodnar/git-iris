@@ -23,6 +23,7 @@ pub struct AgentSetupService {
 
 impl AgentSetupService {
     /// Create a new setup service with the given configuration
+    #[must_use]
     pub fn new(config: Config) -> Self {
         Self {
             config,
@@ -31,6 +32,10 @@ impl AgentSetupService {
     }
 
     /// Create setup service from common parameters (following existing patterns)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when config loading, argument application, or repository setup fails.
     pub fn from_common_params(
         common_params: &CommonParams,
         repository_url: Option<String>,
@@ -55,6 +60,10 @@ impl AgentSetupService {
     }
 
     /// Create a configured Iris agent
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when provider validation or agent construction fails.
     pub fn create_iris_agent(&mut self) -> Result<IrisAgent> {
         let backend = AgentBackend::from_config(&self.config)?;
         // Validate environment (API keys etc) before creating agent
@@ -97,11 +106,13 @@ impl AgentSetupService {
     }
 
     /// Get the git repository instance
+    #[must_use]
     pub fn git_repo(&self) -> Option<&GitRepo> {
         self.git_repo.as_ref()
     }
 
     /// Get the configuration
+    #[must_use]
     pub fn config(&self) -> &Config {
         &self.config
     }
@@ -109,6 +120,10 @@ impl AgentSetupService {
 
 /// High-level function to handle tasks with agents using a common pattern
 /// This is a convenience function that sets up an agent and executes a task
+///
+/// # Errors
+///
+/// Returns an error when setup, agent execution, or the caller-provided handler fails.
 pub async fn handle_with_agent<F, Fut, T>(
     common_params: CommonParams,
     repository_url: Option<String>,
@@ -134,6 +149,10 @@ where
 }
 
 /// Simple factory function for creating agents with minimal configuration
+///
+/// # Errors
+///
+/// Returns an error when the provider configuration is invalid or agent construction fails.
 pub fn create_agent_with_defaults(provider: &str, model: &str) -> Result<IrisAgent> {
     IrisAgentBuilder::new()
         .with_provider(provider)
@@ -142,6 +161,10 @@ pub fn create_agent_with_defaults(provider: &str, model: &str) -> Result<IrisAge
 }
 
 /// Create an agent from environment variables
+///
+/// # Errors
+///
+/// Returns an error when agent construction fails.
 pub fn create_agent_from_env() -> Result<IrisAgent> {
     let provider_str = std::env::var("IRIS_PROVIDER").unwrap_or_else(|_| "openai".to_string());
     let provider: Provider = provider_str.parse().unwrap_or_default();
@@ -181,6 +204,7 @@ pub struct IrisAgentService {
 
 impl IrisAgentService {
     /// Create a new service with explicit provider configuration
+    #[must_use]
     pub fn new(config: Config, provider: String, model: String, fast_model: String) -> Self {
         Self {
             config,
@@ -197,6 +221,10 @@ impl IrisAgentService {
     /// - Loads and applies configuration
     /// - Sets up the git repository (local or remote)
     /// - Validates the environment
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when config loading, agent backend resolution, or repository setup fails.
     pub fn from_common_params(
         common_params: &CommonParams,
         repository_url: Option<String>,
@@ -225,6 +253,10 @@ impl IrisAgentService {
     }
 
     /// Check that the environment is properly configured
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the active provider configuration is incomplete.
     pub fn check_environment(&self) -> Result<()> {
         self.config.check_environment()
     }
@@ -237,6 +269,10 @@ impl IrisAgentService {
     ///
     /// # Returns
     /// The structured response from the agent
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when agent construction or task execution fails.
     pub async fn execute_task(
         &self,
         capability: &str,
@@ -260,6 +296,10 @@ impl IrisAgentService {
     }
 
     /// Execute a task with a custom prompt (for backwards compatibility)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when agent construction or task execution fails.
     pub async fn execute_task_with_prompt(
         &self,
         capability: &str,
@@ -289,6 +329,10 @@ impl IrisAgentService {
     /// * `preset` - Optional preset name override (e.g., "conventional", "cosmic")
     /// * `use_gitmoji` - Optional gitmoji setting override
     /// * `instructions` - Optional custom instructions from the user
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when agent construction or task execution fails.
     pub async fn execute_task_with_style(
         &self,
         capability: &str,
@@ -410,6 +454,10 @@ impl IrisAgentService {
     /// Execute a chat task with content update capabilities
     ///
     /// This is used by Studio to enable Iris to update content via tool calls.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when agent construction or chat execution fails.
     pub async fn execute_chat_with_updates(
         &self,
         task_prompt: &str,
@@ -430,6 +478,10 @@ impl IrisAgentService {
     /// Execute a chat task with streaming and content update capabilities
     ///
     /// Combines streaming output with tool-based content updates for the TUI chat.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when agent construction or chat streaming fails.
     pub async fn execute_chat_streaming<F>(
         &self,
         task_prompt: &str,
@@ -465,6 +517,10 @@ impl IrisAgentService {
     ///
     /// # Returns
     /// The final structured response after streaming completes
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when agent construction or streaming execution fails.
     pub async fn execute_task_streaming<F>(
         &self,
         capability: &str,
@@ -494,6 +550,7 @@ impl IrisAgentService {
     }
 
     /// Get the configuration
+    #[must_use]
     pub fn config(&self) -> &Config {
         &self.config
     }
@@ -504,26 +561,31 @@ impl IrisAgentService {
     }
 
     /// Get the git repository if available
+    #[must_use]
     pub fn git_repo(&self) -> Option<&Arc<GitRepo>> {
         self.git_repo.as_ref()
     }
 
     /// Get the provider name
+    #[must_use]
     pub fn provider(&self) -> &str {
         &self.provider
     }
 
     /// Get the model name
+    #[must_use]
     pub fn model(&self) -> &str {
         &self.model
     }
 
     /// Get the fast model name (for subagents and simple tasks)
+    #[must_use]
     pub fn fast_model(&self) -> &str {
         &self.fast_model
     }
 
     /// Get the API key for the current provider from config
+    #[must_use]
     pub fn api_key(&self) -> Option<String> {
         self.config
             .get_provider_config(&self.provider)

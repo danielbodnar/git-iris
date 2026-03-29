@@ -39,6 +39,10 @@ pub struct FileWatcherService {
 
 impl FileWatcherService {
     /// Create a new file watcher for the given repository
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the watcher or debouncer cannot be created.
     pub fn new(repo_path: &Path, event_tx: mpsc::UnboundedSender<CompanionEvent>) -> Result<Self> {
         let repo_path = repo_path.to_path_buf();
         let repo_path_clone = repo_path.clone();
@@ -173,6 +177,7 @@ impl FileWatcherService {
     }
 
     /// Get the repository path being watched
+    #[must_use]
     pub fn repo_path(&self) -> &Path {
         &self.repo_path
     }

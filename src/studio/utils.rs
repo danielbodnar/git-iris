@@ -14,6 +14,7 @@ use unicode_width::UnicodeWidthStr;
 /// Control characters (except tab) are stripped to prevent TUI corruption.
 /// This is essential for TUI rendering where tabs and control codes
 /// would otherwise cause misalignment or visual glitches.
+#[must_use]
 pub fn expand_tabs(s: &str, tab_width: usize) -> String {
     let mut result = String::with_capacity(s.len());
     let mut column = 0;
@@ -49,6 +50,7 @@ pub fn expand_tabs(s: &str, tab_width: usize) -> String {
 /// let result = truncate_chars("Hello, World!", 8);
 /// assert_eq!(result, "Hello...");
 /// ```
+#[must_use]
 pub fn truncate_chars(s: &str, max_chars: usize) -> String {
     if max_chars == 0 {
         return String::new();
@@ -74,6 +76,7 @@ pub fn truncate_chars(s: &str, max_chars: usize) -> String {
 /// let result = truncate_width("Hello, World!", 8);
 /// assert_eq!(result, "Hello,…");
 /// ```
+#[must_use]
 pub fn truncate_width(s: &str, max_width: usize) -> String {
     if max_width == 0 {
         return String::new();

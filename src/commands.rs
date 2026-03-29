@@ -194,6 +194,10 @@ fn apply_config_changes(
 
 /// Handle the 'config' command
 #[allow(clippy::too_many_lines)]
+///
+/// # Errors
+///
+/// Returns an error when configuration loading, validation, or saving fails.
 pub fn handle_config_command(
     common: &CommonParams,
     api_key: Option<String>,
@@ -285,6 +289,10 @@ fn print_project_config() {
 /// # Returns
 ///
 /// Result indicating success or an error
+///
+/// # Errors
+///
+/// Returns an error when project configuration validation or saving fails.
 pub fn handle_project_config_command(
     common: &CommonParams,
     model: Option<String>,
@@ -798,6 +806,10 @@ fn parse_additional_params(params: &[String]) -> HashMap<String, String> {
 }
 
 /// Handle the '`list_presets`' command
+///
+/// # Errors
+///
+/// Returns an error if preset formatting fails in the future; currently always succeeds.
 pub fn handle_list_presets_command() -> Result<()> {
     let library = get_instruction_preset_library();
 
@@ -841,6 +853,10 @@ pub fn handle_list_presets_command() -> Result<()> {
 const HOOK_MARKER: &str = "# Installed by git-iris";
 
 /// Handle the `hook` command - install or uninstall the prepare-commit-msg hook
+///
+/// # Errors
+///
+/// Returns an error when hook installation or removal fails.
 pub fn handle_hook_command(action: &crate::cli::HookAction) -> Result<()> {
     match action {
         crate::cli::HookAction::Install { force } => handle_hook_install(*force),

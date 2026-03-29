@@ -1,3 +1,5 @@
+#![allow(clippy::missing_errors_doc)]
+
 use crate::config::Config;
 use crate::context::{CommitContext, RecentCommit, StagedFile};
 use crate::git::commit::{self, CommitResult};
@@ -119,16 +121,19 @@ impl GitRepo {
     }
 
     /// Returns whether this `GitRepo` instance is working with a remote repository
+    #[must_use]
     pub fn is_remote(&self) -> bool {
         self.is_remote
     }
 
     /// Returns the original remote URL if this is a cloned repository
+    #[must_use]
     pub fn get_remote_url(&self) -> Option<&str> {
         self.remote_url.as_deref()
     }
 
     /// Returns the repository path
+    #[must_use]
     pub fn repo_path(&self) -> &PathBuf {
         &self.repo_path
     }
@@ -192,7 +197,7 @@ impl GitRepo {
         let local_branches = collect_branch_names(&repo, git2::BranchType::Local)?;
         let remote_branches = collect_branch_names(&repo, git2::BranchType::Remote)?;
 
-        if let Some(base) = resolve_remote_head_base(&repo, "origin", &local_branches)? {
+        if let Some(base) = resolve_remote_head_base(&repo, "origin", &local_branches) {
             return Ok(base);
         }
 
@@ -201,7 +206,7 @@ impl GitRepo {
                 if remote_name == "origin" {
                     continue;
                 }
-                if let Some(base) = resolve_remote_head_base(&repo, remote_name, &local_branches)? {
+                if let Some(base) = resolve_remote_head_base(&repo, remote_name, &local_branches) {
                     return Ok(base);
                 }
             }
@@ -956,6 +961,7 @@ impl GitRepo {
     /// Get ahead/behind counts relative to upstream tracking branch
     ///
     /// Returns (ahead, behind) tuple, or (0, 0) if no upstream is configured
+    #[must_use]
     pub fn get_ahead_behind(&self) -> (usize, usize) {
         let Ok(repo) = self.open_repo() else {
             return (0, 0);
@@ -981,25 +987,21 @@ fn resolve_remote_head_base(
     repo: &Repository,
     remote_name: &str,
     local_branches: &HashSet<String>,
-) -> Result<Option<String>> {
+) -> Option<String> {
     let reference_name = format!("refs/remotes/{remote_name}/HEAD");
     let Ok(reference) = repo.find_reference(&reference_name) else {
-        return Ok(None);
+        return None;
     };
-    let Some(symbolic_target) = reference.symbolic_target() else {
-        return Ok(None);
-    };
-    let Some(remote_ref) = symbolic_target.strip_prefix("refs/remotes/") else {
-        return Ok(None);
-    };
+    let symbolic_target = reference.symbolic_target()?;
+    let remote_ref = symbolic_target.strip_prefix("refs/remotes/")?;
 
     if let Some((_, local_candidate)) = remote_ref.split_once('/')
         && local_branches.contains(local_candidate)
     {
-        return Ok(Some(local_candidate.to_string()));
+        return Some(local_candidate.to_string());
     }
 
-    Ok(Some(remote_ref.to_string()))
+    Some(remote_ref.to_string())
 }
 
 impl Drop for GitRepo {

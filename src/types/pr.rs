@@ -16,11 +16,13 @@ pub struct MarkdownPullRequest {
 
 impl MarkdownPullRequest {
     /// Render the markdown content with terminal styling
+    #[must_use]
     pub fn format(&self) -> String {
         render_markdown_for_terminal(&self.content)
     }
 
     /// Get the raw markdown content (for GitHub/GitLab, etc.)
+    #[must_use]
     pub fn raw_content(&self) -> &str {
         &self.content
     }

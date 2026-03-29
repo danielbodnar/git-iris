@@ -31,6 +31,7 @@ impl Default for InstructionPresetLibrary {
 
 impl InstructionPresetLibrary {
     #[allow(clippy::too_many_lines)]
+    #[must_use]
     pub fn new() -> Self {
         let mut presets = HashMap::new();
 
@@ -378,14 +379,17 @@ impl InstructionPresetLibrary {
         Self { presets }
     }
 
+    #[must_use]
     pub fn get_preset(&self, key: &str) -> Option<&InstructionPreset> {
         self.presets.get(key)
     }
 
+    #[must_use]
     pub fn list_presets(&self) -> Vec<(&String, &InstructionPreset)> {
         self.presets.iter().collect()
     }
 
+    #[must_use]
     pub fn list_presets_by_type(
         &self,
         preset_type: Option<PresetType>,
@@ -400,6 +404,7 @@ impl InstructionPresetLibrary {
         }
     }
 
+    #[must_use]
     pub fn list_valid_presets_for_command(
         &self,
         command_type: PresetType,
@@ -413,14 +418,17 @@ impl InstructionPresetLibrary {
     }
 }
 
+#[must_use]
 pub fn get_instruction_preset_library() -> InstructionPresetLibrary {
     InstructionPresetLibrary::new()
 }
 
+#[must_use]
 pub fn list_presets_formatted(library: &InstructionPresetLibrary) -> String {
     list_presets_formatted_by_type(library, None)
 }
 
+#[must_use]
 pub fn list_presets_formatted_by_type(
     library: &InstructionPresetLibrary,
     preset_type: Option<PresetType>,
@@ -453,6 +461,7 @@ pub fn list_presets_formatted_by_type(
         .join("\n")
 }
 
+#[must_use]
 pub fn list_valid_presets_for_command_formatted(
     library: &InstructionPresetLibrary,
     command_type: PresetType,

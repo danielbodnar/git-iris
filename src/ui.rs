@@ -24,6 +24,7 @@ pub mod rgb {
     use crate::theme::names::tokens;
 
     /// Get primary accent color (Electric Purple) RGB from theme
+    #[must_use]
     pub fn accent_primary() -> (u8, u8, u8) {
         theme::current()
             .color(tokens::ACCENT_PRIMARY)
@@ -31,6 +32,7 @@ pub mod rgb {
     }
 
     /// Get secondary accent color (Neon Cyan) RGB from theme
+    #[must_use]
     pub fn accent_secondary() -> (u8, u8, u8) {
         theme::current()
             .color(tokens::ACCENT_SECONDARY)
@@ -38,6 +40,7 @@ pub mod rgb {
     }
 
     /// Get tertiary accent color (Coral) RGB from theme
+    #[must_use]
     pub fn accent_tertiary() -> (u8, u8, u8) {
         theme::current()
             .color(tokens::ACCENT_TERTIARY)
@@ -45,26 +48,31 @@ pub mod rgb {
     }
 
     /// Get warning color (Electric Yellow) RGB from theme
+    #[must_use]
     pub fn warning() -> (u8, u8, u8) {
         theme::current().color(tokens::WARNING).to_rgb_tuple()
     }
 
     /// Get success color (Success Green) RGB from theme
+    #[must_use]
     pub fn success() -> (u8, u8, u8) {
         theme::current().color(tokens::SUCCESS).to_rgb_tuple()
     }
 
     /// Get error color (Error Red) RGB from theme
+    #[must_use]
     pub fn error() -> (u8, u8, u8) {
         theme::current().color(tokens::ERROR).to_rgb_tuple()
     }
 
     /// Get primary text color RGB from theme
+    #[must_use]
     pub fn text_primary() -> (u8, u8, u8) {
         theme::current().color(tokens::TEXT_PRIMARY).to_rgb_tuple()
     }
 
     /// Get secondary text color RGB from theme
+    #[must_use]
     pub fn text_secondary() -> (u8, u8, u8) {
         theme::current()
             .color(tokens::TEXT_SECONDARY)
@@ -72,11 +80,13 @@ pub mod rgb {
     }
 
     /// Get muted text color RGB from theme
+    #[must_use]
     pub fn text_muted() -> (u8, u8, u8) {
         theme::current().color(tokens::TEXT_MUTED).to_rgb_tuple()
     }
 
     /// Get dim text color RGB from theme
+    #[must_use]
     pub fn text_dim() -> (u8, u8, u8) {
         theme::current().color(tokens::TEXT_DIM).to_rgb_tuple()
     }
@@ -97,6 +107,12 @@ pub fn is_quiet_mode() -> bool {
     *QUIET_MODE.lock()
 }
 
+/// Create a spinner configured for either generic CLI work or live Iris agent status updates.
+///
+/// # Panics
+///
+/// Panics if the configured spinner style template is invalid.
+#[must_use]
 pub fn create_spinner(message: &str) -> ProgressBar {
     // Don't create a spinner in quiet mode
     if is_quiet_mode() {
@@ -215,6 +231,7 @@ pub fn print_newline() {
 }
 
 /// Create gradient text with `SilkCircuit` Electric Purple -> Neon Cyan
+#[must_use]
 pub fn create_gradient_text(text: &str) -> String {
     if let Some(gradient) = theme::current().get_gradient(gradient_names::PRIMARY) {
         gradient_string(text, gradient)
@@ -232,6 +249,7 @@ pub fn create_gradient_text(text: &str) -> String {
 }
 
 /// Create secondary gradient with `SilkCircuit` Coral -> Electric Yellow
+#[must_use]
 pub fn create_secondary_gradient_text(text: &str) -> String {
     if let Some(gradient) = theme::current().get_gradient(gradient_names::WARM) {
         gradient_string(text, gradient)
