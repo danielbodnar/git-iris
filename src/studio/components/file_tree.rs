@@ -290,6 +290,19 @@ impl FileTreeState {
         self.selected_entry().map(|e| e.path)
     }
 
+    /// Select an entry by path
+    pub fn select_path(&mut self, path: &Path) -> bool {
+        let selected = self.flat_view().iter().position(|entry| entry.path == path);
+
+        if let Some(index) = selected {
+            self.selected = index;
+            self.ensure_visible();
+            true
+        } else {
+            false
+        }
+    }
+
     /// Move selection up
     pub fn select_prev(&mut self) {
         if self.selected > 0 {

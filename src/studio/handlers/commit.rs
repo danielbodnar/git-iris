@@ -38,6 +38,19 @@ fn sync_file_selection(state: &mut StudioState) {
     }
 }
 
+/// Sync file tree selection from the currently visible diff file
+fn sync_tree_selection_from_diff(state: &mut StudioState) {
+    if let Some(path) = state
+        .modes
+        .commit
+        .diff_view
+        .current_diff()
+        .map(|diff| diff.path.clone())
+    {
+        let _ = state.modes.commit.file_tree.select_path(&path);
+    }
+}
+
 fn handle_files_key(state: &mut StudioState, key: KeyEvent) -> Vec<SideEffect> {
     match key.code {
         // Navigation
@@ -185,13 +198,37 @@ fn handle_diff_key(state: &mut StudioState, key: KeyEvent) -> Vec<SideEffect> {
         // File navigation within diff
         KeyCode::Char('n') => {
             state.modes.commit.diff_view.next_file();
+            sync_tree_selection_from_diff(state);
             state.mark_dirty();
             vec![]
         }
         KeyCode::Char('p') => {
             state.modes.commit.diff_view.prev_file();
+            sync_tree_selection_from_diff(state);
             state.mark_dirty();
             vec![]
+        }
+        KeyCode::Char('s') => {
+            let selected_path = state
+                .modes
+                .commit
+                .diff_view
+                .current_diff()
+                .map(|diff| diff.path.clone())
+                .or_else(|| state.modes.commit.file_tree.selected_path());
+
+            selected_path.map_or_else(Vec::new, |path| vec![SideEffect::GitStage(path)])
+        }
+        KeyCode::Char('u') => {
+            let selected_path = state
+                .modes
+                .commit
+                .diff_view
+                .current_diff()
+                .map(|diff| diff.path.clone())
+                .or_else(|| state.modes.commit.file_tree.selected_path());
+
+            selected_path.map_or_else(Vec::new, |path| vec![SideEffect::GitUnstage(path)])
         }
 
         _ => vec![],

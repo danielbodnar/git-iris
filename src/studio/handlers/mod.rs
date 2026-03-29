@@ -57,6 +57,32 @@ pub fn handle_key_event(state: &mut StudioState, key: KeyEvent) -> Vec<SideEffec
 // ═══════════════════════════════════════════════════════════════════════════════
 
 fn handle_global_key(state: &mut StudioState, key: KeyEvent) -> Option<Vec<SideEffect>> {
+    if matches_shift_char(&key, 'e') {
+        return Some(switch_mode(state, Mode::Explore));
+    }
+    if matches_shift_char(&key, 'c') {
+        return Some(switch_mode(state, Mode::Commit));
+    }
+    if matches_shift_char(&key, 'r') {
+        return Some(switch_mode(state, Mode::Review));
+    }
+    if matches_shift_char(&key, 'p') {
+        return Some(switch_mode(state, Mode::PR));
+    }
+    if matches_shift_char(&key, 'l') {
+        return Some(switch_mode(state, Mode::Changelog));
+    }
+    if matches_shift_char(&key, 'n') {
+        return Some(switch_mode(state, Mode::ReleaseNotes));
+    }
+    if matches_shift_char(&key, 's') {
+        state.modal = Some(Modal::Settings(Box::new(SettingsState::from_config(
+            &state.config,
+        ))));
+        state.mark_dirty();
+        return Some(vec![]);
+    }
+
     match key.code {
         // Quit
         KeyCode::Char('q') if !is_editing(state) => Some(vec![SideEffect::Quit]),
@@ -73,35 +99,6 @@ fn handle_global_key(state: &mut StudioState, key: KeyEvent) -> Option<Vec<SideE
         // Chat with Iris
         KeyCode::Char('/') if !is_editing(state) => {
             state.show_chat();
-            Some(vec![])
-        }
-
-        // Mode switching (Shift+letter)
-        KeyCode::Char('E') if key.modifiers.contains(KeyModifiers::SHIFT) => {
-            Some(switch_mode(state, Mode::Explore))
-        }
-        KeyCode::Char('C') if key.modifiers.contains(KeyModifiers::SHIFT) => {
-            Some(switch_mode(state, Mode::Commit))
-        }
-        KeyCode::Char('R') if key.modifiers.contains(KeyModifiers::SHIFT) => {
-            Some(switch_mode(state, Mode::Review))
-        }
-        KeyCode::Char('P') if key.modifiers.contains(KeyModifiers::SHIFT) => {
-            Some(switch_mode(state, Mode::PR))
-        }
-        KeyCode::Char('L') if key.modifiers.contains(KeyModifiers::SHIFT) => {
-            Some(switch_mode(state, Mode::Changelog))
-        }
-        KeyCode::Char('N') if key.modifiers.contains(KeyModifiers::SHIFT) => {
-            Some(switch_mode(state, Mode::ReleaseNotes))
-        }
-
-        // Settings
-        KeyCode::Char('S') if key.modifiers.contains(KeyModifiers::SHIFT) => {
-            state.modal = Some(Modal::Settings(Box::new(SettingsState::from_config(
-                &state.config,
-            ))));
-            state.mark_dirty();
             Some(vec![])
         }
 
@@ -128,6 +125,15 @@ fn handle_global_key(state: &mut StudioState, key: KeyEvent) -> Option<Vec<SideE
 
         _ => None,
     }
+}
+
+fn matches_shift_char(key: &KeyEvent, expected: char) -> bool {
+    *key == KeyEvent::new_with_kind_and_state(
+        KeyCode::Char(expected),
+        KeyModifiers::SHIFT,
+        key.kind,
+        key.state,
+    )
 }
 
 /// Switch mode and return appropriate data loading effect
@@ -223,10 +229,12 @@ pub fn get_keybindings(mode: Mode) -> Vec<(&'static str, &'static str)> {
                 ("j/k", "Navigate/scroll"),
                 ("h/l", "Collapse/expand"),
                 ("[/]", "Prev/next hunk"),
-                ("n/p", "Cycle messages"),
+                ("n/p", "Cycle diff files"),
+                ("Left/Right", "Cycle messages"),
                 ("s", "Stage file"),
-                ("U", "Unstage file"),
+                ("u", "Unstage file"),
                 ("a", "Stage all"),
+                ("U", "Unstage all"),
                 ("e", "Edit message"),
                 ("r", "Regenerate"),
                 ("R", "Reset message"),

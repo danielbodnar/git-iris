@@ -71,10 +71,17 @@ pub fn render_commit_panel(
         }
         PanelId::Right => {
             // Render diff view for selected file
-            let title = state.modes.commit.file_tree.selected_path().map_or_else(
-                || "Changes".to_string(),
-                |p| format!("◈ {}", p.file_name().unwrap_or_default().to_string_lossy()),
-            );
+            let title = if let Some(diff) = state.modes.commit.diff_view.current_diff() {
+                format!(
+                    "◈ {}",
+                    diff.path.file_name().unwrap_or_default().to_string_lossy()
+                )
+            } else {
+                state.modes.commit.file_tree.selected_path().map_or_else(
+                    || "Changes".to_string(),
+                    |p| format!("◈ {}", p.file_name().unwrap_or_default().to_string_lossy()),
+                )
+            };
             render_diff_view(
                 frame,
                 area,

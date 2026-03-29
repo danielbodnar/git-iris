@@ -386,6 +386,8 @@ impl StudioApp {
 
     /// Update git status from repository
     pub fn refresh_git_status(&mut self) -> Result<()> {
+        let preferred_commit_path = self.current_commit_selection_path();
+
         if let Some(repo) = &self.state.repo {
             // Get file info which includes staged files
             let files_info = repo.extract_files_info(false).ok();
@@ -431,14 +433,16 @@ impl StudioApp {
             self.state.git_status = status;
 
             // Update file trees for components (explore tree is lazy-loaded on mode switch)
-            self.update_commit_file_tree();
+            self.update_commit_file_tree(preferred_commit_path.as_deref());
             self.update_review_file_tree();
 
             // Load diffs into diff view
             self.load_staged_diffs(files_info.as_ref());
 
-            // Sync initial file selection with diff view
-            if let Some(path) = self.state.modes.commit.file_tree.selected_path() {
+            // Restore the current commit selection when possible.
+            if let Some(path) = preferred_commit_path.as_deref() {
+                self.state.modes.commit.diff_view.select_file_by_path(path);
+            } else if let Some(path) = self.state.modes.commit.file_tree.selected_path() {
                 self.state.modes.commit.diff_view.select_file_by_path(&path);
             }
         }
@@ -1246,8 +1250,10 @@ impl StudioApp {
         };
         self.state.git_status_loading = false;
 
+        let preferred_commit_path = self.current_commit_selection_path();
+
         // Update file trees
-        self.update_commit_file_tree();
+        self.update_commit_file_tree(preferred_commit_path.as_deref());
         self.update_review_file_tree();
 
         // Load diffs from staged diff text
@@ -1256,8 +1262,10 @@ impl StudioApp {
             self.state.modes.commit.diff_view.set_diffs(diffs);
         }
 
-        // Sync initial file selection with diff view
-        if let Some(path) = self.state.modes.commit.file_tree.selected_path() {
+        // Restore the current commit selection when possible.
+        if let Some(path) = preferred_commit_path.as_deref() {
+            self.state.modes.commit.diff_view.select_file_by_path(path);
+        } else if let Some(path) = self.state.modes.commit.file_tree.selected_path() {
             self.state.modes.commit.diff_view.select_file_by_path(&path);
         }
 
@@ -2064,9 +2072,19 @@ impl StudioApp {
         }
     }
 
+    fn current_commit_selection_path(&mut self) -> Option<std::path::PathBuf> {
+        self.state
+            .modes
+            .commit
+            .diff_view
+            .current_diff()
+            .map(|diff| diff.path.clone())
+            .or_else(|| self.state.modes.commit.file_tree.selected_path())
+    }
+
     /// Update commit mode file tree from git status
     /// Shows either changed files (staged/unstaged) or all tracked files based on toggle
-    fn update_commit_file_tree(&mut self) {
+    fn update_commit_file_tree(&mut self, preferred_path: Option<&std::path::Path>) {
         let mut statuses = Vec::new();
 
         // Build status map for known changed files
@@ -2113,11 +2131,16 @@ impl StudioApp {
             files
         };
 
-        let tree_state = super::components::FileTreeState::from_paths(&all_files, &statuses);
-        self.state.modes.commit.file_tree = tree_state;
+        let mut tree_state = super::components::FileTreeState::from_paths(&all_files, &statuses);
 
         // Expand all by default (usually not too many files)
-        self.state.modes.commit.file_tree.expand_all();
+        tree_state.expand_all();
+
+        if let Some(path) = preferred_path {
+            let _ = tree_state.select_path(path);
+        }
+
+        self.state.modes.commit.file_tree = tree_state;
     }
 
     /// Update review mode file tree from git status (staged + modified)
@@ -2555,12 +2578,19 @@ impl StudioApp {
 
         match self.state.active_mode {
             Mode::Commit => match self.state.focused_panel {
-                PanelId::Left => format!("{} · [↑↓]nav [s]stage [u]unstage [a]all [U]reset", base),
+                PanelId::Left => {
+                    format!(
+                        "{} · [↑↓]nav [s]stage [u]unstage [a]all [U]unstage all",
+                        base
+                    )
+                }
                 PanelId::Center => format!(
                     "{} · [e]edit [r]regen [p]preset [g]emoji [←→]msg [Enter]commit",
                     base
                 ),
-                PanelId::Right => format!("{} · [↑↓]scroll [n/p]file []/[]hunk", base),
+                PanelId::Right => {
+                    format!("{} · [↑↓]scroll [n/p]file [s/u]stage []/[]hunk", base)
+                }
             },
             Mode::Review | Mode::PR | Mode::Changelog | Mode::ReleaseNotes => {
                 match self.state.focused_panel {
