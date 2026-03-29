@@ -36,10 +36,10 @@ src/
 │   │   └── chat.toml      # Interactive chat capability
 │   └── tools/             # Tools Iris can use
 │       ├── git.rs         # Git operations (diff, log, status)
-│       ├── file_analyzer.rs # File content analysis
+│       ├── file_read.rs   # File content reading and targeted excerpts
 │       ├── code_search.rs # Pattern searching
 │       ├── workspace.rs   # Notes and task tracking
-│       ├── project_docs.rs # Project documentation
+│       ├── docs.rs        # Project documentation
 │       ├── parallel_analyze.rs # Concurrent subagent processing
 │       └── content_update.rs # Chat content update tools
 │
@@ -196,7 +196,7 @@ Each capability is defined in `src/agents/capabilities/*.toml`:
 | `git_log(count)`             | Recent commit history for style reference |
 | `git_status()`               | Repository status                         |
 | `git_changed_files()`        | List of changed files                     |
-| `file_analyzer()`            | Deep file analysis (content, metadata)    |
+| `file_read(path, start, end)` | Read targeted file content and excerpts  |
 | `code_search()`              | Search for patterns, functions, classes   |
 | `workspace()`                | Iris's notes and task tracking            |
 | `project_docs(doc_type)`     | Read README, AGENTS.md, CLAUDE.md         |

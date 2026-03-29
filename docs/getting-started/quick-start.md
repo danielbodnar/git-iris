@@ -100,7 +100,7 @@ git-iris gen --auto-commit
 Iris didn't just pattern-match your diff. She:
 
 - Used `git_diff()` to understand what changed
-- Called `file_analyzer()` to examine file metadata
+- Used `file_read()` to inspect the exact code that changed
 - Ran `code_search()` to find related patterns
 - Analyzed `git_log()` to match your commit style
 - Generated a message that captures **why** the change matters

@@ -230,7 +230,7 @@ fn test_project_config_with_provider_only_serializes_set_fields() {
         "anthropic".to_string(),
         ProviderConfig {
             api_key: String::new(),
-            model: "claude-sonnet-4-5-20250929".to_string(),
+            model: "claude-opus-4-6".to_string(),
             fast_model: None,
             token_limit: None,
             additional_params: HashMap::new(),
@@ -263,7 +263,7 @@ fn test_project_config_with_provider_only_serializes_set_fields() {
         "provider section should exist. Got:\n{content}"
     );
     assert!(
-        content.contains(r#"model = "claude-sonnet-4-5-20250929""#),
+        content.contains(r#"model = "claude-opus-4-6""#),
         "model should be serialized. Got:\n{content}"
     );
 

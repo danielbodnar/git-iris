@@ -71,14 +71,14 @@ fi
 if [ -n "$OPENAI_API_KEY" ]; then
   PROVIDER="openai"
   API_KEY="$OPENAI_API_KEY"
-  MODEL="gpt-3.5-turbo" # Using a smaller, faster model for tests
+  MODEL="gpt-5.4-mini" # Use the current fast default for quicker provider tests
   REAL_API_KEY=true
   echo -e "${GREEN}✨ Using OpenAI for provider tests (API key found in environment)${NC}"
 else
   # Use a valid provider name but mark that we don't have a real key
   PROVIDER="openai"
   API_KEY="sk-xxxx" # Placeholder that won't work for actual API calls
-  MODEL="gpt-3.5-turbo"
+  MODEL="gpt-5.4-mini"
   REAL_API_KEY=false
   echo -e "${YELLOW}⚠️ No OPENAI_API_KEY found in environment${NC}"
   echo -e "${YELLOW}⚠️ Basic image tests will run, but API-dependent tests will be skipped${NC}"

@@ -36,7 +36,7 @@ You can configure Git-Iris using environment variables:
 docker run --rm --user $(id -u):$(id -g) -v "$(pwd):/git-repo" \
   -e GITIRIS_PROVIDER="openai" \
   -e GITIRIS_API_KEY="your-api-key" \
-  -e GITIRIS_MODEL="gpt-4o" \
+  -e GITIRIS_MODEL="gpt-5.4-mini" \
   -e GITIRIS_PRESET="conventional" \
   -e GITIRIS_GITMOJI="true" \
   -e GIT_USER_NAME="Your Name" \
@@ -48,11 +48,11 @@ docker run --rm --user $(id -u):$(id -g) -v "$(pwd):/git-repo" \
 
 | Variable                   | Description                                                                                       |
 | -------------------------- | ------------------------------------------------------------------------------------------------- |
-| `GITIRIS_PROVIDER`         | LLM provider name (e.g., openai, anthropic, ollama)                                               |
+| `GITIRIS_PROVIDER`         | LLM provider name (e.g., openai, anthropic, google)                                               |
 | `GITIRIS_API_KEY`          | API key for the provider                                                                          |
 | `GITIRIS_MODEL`            | Model to use (provider-specific)                                                                  |
 | `GITIRIS_TOKEN_LIMIT`      | Token limit for the specified provider                                                            |
-| `GITIRIS_DEFAULT_PROVIDER` | Default LLM provider to use                                                                       |
+| `GITIRIS_DEFAULT_PROVIDER` | Optional default provider override after provider-specific config is applied                       |
 | `GITIRIS_PRESET`           | Instruction preset name                                                                           |
 | `GITIRIS_GITMOJI`          | Enable/disable Gitmoji (true/false)                                                               |
 | `GITIRIS_INSTRUCTIONS`     | Custom instructions for AI responses                                                              |
@@ -67,7 +67,7 @@ Example with advanced configuration:
 docker run --rm --user $(id -u):$(id -g) -v "$(pwd):/git-repo" \
   -e GITIRIS_PROVIDER="anthropic" \
   -e GITIRIS_API_KEY="your-api-key" \
-  -e GITIRIS_MODEL="claude-sonnet-4-5-20250929" \
+  -e GITIRIS_MODEL="claude-opus-4-6" \
   -e GITIRIS_TOKEN_LIMIT="200000" \
   -e GITIRIS_PRESET="detailed" \
   -e GITIRIS_INSTRUCTIONS="Always include the ticket number and highlight performance impacts" \
@@ -243,7 +243,7 @@ FROM hyperb1iss/git-iris:latest
 
 # Set default configuration
 ENV GITIRIS_PROVIDER="anthropic"
-ENV GITIRIS_MODEL="claude-3-7-sonnet-20250219"
+ENV GITIRIS_MODEL="claude-opus-4-6"
 ENV GITIRIS_PRESET="conventional"
 ENV GITIRIS_GITMOJI="true"
 
