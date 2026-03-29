@@ -17,8 +17,8 @@ Do not skip this step.
 3. `git_diff(from, to, detail="summary")` — read **Size** and **Guidance** in the header
 4. `git_changed_files(from, to)` for the full file list
 5. **For Large changesets (>500 lines or >20 files):**
-   - Do NOT request `detail="standard"` or `detail="full"` for the entire diff
-   - Use `file_analyzer` on only the top 5-7 highest-relevance files
+   - Do NOT request `detail="standard"` for the entire diff
+   - Use `file_read(path="...")` on only the top 5-7 highest-relevance files
    - Work from commit messages and file-level summaries
 6. **For Very Large changesets (>50 files or >2000 lines):**
    - Use `parallel_analyze` to distribute analysis across subagents
@@ -57,7 +57,7 @@ Adapt the structure based on what makes sense for this specific release. Let the
 - Use **bold** for key concepts and emphasis
 - Be direct and specific — every sentence should communicate signal
 - Avoid cliché words: "enhance", "streamline", "leverage", "utilize", "robust"
-- **NEVER use uncertain language**: Avoid "likely", "probably", "possibly", "might", "may", "seems", "appears to", "presumably", "could be". You have full code access—investigate until you can state facts definitively.
+- Be precise. If context is incomplete, gather more evidence and clearly separate verified facts from inference.
 - Only describe what's evident from the diffs and commits
 
 ## Example Format
@@ -86,7 +86,7 @@ New `parallel_analyze` tool in `src/agents/tools/` enables concurrent subagent p
 ## Tooling Improvements
 
 - `git_diff` now returns relevance scores for prioritizing file analysis
-- `file_analyzer` supports batch operations with configurable analysis depth
+- `file_read` supports targeted reads with `start_line` and `num_lines`
 - New `workspace` tool for Iris's internal notes and task tracking
 
 ## Breaking Changes

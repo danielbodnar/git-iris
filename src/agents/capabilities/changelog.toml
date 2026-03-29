@@ -16,8 +16,8 @@ Do not skip this step.
 3. `git_diff(from, to, detail="summary")` — assess changeset size and get file relevance scores
 4. `git_changed_files(from, to)` — capture full file list
 5. **CRITICAL: For Large changesets (>500 lines or >20 files):**
-   - Do NOT request `detail="standard"` or `detail="full"` for the entire diff
-   - Use `file_analyzer` on only the top 5-7 highest-relevance files
+   - Do NOT request `detail="standard"` for the entire diff
+   - Use `file_read(path="...")` on only the top 5-7 highest-relevance files
    - Work from commit messages and file summaries rather than full diffs
    - This prevents context overflow errors
 6. **For Very Large changesets (>50 files or >2000 lines):**
@@ -86,7 +86,7 @@ SUMMARY (1-3 sentences capturing the release theme)
 - Start with capital letter, no ending period
 - Be concise but descriptive
 - Avoid cliché words: "enhance", "streamline", "leverage", "optimize"
-- **NEVER use uncertain language**: Avoid "likely", "probably", "possibly", "might", "may", "seems", "appears to", "presumably", "could be". Investigate with tools until you can state facts definitively.
+- Be precise. If context is incomplete, gather more evidence and clearly separate verified facts from inference.
 - Focus on impact—omit trivial changes
 - Group related changes; list most impactful first
 

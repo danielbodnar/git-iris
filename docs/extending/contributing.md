@@ -220,7 +220,7 @@ fn default_limit() -> usize { 10 }
 ## Workflow
 1. Call `project_docs(doc_type="context")` to understand the project
 2. Get changes with `git_diff(detail="summary")`
-3. Analyze key files with `file_analyzer()`
+3. Read key files with `file_read(path="...")` and search related symbols with `code_search()`
 4. Synthesize findings into structured output
 ```
 

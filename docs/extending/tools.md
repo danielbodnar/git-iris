@@ -568,18 +568,18 @@ From `src/agents/tools/git.rs`:
 
 **Study this for**: Repository operations, scoring algorithms, output formatting
 
-### File Analyzer Tool
+### File Read Tool
 
-From `src/agents/tools/file_analyzer.rs`:
+From `src/agents/tools/file_read.rs`:
 
 **Key features:**
 
-- Multi-file batch analysis
-- Language detection
-- Complexity metrics
-- Dependency extraction
+- Direct file reads with optional line ranges
+- Directory listings when a path resolves to a folder
+- Binary detection to avoid noisy output
+- Path-safety checks against repository boundaries
 
-**Study this for**: File system operations, syntax analysis, structured output
+**Study this for**: File system operations, precise reads, structured output
 
 ### Code Search Tool
 
@@ -658,11 +658,11 @@ task_prompt = """
 ## Tools Available
 - `dependency_analyzer(manifest_type, include_dev)` - Analyze project dependencies
 - `git_diff()` - Get code changes
-- `file_analyzer()` - Analyze specific files
+- `file_read(path="...")` - Analyze specific files
 
 ## Workflow
 1. Use `dependency_analyzer()` to understand project tech stack
-2. Then analyze relevant source files with `file_analyzer()`
+2. Then analyze relevant source files with `file_read()`
 """
 ```
 

@@ -24,7 +24,7 @@ Instructions for Iris go here.
 
 ## Tools Available
 - `git_diff()` - Get code changes
-- `file_analyzer()` - Analyze specific files
+- `file_read(path="...")` - Analyze specific files
 
 ## Output Requirements
 Your requirements for the output format.
@@ -94,9 +94,9 @@ You are Iris, an AI assistant analyzing a feature branch to create a high-level 
 
 ## Tools Available
 - `project_docs(doc_type="context")` - Get project context (README, conventions)
-- `git_diff(from, to)` - Get changes between branches
+- `git_diff(from="main", to="HEAD")` - Get changes between branches
 - `git_log(count=N)` - Get commit history
-- `file_analyzer(paths)` - Analyze specific files in detail
+- `file_read(path="...")` - Analyze specific files in detail
 
 ## Workflow
 1. Call `project_docs(doc_type="context")` to understand the project
@@ -254,7 +254,7 @@ cargo run -- studio
 ## Workflow
 1. Call `project_docs(doc_type="context")` first
 2. Get the diff with `git_diff()`
-3. For files over 500 lines, use `file_analyzer()` for targeted analysis
+3. For files over 500 lines, use `file_read(path="...", start_line=1, num_lines=200)` for targeted analysis
 4. Synthesize findings into output format
 ```
 
@@ -264,7 +264,7 @@ cargo run -- studio
 ## Output Requirements
 - **Title**: Max 100 chars, action-oriented
 - **Summary**: 2-3 paragraphs, focus on impact
-- **No uncertain language**: State facts definitively, not "likely" or "probably"
+- **Be precise**: State verified facts clearly and call out inferences when evidence is incomplete
 ```
 
 **Give examples:**
@@ -298,7 +298,7 @@ Only list tools relevant to the task:
 ## Tools Available
 - `git_diff()` - Get changes (use detail="summary" first)
 - `git_log(count=5)` - Recent commits for context
-- `file_analyzer(paths)` - Deep analysis of specific files
+- `file_read(path="...")` - Deep analysis of specific files
 # Don't list every possible tool—keep it focused
 ```
 
@@ -308,9 +308,7 @@ Enforce definitive language:
 
 ```toml
 ## Writing Standards
-- **NEVER use uncertain language**: Avoid "likely", "probably", "possibly",
-  "might", "may", "seems", "appears to", "presumably", "could be"
-- You have full code access—investigate until you can state facts definitively
+- Be precise about confidence. If evidence is incomplete, gather more context and call out what is verified versus inferred.
 - If unsure, use tools to gather more context
 ```
 
@@ -357,7 +355,7 @@ Use markdown wrappers when you want the LLM to control the exact structure while
 ## Workflow
 1. Initial scan: `git_diff(detail="summary")` for overview
 2. Identify key areas from relevance scores
-3. Deep dive: `file_analyzer()` on top 5 files
+3. Deep dive: `file_read(path="...", start_line=1, num_lines=200)` on top 5 files
 4. Synthesize into structured output
 ```
 

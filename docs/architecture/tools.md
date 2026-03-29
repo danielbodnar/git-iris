@@ -76,15 +76,14 @@ Files changed: 3
 
 ```rust
 pub struct GitDiffArgs {
-    pub detail: DetailLevel,        // summary | minimal | full
-    pub from_ref: Option<String>,   // For PR/review (e.g., "main")
-    pub to_ref: Option<String>,     // Default: HEAD
+    pub detail: DetailLevel,        // summary | standard
+    pub from: Option<String>,       // For PR/review (e.g., "main")
+    pub to: Option<String>,         // Default: HEAD
 }
 
 pub enum DetailLevel {
-    Summary,  // File list + stats, no diffs
-    Minimal,  // High-relevance files only
-    Full,     // All files with complete diffs
+    Summary,   // File list + stats, no diffs
+    Standard,  // Full diffs for selected files
 }
 ```
 
@@ -670,8 +669,8 @@ async fn test_git_diff() {
     let tool = GitDiff;
     let args = GitDiffArgs {
         detail: DetailLevel::Summary,
-        from_ref: None,
-        to_ref: None,
+        from: None,
+        to: None,
     };
 
     let result = tool.call(args).await.unwrap();
@@ -686,7 +685,7 @@ Test tools within agent context:
 ```rust
 #[tokio::test]
 async fn agent_uses_git_diff() {
-    let agent = IrisAgent::new("openai", "gpt-4o").unwrap();
+    let agent = IrisAgent::new("openai", "gpt-5.4").unwrap();
     let response = agent.execute_task("commit", "Generate message").await.unwrap();
 
     // Verify the agent called git_diff and produced output

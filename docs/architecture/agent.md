@@ -326,27 +326,9 @@ Iris: [Incorporates sub-agent findings into final output]
 
 ## Provider-Specific Handling
 
-### OpenAI Reasoning Models
+### OpenAI Model Defaults
 
-For models like `o1` and `gpt-5`, Iris sets reasoning effort:
-
-```rust
-fn apply_reasoning_defaults<M>(&self, builder: RigAgentBuilder<M>) -> RigAgentBuilder<M> {
-    if self.provider == "openai" && Self::requires_reasoning_effort(&self.model) {
-        builder.additional_params(json!({
-            "reasoning": { "effort": "low" }
-        }))
-    } else {
-        builder
-    }
-}
-
-fn requires_reasoning_effort(model: &str) -> bool {
-    model.starts_with("gpt-5") || model.starts_with("gpt-4.1") || model.starts_with("o1")
-}
-```
-
-This optimizes cost and latency for reasoning-capable models.
+Git-Iris targets the GPT-5 family for OpenAI. Keep examples and docs aligned with the current defaults in `src/providers.rs` rather than older model aliases.
 
 ## Streaming Support
 
@@ -419,7 +401,7 @@ Test capability loading:
 ```rust
 #[test]
 fn loads_commit_capability() {
-    let agent = IrisAgent::new("openai", "gpt-4o").unwrap();
+    let agent = IrisAgent::new("openai", "gpt-5.4").unwrap();
     let (prompt, output_type) = agent.load_capability_config("commit").unwrap();
     assert!(prompt.contains("Generate a commit message"));
     assert_eq!(output_type, "GeneratedMessage");
@@ -433,7 +415,7 @@ Test full execution with mocked tools:
 ```rust
 #[tokio::test]
 async fn generates_commit_message() {
-    let agent = IrisAgent::new("openai", "gpt-4o").unwrap();
+    let agent = IrisAgent::new("openai", "gpt-5.4").unwrap();
     let response = agent.execute_task("commit", "Generate message").await.unwrap();
 
     match response {

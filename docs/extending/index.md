@@ -45,7 +45,7 @@ flowchart TD
 **Example: Code Review Capability**
 
 1. **Capability TOML** (`review.toml`) defines the review task prompt and output format
-2. **Tools** (`git_diff`, `file_analyzer`, `code_search`) provide Iris with code context
+2. **Tools** (`git_diff`, `file_read`, `code_search`) provide Iris with code context
 3. **Output Type** (`MarkdownReview`) structures the review content
 4. **Studio Mode** (Review mode) displays the review with panels for file list, diff, and output
 
@@ -139,7 +139,7 @@ Throughout the extension guides, we reference real implementations from the code
 - **Commit Capability**: `src/agents/capabilities/commit.toml`
 - **Git Tools**: `src/agents/tools/git.rs`
 - **Commit Mode**: `src/studio/state/modes.rs` → `CommitMode`
-- **File Analyzer**: `src/agents/tools/file_analyzer.rs`
+- **File Read**: `src/agents/tools/file_read.rs`
 - **Review Mode**: Complete mode with state, handler, and renderer
 
 ## Contributing

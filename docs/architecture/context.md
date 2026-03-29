@@ -338,7 +338,7 @@ parallel_analyze({
 ```toml
 ## Analysis Strategy
 1. Call `git_diff(detail="summary")` to understand changeset size
-2. For Small/Medium: Use `git_diff(detail="full")`
+2. For Small/Medium: Use `git_diff(detail="standard")`
 3. For Large: Focus on high-relevance files, skim low-relevance
 4. For Very Large: Use `parallel_analyze` to distribute review across subagents
 
@@ -349,7 +349,7 @@ Prioritize security and performance issues in high-relevance files.
 
 ```toml
 ## Branch Analysis
-1. Call `git_diff(from_ref="main", detail="summary")` for overview
+1. Call `git_diff(from="main", to="HEAD", detail="summary")` for overview
 2. Identify major themes (new features, refactors, fixes)
 3. For large branches: Use `parallel_analyze` to analyze feature areas separately
 4. Synthesize findings into a cohesive PR description
@@ -427,8 +427,8 @@ Iris can **adaptively explore** based on initial findings:
    → See: "8 files, 347 lines, Medium changeset"
    → Strategy: Focus on >60% relevance
 
-2. Call git_diff(detail="minimal")
-   → Get: Top 5 files with diffs
+2. Call git_diff(detail="standard")
+   → Get: Full diffs for the top 5 files
 
 3. Analyze top files
    → Notice: Major refactor in src/agents/iris.rs
@@ -454,7 +454,7 @@ This **breadth-first → depth-first** approach balances efficiency and thorough
 - Include size-based guidance in prompts
 - Suggest `parallel_analyze` for large changesets
 - Instruct Iris to read guidance from `git_diff` output
-- Allow adaptive strategies (summary → minimal → full)
+- Allow adaptive strategies (summary → standard)
 
 ❌ **DON'T:**
 
@@ -531,8 +531,8 @@ async fn handles_large_changeset() {
     let tool = GitDiff;
     let result = tool.call(GitDiffArgs {
         detail: DetailLevel::Summary,
-        from_ref: None,
-        to_ref: None,
+        from: None,
+        to: None,
     }).await.unwrap();
 
     assert!(result.contains("Very Large"));

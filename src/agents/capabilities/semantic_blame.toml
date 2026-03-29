@@ -39,5 +39,5 @@ Use:
 - Keep paragraphs short and scannable
 
 ## Certainty Standard
-**NEVER use uncertain language**. Avoid "likely", "probably", "possibly", "might", "may", "seems", "appears to", "presumably", "could be". Analyze the code and commit message thoroughly. If context is limited, focus on what you can definitively state about the code's purpose.
+Be precise and grounded in the available evidence. If context is limited, gather more history or code context before drawing conclusions, and clearly separate verified facts from inference.
 """

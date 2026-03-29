@@ -16,7 +16,10 @@ Do not skip this step.
 - `git_diff(detail="standard", files=["path1","path2"])` - Get full diffs for specific files
 - `git_diff(from="HEAD^1")` - Get combined diff from parent commit to staged (use for amend)
 - `git_log(count=5)` - Recent commits for style reference
-- `project_metadata()` - Get project language, framework, and dependencies (optional)
+- `git_status()` - Confirm staged vs unstaged state
+- `git_changed_files()` - Get the file list quickly
+- `file_read(path="...")` - Read exact file content when a diff summary is not enough
+- `code_search(query="...")` - Find related symbols, patterns, or callers
 - `parallel_analyze(tasks=[...])` - Spawn subagents for very large changesets (optional)
 
 ## Workflow — Progressive Analysis
@@ -57,8 +60,8 @@ When the context indicates **amend mode** (you'll see `"mode": "amend"` with an 
 - Focus on concrete changes and their effects
 - Don't mention filenames in subject unless absolutely necessary
 - Be specific—"Fix null pointer in auth flow" beats "Fix bug"
-- **NEVER use uncertain or speculative language**: Avoid words like "likely", "probably", "possibly", "might", "may", "seems", "appears to", "presumably", "could be". You have full access to the code—resolve uncertainty by reading more context. State facts definitively.
-- If you're unsure what a change does, use tools to investigate until you can state it with certainty
+- Be precise. If a change is ambiguous, inspect more context and clearly separate verified facts from inferences.
+- If you're unsure what a change does, use tools to investigate before writing the final message
 
 ## Style Adaptation
 If STYLE INSTRUCTIONS are provided below, **prioritize that style** in your word choice, tone, and descriptions. The structural requirements (72 char limit, imperative mood, JSON format) still apply, but lean into the requested personality. A cosmic preset means cosmic language. A playful preset means playful vibes. Express the style!
