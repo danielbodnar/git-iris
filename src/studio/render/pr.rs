@@ -148,7 +148,10 @@ pub fn render_pr_panel(state: &mut StudioState, frame: &mut Frame, area: Rect, p
             let title = if state.modes.pr.commits.is_empty() {
                 "Changes".to_string()
             } else {
-                format!("Changes ({} → {})", state.modes.pr.base_branch, "HEAD")
+                format!(
+                    "Changes ({} → {})",
+                    state.modes.pr.base_branch, state.modes.pr.to_ref
+                )
             };
             render_diff_view(frame, area, &state.modes.pr.diff_view, &title, is_focused);
         }

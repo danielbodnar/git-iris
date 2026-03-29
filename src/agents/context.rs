@@ -75,7 +75,8 @@ impl TaskContext {
     /// Create context for the review command with full parameter validation.
     ///
     /// Validates:
-    /// - `--from` requires `--to` for range comparison
+    /// - `--from` requires `--to` for explicit range comparison
+    /// - `--to` on its own compares `main..to`
     /// - `--commit` is mutually exclusive with `--from/--to`
     /// - `--include-unstaged` is incompatible with range comparisons
     pub fn for_review(
@@ -105,6 +106,10 @@ impl TaskContext {
         Ok(match (commit, from, to) {
             (Some(id), _, _) => Self::Commit { commit_id: id },
             (_, Some(f), Some(t)) => Self::Range { from: f, to: t },
+            (None, None, Some(t)) => Self::Range {
+                from: "main".to_string(),
+                to: t,
+            },
             _ => Self::Staged { include_unstaged },
         })
     }
@@ -291,6 +296,15 @@ mod tests {
             false,
         )
         .expect("should succeed");
+        assert!(
+            matches!(ctx, TaskContext::Range { from, to } if from == "main" && to == "feature")
+        );
+    }
+
+    #[test]
+    fn test_review_to_only_defaults_from_main() {
+        let ctx = TaskContext::for_review(None, None, Some("feature".to_string()), false)
+            .expect("should succeed");
         assert!(
             matches!(ctx, TaskContext::Range { from, to } if from == "main" && to == "feature")
         );

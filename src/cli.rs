@@ -157,14 +157,14 @@ pub enum Commands {
         /// Starting branch for comparison (defaults to 'main')
         #[arg(
             long,
-            help = "Starting branch for comparison (defaults to 'main'). Used with --to for branch comparison reviews"
+            help = "Starting branch for comparison (defaults to 'main'). Used with --to for explicit branch comparison reviews"
         )]
         from: Option<String>,
 
         /// Target branch for comparison (e.g., 'feature-branch', 'pr-branch')
         #[arg(
             long,
-            help = "Target branch for comparison (e.g., 'feature-branch', 'pr-branch'). Used with --from for branch comparison reviews"
+            help = "Target branch for comparison (e.g., 'feature-branch', 'pr-branch'). Used with --from for branch comparison reviews or on its own to compare from main"
         )]
         to: Option<String>,
     },
@@ -297,7 +297,7 @@ pub enum Commands {
         #[arg(
             long,
             value_name = "MODE",
-            help = "Initial mode: explore, commit, review, pr, changelog"
+            help = "Initial mode: explore, commit, review, pr, changelog, release-notes"
         )]
         mode: Option<String>,
 
@@ -1437,6 +1437,7 @@ async fn handle_studio(
             "review" => Some(Mode::Review),
             "pr" => Some(Mode::PR),
             "changelog" => Some(Mode::Changelog),
+            "release-notes" | "release_notes" => Some(Mode::ReleaseNotes),
             _ => {
                 ui::print_warning(&format!("Unknown mode '{}', using auto-detect", m));
                 None

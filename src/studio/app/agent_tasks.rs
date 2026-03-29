@@ -370,13 +370,14 @@ Simply call the appropriate tool with the new content. Do NOT echo back the full
         use super::super::events::AgentTask;
         use crate::agents::{StructuredResponse, TaskContext};
 
+        let to_ref = to_ref.to_string();
         let task = AgentTask::PR {
             base_branch: base_branch.clone(),
-            to_ref: to_ref.to_string(),
+            to_ref: to_ref.clone(),
         };
 
         self.spawn_structured_task(TaskType::PR, &task, move |agent| async move {
-            let context = TaskContext::for_pr(Some(base_branch), None);
+            let context = TaskContext::for_pr(Some(base_branch), Some(to_ref));
 
             match agent.execute_task("pr", context).await {
                 Ok(response) => {

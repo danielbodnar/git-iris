@@ -73,7 +73,7 @@ Launch unified TUI for all operations.
 
 | Flag            | Description                                                    |
 | --------------- | -------------------------------------------------------------- |
-| `--mode <MODE>` | Initial mode: `explore`, `commit`, `review`, `pr`, `changelog` |
+| `--mode <MODE>` | Initial mode: `explore`, `commit`, `review`, `pr`, `changelog`, `release-notes` |
 | `--from <REF>`  | Starting ref for comparison                                    |
 | `--to <REF>`    | Ending ref for comparison                                      |
 
@@ -88,6 +88,9 @@ git-iris studio --mode commit
 
 # Start in PR mode with refs
 git-iris studio --mode pr --from main --to feature-branch
+
+# Start in release notes mode
+git-iris studio --mode release-notes
 ```
 
 ---
@@ -109,7 +112,7 @@ Generate comprehensive code reviews with AI.
 | `--include-unstaged` |       | Include unstaged changes               |
 | `--commit <HASH>`    |       | Review specific commit                 |
 | `--from <REF>`       |       | Starting branch for comparison         |
-| `--to <REF>`         |       | Target branch for comparison           |
+| `--to <REF>`         |       | Target branch for comparison (alone, compares from `main`) |
 
 **Examples:**
 
@@ -122,6 +125,9 @@ git-iris review --commit abc1234
 
 # Review branch comparison
 git-iris review --from main --to feature-branch
+
+# Review everything from main to a target ref
+git-iris review --to feature-branch
 
 # Include unstaged changes
 git-iris review --include-unstaged --print
