@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use crate::agents::context::TaskContext;
 use crate::agents::iris::StructuredResponse;
+use crate::agents::tools::with_active_repo_root;
 use crate::agents::{AgentBackend, IrisAgent, IrisAgentBuilder};
 use crate::common::CommonParams;
 use crate::config::Config;
@@ -241,18 +242,21 @@ impl IrisAgentService {
         capability: &str,
         context: TaskContext,
     ) -> Result<StructuredResponse> {
-        // Create the agent
-        let mut agent = self.create_agent()?;
+        let run_task = async {
+            let mut agent = self.create_agent()?;
+            let task_prompt = Self::build_task_prompt(
+                capability,
+                &context,
+                self.config.temp_instructions.as_deref(),
+            );
+            agent.execute_task(capability, &task_prompt).await
+        };
 
-        // Build task prompt with context information and any custom instructions from config
-        let task_prompt = Self::build_task_prompt(
-            capability,
-            &context,
-            self.config.temp_instructions.as_deref(),
-        );
-
-        // Execute the task
-        agent.execute_task(capability, &task_prompt).await
+        if let Some(repo) = &self.git_repo {
+            with_active_repo_root(repo.repo_path(), run_task).await
+        } else {
+            run_task.await
+        }
     }
 
     /// Execute a task with a custom prompt (for backwards compatibility)
@@ -261,8 +265,16 @@ impl IrisAgentService {
         capability: &str,
         task_prompt: &str,
     ) -> Result<StructuredResponse> {
-        let mut agent = self.create_agent()?;
-        agent.execute_task(capability, task_prompt).await
+        let run_task = async {
+            let mut agent = self.create_agent()?;
+            agent.execute_task(capability, task_prompt).await
+        };
+
+        if let Some(repo) = &self.git_repo {
+            with_active_repo_root(repo.repo_path(), run_task).await
+        } else {
+            run_task.await
+        }
     }
 
     /// Execute an agent task with style overrides
@@ -285,28 +297,31 @@ impl IrisAgentService {
         use_gitmoji: Option<bool>,
         instructions: Option<&str>,
     ) -> Result<StructuredResponse> {
-        // Clone config and apply style overrides
-        let mut config = self.config.clone();
-        if let Some(p) = preset {
-            config.temp_preset = Some(p.to_string());
+        let run_task = async {
+            let mut config = self.config.clone();
+            if let Some(p) = preset {
+                config.temp_preset = Some(p.to_string());
+            }
+            if let Some(gitmoji) = use_gitmoji {
+                config.use_gitmoji = gitmoji;
+            }
+
+            let mut agent = IrisAgentBuilder::new()
+                .with_provider(&self.provider)
+                .with_model(&self.model)
+                .build()?;
+            agent.set_config(config);
+            agent.set_fast_model(self.fast_model.clone());
+
+            let task_prompt = Self::build_task_prompt(capability, &context, instructions);
+            agent.execute_task(capability, &task_prompt).await
+        };
+
+        if let Some(repo) = &self.git_repo {
+            with_active_repo_root(repo.repo_path(), run_task).await
+        } else {
+            run_task.await
         }
-        if let Some(gitmoji) = use_gitmoji {
-            config.use_gitmoji = gitmoji;
-        }
-
-        // Create agent with modified config
-        let mut agent = IrisAgentBuilder::new()
-            .with_provider(&self.provider)
-            .with_model(&self.model)
-            .build()?;
-        agent.set_config(config);
-        agent.set_fast_model(self.fast_model.clone());
-
-        // Build task prompt with context information and optional instructions
-        let task_prompt = Self::build_task_prompt(capability, &context, instructions);
-
-        // Execute the task
-        agent.execute_task(capability, &task_prompt).await
     }
 
     /// Build a task prompt incorporating the context information and optional instructions
@@ -400,8 +415,16 @@ impl IrisAgentService {
         task_prompt: &str,
         content_update_sender: crate::agents::tools::ContentUpdateSender,
     ) -> Result<StructuredResponse> {
-        let mut agent = self.create_agent_with_content_updates(content_update_sender)?;
-        agent.execute_task("chat", task_prompt).await
+        let run_task = async {
+            let mut agent = self.create_agent_with_content_updates(content_update_sender)?;
+            agent.execute_task("chat", task_prompt).await
+        };
+
+        if let Some(repo) = &self.git_repo {
+            with_active_repo_root(repo.repo_path(), run_task).await
+        } else {
+            run_task.await
+        }
     }
 
     /// Execute a chat task with streaming and content update capabilities
@@ -416,10 +439,18 @@ impl IrisAgentService {
     where
         F: FnMut(&str, &str) + Send,
     {
-        let mut agent = self.create_agent_with_content_updates(content_update_sender)?;
-        agent
-            .execute_task_streaming("chat", task_prompt, on_chunk)
-            .await
+        let run_task = async {
+            let mut agent = self.create_agent_with_content_updates(content_update_sender)?;
+            agent
+                .execute_task_streaming("chat", task_prompt, on_chunk)
+                .await
+        };
+
+        if let Some(repo) = &self.git_repo {
+            with_active_repo_root(repo.repo_path(), run_task).await
+        } else {
+            run_task.await
+        }
     }
 
     /// Execute an agent task with streaming
@@ -443,15 +474,23 @@ impl IrisAgentService {
     where
         F: FnMut(&str, &str) + Send,
     {
-        let mut agent = self.create_agent()?;
-        let task_prompt = Self::build_task_prompt(
-            capability,
-            &context,
-            self.config.temp_instructions.as_deref(),
-        );
-        agent
-            .execute_task_streaming(capability, &task_prompt, on_chunk)
-            .await
+        let run_task = async {
+            let mut agent = self.create_agent()?;
+            let task_prompt = Self::build_task_prompt(
+                capability,
+                &context,
+                self.config.temp_instructions.as_deref(),
+            );
+            agent
+                .execute_task_streaming(capability, &task_prompt, on_chunk)
+                .await
+        };
+
+        if let Some(repo) = &self.git_repo {
+            with_active_repo_root(repo.repo_path(), run_task).await
+        } else {
+            run_task.await
+        }
     }
 
     /// Get the configuration

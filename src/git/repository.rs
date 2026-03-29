@@ -8,6 +8,7 @@ use crate::git::files::{
 use crate::git::utils::is_inside_work_tree;
 use crate::log_debug;
 use anyhow::{Context as AnyhowContext, Result, anyhow};
+use chrono::{DateTime, Utc};
 use git2::{Repository, Tree};
 use std::env;
 use std::path::{Path, PathBuf};
@@ -39,8 +40,17 @@ impl GitRepo {
     ///
     /// A Result containing the `GitRepo` instance or an error.
     pub fn new(repo_path: &Path) -> Result<Self> {
+        let repo_path = Repository::discover(repo_path)
+            .ok()
+            .and_then(|repo| {
+                repo.workdir()
+                    .map(Path::to_path_buf)
+                    .or_else(|| repo.path().parent().map(Path::to_path_buf))
+            })
+            .unwrap_or_else(|| repo_path.to_path_buf());
+
         Ok(Self {
-            repo_path: repo_path.to_path_buf(),
+            repo_path,
             temp_dir: None,
             is_remote: false,
             remote_url: None,
@@ -657,7 +667,11 @@ impl GitRepo {
                     hash: oid.to_string(),
                     message: commit.message().unwrap_or_default().to_string(),
                     author: author.name().unwrap_or_default().to_string(),
-                    timestamp: commit.time().seconds().to_string(),
+                    timestamp: DateTime::<Utc>::from_timestamp(commit.time().seconds(), 0)
+                        .map_or_else(
+                            || commit.time().seconds().to_string(),
+                            |timestamp| timestamp.to_rfc3339(),
+                        ),
                 })
             })
             .collect::<Result<Vec<_>>>()?;

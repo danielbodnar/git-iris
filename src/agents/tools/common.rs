@@ -5,9 +5,16 @@
 //! - Error type macros
 //! - Repository initialization helpers
 
+use std::future::Future;
+use std::path::{Path, PathBuf};
+
 use serde_json::{Map, Value};
 
 use crate::git::GitRepo;
+
+tokio::task_local! {
+    static ACTIVE_REPO_ROOT: PathBuf;
+}
 
 /// Generate a JSON schema for tool parameters that's `OpenAI`-compatible.
 /// `OpenAI` tool schemas require the `required` array to list every property.
@@ -39,8 +46,29 @@ fn enforce_required_properties(value: &mut Value) {
 /// Get the current repository from the working directory.
 /// This is a common operation used by most tools.
 pub fn get_current_repo() -> anyhow::Result<GitRepo> {
+    let repo_root = current_repo_root()?;
+    GitRepo::new(&repo_root)
+}
+
+/// Run an async operation with a repo root bound to the current task.
+pub async fn with_active_repo_root<F, T>(repo_path: &Path, future: F) -> T
+where
+    F: Future<Output = T>,
+{
+    ACTIVE_REPO_ROOT
+        .scope(repo_path.to_path_buf(), future)
+        .await
+}
+
+/// Get the repo root bound to the current task, falling back to the current directory.
+pub fn current_repo_root() -> anyhow::Result<PathBuf> {
+    if let Ok(repo_root) = ACTIVE_REPO_ROOT.try_with(Clone::clone) {
+        return Ok(repo_root);
+    }
+
     let current_dir = std::env::current_dir()?;
-    GitRepo::new(&current_dir)
+    let repo = GitRepo::new(&current_dir)?;
+    Ok(repo.repo_path().clone())
 }
 
 /// Macro to define a tool error type with standard From implementations.

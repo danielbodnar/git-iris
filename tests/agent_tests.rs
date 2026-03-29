@@ -6,18 +6,34 @@ use git_iris::{
         core::{AgentBackend, AgentContext, TaskResult},
         iris::IrisAgentBuilder,
         setup::{AgentSetupService, create_agent_with_defaults},
-        tools::{GitChangedFiles, GitDiff, GitLog, GitRepoInfo, GitStatus},
+        tools::{
+            GitChangedFiles, GitDiff, GitLog, GitRepoInfo, GitStatus, ProjectDocs,
+            current_repo_root, get_current_repo, with_active_repo_root,
+        },
     },
     config::Config,
     git::GitRepo,
 };
+use rig::tool::Tool;
 use std::env;
+use std::fs;
 use std::sync::{Mutex, MutexGuard, OnceLock};
 use tempfile::TempDir;
+
+use git_iris::agents::tools::docs::{DocType, ProjectDocsArgs};
+
+#[path = "test_utils.rs"]
+mod test_utils;
+use test_utils::setup_git_repo;
 
 fn cwd_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| Mutex::new(())).lock().expect("lock")
+}
+
+async fn cwd_lock_async() -> tokio::sync::MutexGuard<'static, ()> {
+    static LOCK: OnceLock<tokio::sync::Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| tokio::sync::Mutex::new(())).lock().await
 }
 
 fn create_test_context() -> (AgentContext, TempDir) {
@@ -196,6 +212,76 @@ fn test_agent_context_accessors() {
 
     assert!(!config.default_provider.is_empty());
     assert!(repo.repo_path().exists());
+}
+
+#[test]
+fn test_git_repo_discovers_root_from_subdirectory() {
+    let (temp_dir, _git_repo) = setup_git_repo();
+    let nested_dir = temp_dir.path().join("nested").join("path");
+    fs::create_dir_all(&nested_dir).expect("Failed to create nested directory");
+
+    let repo = GitRepo::new(&nested_dir).expect("Failed to create GitRepo from subdirectory");
+    assert_eq!(
+        fs::canonicalize(repo.repo_path()).expect("Failed to canonicalize repo path"),
+        fs::canonicalize(temp_dir.path()).expect("Failed to canonicalize temp repo path")
+    );
+}
+
+#[tokio::test]
+async fn test_tool_repo_context_uses_active_repo_root() {
+    let _guard = cwd_lock_async().await;
+    let (primary_temp_dir, _primary_repo) = setup_git_repo();
+    let (fallback_temp_dir, _fallback_repo) = setup_git_repo();
+    let original_dir = env::current_dir().expect("Failed to get current directory");
+
+    fs::write(
+        primary_temp_dir.path().join("README.md"),
+        "# Primary Repo\n",
+    )
+    .expect("Failed to update primary README");
+    fs::write(
+        fallback_temp_dir.path().join("README.md"),
+        "# Fallback Repo\n",
+    )
+    .expect("Failed to update fallback README");
+
+    env::set_current_dir(fallback_temp_dir.path()).expect("Failed to change current directory");
+
+    let repo = with_active_repo_root(primary_temp_dir.path(), async {
+        get_current_repo().expect("Failed to resolve active repository")
+    })
+    .await;
+    assert_eq!(
+        fs::canonicalize(repo.repo_path()).expect("Failed to canonicalize active repo path"),
+        fs::canonicalize(primary_temp_dir.path())
+            .expect("Failed to canonicalize primary repo path")
+    );
+
+    let repo_root = with_active_repo_root(primary_temp_dir.path(), async {
+        current_repo_root().expect("Failed to resolve active repo root")
+    })
+    .await;
+    assert_eq!(
+        fs::canonicalize(repo_root).expect("Failed to canonicalize resolved repo root"),
+        fs::canonicalize(primary_temp_dir.path())
+            .expect("Failed to canonicalize primary repo root")
+    );
+
+    let docs = with_active_repo_root(primary_temp_dir.path(), async {
+        ProjectDocs
+            .call(ProjectDocsArgs {
+                doc_type: DocType::Readme,
+                max_chars: 2_000,
+            })
+            .await
+            .expect("Failed to read project docs")
+    })
+    .await;
+
+    env::set_current_dir(original_dir).expect("Failed to restore current directory");
+
+    assert!(docs.contains("Primary Repo"));
+    assert!(!docs.contains("Fallback Repo"));
 }
 
 // Integration test for the complete agent setup workflow

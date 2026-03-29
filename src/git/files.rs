@@ -52,12 +52,7 @@ pub fn get_file_statuses(repo: &Repository) -> Result<Vec<StagedFile>> {
                 if should_exclude || change_type != ChangeType::Modified || is_binary_diff(&diff) {
                     None
                 } else {
-                    let path_obj = Path::new(path);
-                    if path_obj.exists() {
-                        Some(fs::read_to_string(path_obj)?)
-                    } else {
-                        None
-                    }
+                    get_index_content_for_file(repo, path)?
                 };
 
             staged_files.push(StagedFile {
@@ -89,9 +84,9 @@ pub fn get_diff_for_file(repo: &Repository, path: &str) -> Result<String> {
     let mut diff_options = DiffOptions::new();
     diff_options.pathspec(path);
 
-    let tree = Some(repo.head()?.peel_to_tree()?);
-
-    let diff = repo.diff_tree_to_workdir_with_index(tree.as_ref(), Some(&mut diff_options))?;
+    let tree = repo.head().ok().and_then(|head| head.peel_to_tree().ok());
+    let index = repo.index()?;
+    let diff = repo.diff_tree_to_index(tree.as_ref(), Some(&index), Some(&mut diff_options))?;
 
     let mut diff_string = String::new();
     diff.print(git2::DiffFormat::Patch, |_delta, _hunk, line| {
@@ -109,6 +104,19 @@ pub fn get_diff_for_file(repo: &Repository, path: &str) -> Result<String> {
     } else {
         log_debug!("Generated diff for {} ({} bytes)", path, diff_string.len());
         Ok(diff_string)
+    }
+}
+
+fn get_index_content_for_file(repo: &Repository, path: &str) -> Result<Option<String>> {
+    let index = repo.index()?;
+    let Some(entry) = index.get_path(Path::new(path), 0) else {
+        return Ok(None);
+    };
+
+    let blob = repo.find_blob(entry.id)?;
+    match std::str::from_utf8(blob.content()) {
+        Ok(content) => Ok(Some(content.to_string())),
+        Err(_) => Ok(None),
     }
 }
 

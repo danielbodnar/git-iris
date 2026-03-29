@@ -124,8 +124,8 @@ impl Config {
         };
 
         // Overlay project config if available
-        if let Ok(project_config) = Self::load_project_config() {
-            config.merge_with_project_config(project_config);
+        if let Ok((project_config, project_source)) = Self::load_project_config_with_source() {
+            config.merge_loaded_project_config(project_config, &project_source);
         }
 
         log_debug!(
@@ -138,6 +138,11 @@ impl Config {
 
     /// Load project-specific configuration
     pub fn load_project_config() -> Result<Self> {
+        let (config, _) = Self::load_project_config_with_source()?;
+        Ok(config)
+    }
+
+    fn load_project_config_with_source() -> Result<(Self, toml::Value)> {
         let config_path = Self::get_project_config_path()?;
         if !config_path.exists() {
             return Err(anyhow!("Project configuration file not found"));
@@ -145,6 +150,12 @@ impl Config {
 
         let content = fs::read_to_string(&config_path)
             .with_context(|| format!("Failed to read {}", config_path.display()))?;
+        let project_source = toml::from_str(&content).with_context(|| {
+            format!(
+                "Invalid {} format. Check for syntax errors.",
+                PROJECT_CONFIG_FILENAME
+            )
+        })?;
 
         let mut config: Self = toml::from_str(&content).with_context(|| {
             format!(
@@ -154,7 +165,7 @@ impl Config {
         })?;
 
         config.is_project_config = true;
-        Ok(config)
+        Ok((config, project_source))
     }
 
     /// Get path to project config file
@@ -209,6 +220,56 @@ impl Config {
         if project_config.subagent_timeout_secs != default_subagent_timeout() {
             self.subagent_timeout_secs = project_config.subagent_timeout_secs;
         }
+    }
+
+    fn merge_loaded_project_config(&mut self, project_config: Self, project_source: &toml::Value) {
+        log_debug!("Merging loaded project configuration with explicit field tracking");
+
+        self.merge_project_provider_config(&project_config);
+
+        if Self::project_config_has_key(project_source, "default_provider") {
+            self.default_provider = project_config.default_provider;
+        }
+        if Self::project_config_has_key(project_source, "use_gitmoji") {
+            self.use_gitmoji = project_config.use_gitmoji;
+        }
+        if Self::project_config_has_key(project_source, "instructions") {
+            self.instructions = project_config.instructions;
+        }
+        if Self::project_config_has_key(project_source, "instruction_preset") {
+            self.instruction_preset = project_config.instruction_preset;
+        }
+        if Self::project_config_has_key(project_source, "theme") {
+            self.theme = project_config.theme;
+        }
+        if Self::project_config_has_key(project_source, "subagent_timeout_secs") {
+            self.subagent_timeout_secs = project_config.subagent_timeout_secs;
+        }
+    }
+
+    fn merge_project_provider_config(&mut self, project_config: &Self) {
+        for (provider_name, proj_config) in &project_config.providers {
+            let entry = self.providers.entry(provider_name.clone()).or_default();
+
+            if !proj_config.model.is_empty() {
+                entry.model = proj_config.model.clone();
+            }
+            if proj_config.fast_model.is_some() {
+                entry.fast_model = proj_config.fast_model.clone();
+            }
+            if proj_config.token_limit.is_some() {
+                entry.token_limit = proj_config.token_limit;
+            }
+            entry
+                .additional_params
+                .extend(proj_config.additional_params.clone());
+        }
+    }
+
+    fn project_config_has_key(project_source: &toml::Value, key: &str) -> bool {
+        project_source
+            .as_table()
+            .is_some_and(|table| table.contains_key(key))
     }
 
     /// Migrate older config formats
@@ -463,3 +524,6 @@ impl Config {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests;

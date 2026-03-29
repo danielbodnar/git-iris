@@ -9,7 +9,7 @@ use rig::tool::Tool;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-use super::common::parameters_schema;
+use super::common::{current_repo_root, parameters_schema};
 
 // Use standard tool error macro for consistency
 crate::define_tool_error!(DocsError);
@@ -46,13 +46,13 @@ pub struct ProjectDocsArgs {
     /// Type of documentation to fetch
     #[serde(default)]
     pub doc_type: DocType,
-    /// Maximum characters to return (default: 5000, max: 20000)
+    /// Maximum characters to return (default: 20000, max: 20000)
     #[serde(default = "default_max_chars")]
     pub max_chars: usize,
 }
 
 fn default_max_chars() -> usize {
-    5000
+    20_000
 }
 
 impl Tool for ProjectDocs {
@@ -72,7 +72,7 @@ impl Tool for ProjectDocs {
     }
 
     async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
-        let current_dir = std::env::current_dir().map_err(DocsError::from)?;
+        let current_dir = current_repo_root().map_err(DocsError::from)?;
         let max_chars = args.max_chars.min(20000);
 
         let files_to_check = match args.doc_type {

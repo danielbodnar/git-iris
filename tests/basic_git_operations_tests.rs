@@ -140,6 +140,52 @@ async fn test_modified_file() {
 }
 
 #[tokio::test]
+async fn test_staged_diff_and_content_ignore_unstaged_edits() {
+    let (temp_dir, git_repo) = setup_git_repo();
+    let config = MockDataBuilder::config();
+
+    let staged_content = "Staged content\n";
+    let unstaged_content = "Unstaged content\n";
+    let file_path = temp_dir.path().join("initial.txt");
+
+    fs::write(&file_path, staged_content).expect("Failed to write staged content");
+
+    let repo = Repository::open(temp_dir.path()).expect("Failed to open repository");
+    let mut index = repo.index().expect("Failed to get repository index");
+    index
+        .add_path(Path::new("initial.txt"))
+        .expect("Failed to stage file");
+    index.write().expect("Failed to write index");
+
+    fs::write(&file_path, unstaged_content).expect("Failed to write unstaged content");
+
+    let context = git_repo
+        .get_git_info(&config)
+        .expect("Failed to get git info");
+    let staged_file = context
+        .staged_files
+        .iter()
+        .find(|file| file.path == "initial.txt")
+        .expect("Failed to find staged file");
+
+    assert!(
+        staged_file.diff.contains(staged_content),
+        "Expected staged diff to include staged content, got:\n{}",
+        staged_file.diff
+    );
+    assert!(
+        !staged_file.diff.contains(unstaged_content),
+        "Staged diff should not include unstaged content, got:\n{}",
+        staged_file.diff
+    );
+    assert_eq!(
+        staged_file.content.as_deref(),
+        Some(staged_content),
+        "Expected staged content from the index, not the working tree"
+    );
+}
+
+#[tokio::test]
 async fn test_deleted_file() {
     let (temp_dir, git_repo) = setup_git_repo();
     let config = MockDataBuilder::config();

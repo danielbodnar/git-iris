@@ -538,8 +538,7 @@ Guidelines:
                 let sub_agent = build_subagent!(provider::openai_builder(fast_model, api_key)?);
 
                 // Build main agent
-                let builder = provider::openai_builder(&self.model, api_key)?
-                    .preamble(preamble);
+                let builder = provider::openai_builder(&self.model, api_key)?.preamble(preamble);
                 let builder = self.apply_openai_params(builder, 16384);
                 let builder = attach_main_tools!(builder).tool(sub_agent);
                 let agent = maybe_attach_update_tools!(builder);
@@ -550,8 +549,7 @@ Guidelines:
                 let sub_agent = build_subagent!(provider::anthropic_builder(fast_model, api_key)?);
 
                 // Build main agent
-                let builder = provider::anthropic_builder(&self.model, api_key)?
-                    .preamble(preamble);
+                let builder = provider::anthropic_builder(&self.model, api_key)?.preamble(preamble);
                 let builder = self.apply_openai_params(builder, 16384);
                 let builder = attach_main_tools!(builder).tool(sub_agent);
                 let agent = maybe_attach_update_tools!(builder);
@@ -562,8 +560,7 @@ Guidelines:
                 let sub_agent = build_subagent!(provider::gemini_builder(fast_model, api_key)?);
 
                 // Build main agent
-                let builder = provider::gemini_builder(&self.model, api_key)?
-                    .preamble(preamble);
+                let builder = provider::gemini_builder(&self.model, api_key)?.preamble(preamble);
                 let builder = self.apply_openai_params(builder, 16384);
                 let builder = attach_main_tools!(builder).tool(sub_agent);
                 let agent = maybe_attach_update_tools!(builder);
@@ -577,11 +574,7 @@ Guidelines:
     /// Newer `OpenAI` models require `max_completion_tokens` instead of `max_tokens`,
     /// and support `reasoning_effort`. We inject these via `additional_params` since
     /// rig's `AgentBuilder` only serializes the legacy `max_tokens` field.
-    fn apply_openai_params<M>(
-        &self,
-        builder: AgentBuilder<M>,
-        max_tokens: u64,
-    ) -> AgentBuilder<M>
+    fn apply_openai_params<M>(&self, builder: AgentBuilder<M>, max_tokens: u64) -> AgentBuilder<M>
     where
         M: CompletionModel,
     {

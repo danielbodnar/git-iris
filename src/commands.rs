@@ -586,7 +586,12 @@ fn print_configuration(config: &Config) {
         println!();
         print_section_header("INSTRUCTIONS");
         // Truncate long instructions for display
-        let preview: String = config.instructions.lines().take(3).collect::<Vec<_>>().join("\n");
+        let preview: String = config
+            .instructions
+            .lines()
+            .take(3)
+            .collect::<Vec<_>>()
+            .join("\n");
         for line in preview.lines() {
             println!("    {}", line.truecolor(dim.0, dim.1, dim.2).italic());
         }
@@ -602,10 +607,14 @@ fn print_configuration(config: &Config) {
     }
 
     // Show ALL providers — active provider first, then rest alphabetically
-    let mut provider_names: Vec<String> = Provider::ALL.iter().map(|p| p.name().to_string()).collect();
+    let mut provider_names: Vec<String> =
+        Provider::ALL.iter().map(|p| p.name().to_string()).collect();
     provider_names.sort();
     // Move active provider to front
-    if let Some(pos) = provider_names.iter().position(|n| n == &config.default_provider) {
+    if let Some(pos) = provider_names
+        .iter()
+        .position(|n| n == &config.default_provider)
+    {
         let active = provider_names.remove(pos);
         provider_names.insert(0, active);
     }
@@ -660,8 +669,8 @@ fn print_provider_section(config: &Config, provider_name: &str) {
 
     // Context window
     if let Some(p) = provider {
-        let effective_limit = provider_config
-            .map_or_else(|| p.context_window(), |pc| pc.effective_token_limit(p));
+        let effective_limit =
+            provider_config.map_or_else(|| p.context_window(), |pc| pc.effective_token_limit(p));
         let limit_str = format_token_count(effective_limit);
         let is_custom = provider_config.and_then(|pc| pc.token_limit).is_some();
         if is_custom {
@@ -736,9 +745,7 @@ fn mask_api_key(key: &str) -> String {
     // Show the prefix (e.g. "sk-ant-") and last 4 chars
     let prefix_end = key.find('-').map_or(4, |i| {
         // Find the last hyphen in the prefix portion (first 12 chars)
-        key[..12.min(key.len())]
-            .rfind('-')
-            .map_or(i + 1, |j| j + 1)
+        key[..12.min(key.len())].rfind('-').map_or(i + 1, |j| j + 1)
     });
     let prefix = &key[..prefix_end.min(key.len())];
     let suffix = &key[key.len() - 4..];

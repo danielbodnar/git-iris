@@ -5,7 +5,7 @@
 
 // Common utilities shared across tools
 pub mod common;
-pub use common::{get_current_repo, parameters_schema};
+pub use common::{current_repo_root, get_current_repo, parameters_schema, with_active_repo_root};
 
 // Tool registry for consistent attachment
 pub mod registry;
