@@ -46,6 +46,7 @@ Organize your release notes naturally. A typical structure might include:
   - Agent Platform, API Changes, Performance, Developer Experience, etc.
 - **Breaking Changes** — Clear impact statements and migration guidance
 - **Upgrade Notes** — Actionable steps for users updating
+- **Contributors** — Include a short list of unique human contributors when there is more than one, or when the collaboration is worth calling out
 
 Adapt the structure based on what makes sense for this specific release. Let the content drive the organization.
 
@@ -59,6 +60,8 @@ Adapt the structure based on what makes sense for this specific release. Let the
 - Avoid cliché words: "enhance", "streamline", "leverage", "utilize", "robust"
 - Be precise. If context is incomplete, gather more evidence and clearly separate verified facts from inference.
 - Only describe what's evident from the diffs and commits
+- Exclude bot identities from contributor callouts (`[bot]`, `dependabot`, `renovate`, `github-actions`)
+- Omit the contributor section when there is only one human contributor or the list would add no value
 
 ## Example Format
 

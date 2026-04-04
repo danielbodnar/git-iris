@@ -7,7 +7,6 @@ use anyhow::Result;
 use std::sync::Arc;
 
 use crate::git::{CommitResult, GitRepo};
-use crate::gitmoji::process_commit_message;
 use crate::log_debug;
 
 /// Service for performing git commit operations
@@ -23,7 +22,6 @@ use crate::log_debug;
 /// - Message generation (handled by agents)
 pub struct GitCommitService {
     repo: Arc<GitRepo>,
-    use_gitmoji: bool,
     verify: bool,
 }
 
@@ -32,15 +30,12 @@ impl GitCommitService {
     ///
     /// # Arguments
     /// * `repo` - The git repository to operate on
-    /// * `use_gitmoji` - Whether to apply gitmoji to commit messages
+    /// * `_use_gitmoji` - Retained for API compatibility; commit messages are
+    ///   stored exactly as provided
     /// * `verify` - Whether to run pre/post-commit hooks
     #[must_use]
-    pub fn new(repo: Arc<GitRepo>, use_gitmoji: bool, verify: bool) -> Self {
-        Self {
-            repo,
-            use_gitmoji,
-            verify,
-        }
+    pub fn new(repo: Arc<GitRepo>, _use_gitmoji: bool, verify: bool) -> Self {
+        Self { repo, verify }
     }
 
     /// Create from an existing `GitRepo` (convenience constructor)
@@ -82,7 +77,7 @@ impl GitCommitService {
     ///
     /// This method:
     /// 1. Validates the repository is not remote
-    /// 2. Processes the message (applies gitmoji if enabled)
+    /// 2. Uses the exact message provided
     /// 3. Runs pre-commit hook (if verify is enabled)
     /// 4. Creates the commit
     /// 5. Runs post-commit hook (if verify is enabled)
@@ -101,12 +96,11 @@ impl GitCommitService {
             return Err(anyhow::anyhow!("Cannot commit to a remote repository"));
         }
 
-        let processed_message = process_commit_message(message.to_string(), self.use_gitmoji);
-        log_debug!("Performing commit with message: {}", processed_message);
+        log_debug!("Performing commit with message: {}", message);
 
         if !self.verify {
             log_debug!("Skipping pre-commit hook (verify=false)");
-            return self.repo.commit(&processed_message);
+            return self.repo.commit(message);
         }
 
         // Execute pre-commit hook
@@ -118,7 +112,7 @@ impl GitCommitService {
         log_debug!("Pre-commit hook executed successfully");
 
         // Perform the commit
-        match self.repo.commit(&processed_message) {
+        match self.repo.commit(message) {
             Ok(result) => {
                 // Execute post-commit hook (failure doesn't fail the commit)
                 log_debug!("Executing post-commit hook");
@@ -139,7 +133,7 @@ impl GitCommitService {
     ///
     /// This method:
     /// 1. Validates the repository is not remote
-    /// 2. Processes the message (applies gitmoji if enabled)
+    /// 2. Uses the exact message provided
     /// 3. Runs pre-commit hook (if verify is enabled)
     /// 4. Amends the commit (replaces HEAD)
     /// 5. Runs post-commit hook (if verify is enabled)
@@ -160,12 +154,11 @@ impl GitCommitService {
             ));
         }
 
-        let processed_message = process_commit_message(message.to_string(), self.use_gitmoji);
-        log_debug!("Performing amend with message: {}", processed_message);
+        log_debug!("Performing amend with message: {}", message);
 
         if !self.verify {
             log_debug!("Skipping pre-commit hook (verify=false)");
-            return self.repo.amend_commit(&processed_message);
+            return self.repo.amend_commit(message);
         }
 
         // Execute pre-commit hook
@@ -177,7 +170,7 @@ impl GitCommitService {
         log_debug!("Pre-commit hook executed successfully");
 
         // Perform the amend
-        match self.repo.amend_commit(&processed_message) {
+        match self.repo.amend_commit(message) {
             Ok(result) => {
                 // Execute post-commit hook (failure doesn't fail the amend)
                 log_debug!("Executing post-commit hook");

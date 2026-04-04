@@ -700,6 +700,20 @@ impl GitRepo {
         commit::get_commits_for_pr(&repo, from, to)
     }
 
+    /// Get commits between two references with author metadata.
+    pub fn get_commits_in_range(&self, from: &str, to: &str) -> Result<Vec<RecentCommit>> {
+        let repo = self.open_repo()?;
+        let mut commits =
+            commit::get_commits_between_with_callback(
+                &repo,
+                from,
+                to,
+                |commit| Ok(commit.clone()),
+            )?;
+        commits.reverse();
+        Ok(commits)
+    }
+
     /// Get files changed in a commit range  
     pub fn get_commit_range_files(&self, from: &str, to: &str) -> Result<Vec<StagedFile>> {
         let repo = self.open_repo()?;

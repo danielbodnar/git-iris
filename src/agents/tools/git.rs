@@ -6,8 +6,9 @@ use anyhow::Result;
 use rig::completion::ToolDefinition;
 use rig::tool::Tool;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 
-use crate::context::ChangeType;
+use crate::context::{ChangeType, RecentCommit};
 use crate::define_tool_error;
 use crate::git::StagedFile;
 
@@ -500,6 +501,10 @@ pub struct GitLog;
 pub struct GitLogArgs {
     #[serde(default)]
     pub count: Option<usize>,
+    #[serde(default)]
+    pub from: Option<String>,
+    #[serde(default)]
+    pub to: Option<String>,
 }
 
 impl Tool for GitLog {
@@ -519,22 +524,75 @@ impl Tool for GitLog {
     async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
         let repo = get_current_repo().map_err(GitError::from)?;
 
+        if let Some(from) = args.from {
+            let to = args.to.unwrap_or_else(|| "HEAD".to_string());
+            let commits = repo
+                .get_commits_in_range(&from, &to)
+                .map_err(GitError::from)?;
+            return Ok(format_git_log_output(
+                &format!("Commits from {from} to {to}:"),
+                &commits,
+                true,
+            ));
+        }
+
+        if args.to.is_some() {
+            return Err(GitError::from(anyhow::anyhow!(
+                "git_log requires `from` when `to` is provided"
+            )));
+        }
+
         let commits = repo
             .get_recent_commits(args.count.unwrap_or(10))
             .map_err(GitError::from)?;
 
-        let mut output = String::new();
-        output.push_str("Recent commits:\n");
-
-        for commit in commits {
-            output.push_str(&format!(
-                "{}: {} ({})\n",
-                commit.hash, commit.message, commit.author
-            ));
-        }
-
-        Ok(output)
+        Ok(format_git_log_output("Recent commits:", &commits, false))
     }
+}
+
+fn format_git_log_output(
+    header: &str,
+    commits: &[RecentCommit],
+    include_contributors: bool,
+) -> String {
+    let mut output = String::new();
+    output.push_str(header);
+    output.push('\n');
+
+    for commit in commits {
+        let title = commit.message.lines().next().unwrap_or_default().trim();
+        output.push_str(&format!("{}: {} ({})\n", commit.hash, title, commit.author));
+    }
+
+    if include_contributors {
+        let contributors: BTreeSet<String> = commits
+            .iter()
+            .map(|commit| commit.author.trim())
+            .filter(|author| !author.is_empty() && !is_bot_author(author))
+            .map(ToOwned::to_owned)
+            .collect();
+
+        if !contributors.is_empty() {
+            output.push_str("\nContributors (excluding bots):\n");
+            for contributor in contributors {
+                output.push_str(&format!("- {contributor}\n"));
+            }
+        }
+    }
+
+    output
+}
+
+fn is_bot_author(author: &str) -> bool {
+    let normalized = author.trim().to_ascii_lowercase();
+
+    normalized.contains("[bot]")
+        || normalized.contains("dependabot")
+        || normalized.contains("renovate")
+        || normalized.contains("github-actions")
+        || normalized.ends_with(" bot")
+        || normalized.ends_with("-bot")
+        || normalized == "bot"
 }
 
 // Git repository info tool

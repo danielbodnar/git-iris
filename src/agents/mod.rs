@@ -4,6 +4,7 @@
 //! including setup, core types, and execution management.
 
 // Core agent components
+mod commit_style;
 pub mod context;
 pub mod core;
 pub mod iris;
