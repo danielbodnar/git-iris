@@ -31,11 +31,7 @@ fn pick_fast_provider() -> Option<(&'static str, &'static str)> {
     }
 }
 
-fn build_service(
-    repo_path: &std::path::Path,
-    provider: &str,
-    model: &str,
-) -> IrisAgentService {
+fn build_service(repo_path: &std::path::Path, provider: &str, model: &str) -> IrisAgentService {
     let common = CommonParams {
         provider: Some(provider.to_string()),
         model: Some(model.to_string()),
@@ -44,12 +40,9 @@ fn build_service(
 
     let git_repo = GitRepo::new(repo_path).expect("git repo");
     let mut config = git_iris::config::Config::load().unwrap_or_default();
-    common
-        .apply_to_config(&mut config)
-        .expect("apply params");
+    common.apply_to_config(&mut config).expect("apply params");
 
-    let backend =
-        git_iris::agents::core::AgentBackend::from_config(&config).expect("backend");
+    let backend = git_iris::agents::core::AgentBackend::from_config(&config).expect("backend");
 
     let mut service = IrisAgentService::new(
         config,
@@ -87,10 +80,7 @@ async fn gitmoji_history_produces_emoji_commit() {
     .enumerate()
     {
         helper
-            .create_and_stage_file(
-                &format!("file_{i}.txt"),
-                &format!("content {i}"),
-            )
+            .create_and_stage_file(&format!("file_{i}.txt"), &format!("content {i}"))
             .unwrap();
         helper.commit(msg).unwrap();
     }
@@ -148,10 +138,7 @@ async fn conventional_history_produces_no_emoji_commit() {
     .enumerate()
     {
         helper
-            .create_and_stage_file(
-                &format!("file_{i}.txt"),
-                &format!("content {i}"),
-            )
+            .create_and_stage_file(&format!("file_{i}.txt"), &format!("content {i}"))
             .unwrap();
         helper.commit(msg).unwrap();
     }
@@ -184,7 +171,13 @@ async fn conventional_history_produces_no_emoji_commit() {
     );
 
     let has_type_prefix = msg.title.contains(':')
-        && msg.title.split(':').next().unwrap().chars().all(|c| c.is_ascii_lowercase() || c == '(' || c == ')' || c == '-');
+        && msg
+            .title
+            .split(':')
+            .next()
+            .unwrap()
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c == '(' || c == ')' || c == '-');
     assert!(
         has_type_prefix,
         "conventional repo should produce a type-prefix title, got: {:?}",
@@ -218,10 +211,7 @@ async fn mixed_history_with_gitmoji_produces_emoji_commit() {
     .enumerate()
     {
         helper
-            .create_and_stage_file(
-                &format!("file_{i}.txt"),
-                &format!("content {i}"),
-            )
+            .create_and_stage_file(&format!("file_{i}.txt"), &format!("content {i}"))
             .unwrap();
         helper.commit(msg).unwrap();
     }

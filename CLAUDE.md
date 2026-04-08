@@ -295,27 +295,43 @@ println!("Commit: {}", hash.truecolor(255, 106, 193));
 
 ## Development Commands
 
+All common tasks are available via [just](https://github.com/casey/just). Run `just` to see all recipes.
+
 ```bash
 # Build
-cargo build
-cargo build --release
+just build                   # Debug build
+just build-release           # Release build
+
+# Quality
+just check                   # Lint + test (full gate)
+just lint                    # Format check + clippy
+just clippy-pedantic         # Clippy with pedantic warnings
+just fix                     # Auto-fix clippy + formatting
+just fmt                     # Format code
 
 # Test
-cargo test
-cargo test -- --nocapture    # With output
+just test                    # Run all tests
+just test-verbose            # Tests with output
+just test-one <name>         # Run a specific test
 
-# Lint
-cargo clippy
-cargo clippy -- -W clippy::pedantic
+# Run
+just run -- gen --debug      # Color-coded agent execution
+just studio                  # Launch Studio TUI
+just gen-debug               # Generate commit with debug output
+just run-debug -- gen        # Verbose RUST_LOG=debug logging
 
-# Run with debug
-cargo run -- gen --debug     # Color-coded agent execution
-cargo run -- studio          # Launch Studio TUI
-RUST_LOG=debug cargo run -- gen  # Verbose logging
+# Docs
+just docs-dev                # Start VitePress dev server
+just docs-build              # Build VitePress site
+just docs-fmt                # Format docs markdown
 
-# Format
-cargo fmt
+# Docker / Release
+just docker-build            # Build Docker image
+just aur-update <version>    # Update AUR package
+just brew-update             # Update Homebrew formula
 ```
+
+Raw cargo commands still work if you prefer them.
 
 ## Testing Conventions
 

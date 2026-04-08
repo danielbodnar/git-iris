@@ -15,10 +15,8 @@ git checkout -b feature/my-extension
 # Make your changes
 # ...
 
-# Test your changes
-cargo test
-cargo clippy
-cargo fmt
+# Test your changes (requires just: https://github.com/casey/just)
+just check                   # Runs lint + test
 
 # Commit and push
 git add .
@@ -33,6 +31,7 @@ git push origin feature/my-extension
 ### Prerequisites
 
 - **Rust**: 1.75 or later (`rustup update`)
+- **just**: Task runner ([install](https://github.com/casey/just#installation))
 - **Git**: 2.30 or later
 - **LLM Provider**: At least one API key (OpenAI, Anthropic, or Google)
 
@@ -46,8 +45,11 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 git clone https://github.com/YOUR_USERNAME/git-iris.git
 cd git-iris
 
+# See all available tasks
+just
+
 # Build
-cargo build
+just build
 
 # Set up API key for testing
 export ANTHROPIC_API_KEY=sk-ant-...
@@ -55,11 +57,11 @@ export ANTHROPIC_API_KEY=sk-ant-...
 export OPENAI_API_KEY=sk-...
 
 # Run tests
-cargo test
+just test
 
 # Try it out
-cargo run -- gen
-cargo run -- studio
+just run -- gen
+just studio
 ```
 
 ### Development Workflow
@@ -71,13 +73,12 @@ git pull upstream main
 git checkout -b feature/my-feature
 
 # Make changes, test frequently
-cargo build
-cargo test
-cargo run -- gen --debug
+just build
+just test
+just run -- gen --debug
 
 # Check code quality
-cargo clippy
-cargo fmt
+just lint
 
 # Commit with descriptive messages
 git add .
@@ -97,13 +98,13 @@ Follow standard Rust conventions:
 
 ```bash
 # Format code
-cargo fmt
+just fmt
 
-# Lint code
-cargo clippy
+# Lint (format check + clippy)
+just lint
 
-# Fix common issues
-cargo clippy --fix
+# Auto-fix clippy + formatting
+just fix
 ```
 
 ### Code Organization
@@ -363,13 +364,10 @@ mod integration_tests {
 
 Before submitting PR:
 
-- [ ] Build succeeds: `cargo build`
-- [ ] Tests pass: `cargo test`
-- [ ] Clippy passes: `cargo clippy`
-- [ ] Format applied: `cargo fmt`
-- [ ] Feature works in CLI: `cargo run -- gen`
-- [ ] Feature works in Studio: `cargo run -- studio`
-- [ ] Debug mode works: `cargo run -- gen --debug`
+- [ ] All checks pass: `just check` (runs lint + test)
+- [ ] Feature works in CLI: `just run -- gen`
+- [ ] Feature works in Studio: `just studio`
+- [ ] Debug mode works: `just gen-debug`
 
 ## Pull Request Process
 
@@ -382,11 +380,10 @@ Before submitting PR:
    git rebase upstream/main
    ```
 
-2. **Ensure tests pass:**
+2. **Ensure checks pass:**
 
    ```bash
-   cargo test
-   cargo clippy
+   just check
    ```
 
 3. **Clean commit history:**
@@ -576,8 +573,8 @@ pub struct DependencyAnalyzer;
 
 ```bash
 # Clean and rebuild
-cargo clean
-cargo build
+just clean
+just build
 
 # Update dependencies
 cargo update
@@ -587,10 +584,10 @@ cargo update
 
 ```bash
 # Run specific test
-cargo test test_name
+just test-one test_name
 
-# Run with output
-cargo test -- --nocapture
+# Run all tests with output
+just test-verbose
 
 # Run with logging
 RUST_LOG=debug cargo test
@@ -600,10 +597,10 @@ RUST_LOG=debug cargo test
 
 ```bash
 # Auto-fix where possible
-cargo clippy --fix
+just fix
 
-# See all warnings
-cargo clippy -- -W clippy::pedantic
+# See all warnings including pedantic
+just clippy-pedantic
 ```
 
 ## Getting Help
