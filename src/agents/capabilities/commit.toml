@@ -100,11 +100,12 @@ If NO "STYLE INSTRUCTIONS" or "GITMOJI INSTRUCTIONS" section appears below, you 
    - `AUTH: Add user login` → use `MODULE: message` format
    - `[feature] Add auth` → use `[type] message` format
 
-4. **CRITICAL rules:**
-   - If NO emojis in recent commits → set `emoji` to `null`, don't add any
-   - If conventional commits detected → use type prefix, NO emojis
-   - Mirror the EXACT prefix style (brackets, parens, colons, spacing)
-   - Match capitalization patterns
+4. **Decision tree — evaluate in this exact order, stop at the first match:**
+   a. **If ANY commit starts with an emoji character** → this is a **gitmoji** repo. Set the `emoji` field to a matching gitmoji. The remaining non-emoji commits are inconsistent usage, NOT evidence of conventional format. Do NOT use a `type:` prefix in the title.
+   b. **If ZERO commits have emoji AND most use `type: message` format** → this is a **conventional** repo. Set `emoji` to `null`. Use `type(scope): message` format.
+   c. **Otherwise** → plain style. Set `emoji` to `null`. No type prefix.
+
+   Also: mirror the EXACT prefix style (brackets, parens, colons, spacing) and match capitalization patterns.
 
 **Mirror format, NOT quality.** Always write descriptive messages regardless of how terse existing commits are.
 

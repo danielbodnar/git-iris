@@ -560,6 +560,11 @@ impl IrisAgentService {
         &mut self.config
     }
 
+    /// Attach a git repository to this service
+    pub fn set_git_repo(&mut self, repo: GitRepo) {
+        self.git_repo = Some(Arc::new(repo));
+    }
+
     /// Get the git repository if available
     #[must_use]
     pub fn git_repo(&self) -> Option<&Arc<GitRepo>> {

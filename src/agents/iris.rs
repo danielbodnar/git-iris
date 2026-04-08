@@ -13,8 +13,6 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
 
-use crate::agents::commit_style::{ConventionalCommitStyle, detect_conventional_commit_style};
-
 /// Macro to build a streaming agent for any provider.
 ///
 /// All three providers (`OpenAI`, `Anthropic`, `Gemini`) share identical setup logic —
@@ -815,11 +813,10 @@ Guidelines:
         }
 
         // Handle commit-specific styling (structured JSON output with emoji field)
+        // Default mode (use_style_detection): no style injection here — the agent
+        // detects format from git_log via commit.toml §Local Style Detection.
         if capability == "commit" {
-            if use_style_detection {
-                tracing::info!("🔍 Running local commit style detection (default mode)");
-                Self::inject_detected_commit_style(system_prompt);
-            } else if commit_emoji {
+            if commit_emoji {
                 system_prompt.push_str("\n\n=== GITMOJI INSTRUCTIONS ===\n");
                 system_prompt.push_str("Set the 'emoji' field to a single relevant gitmoji. ");
                 system_prompt.push_str(
@@ -857,41 +854,6 @@ Guidelines:
         } else if capability == "changelog" {
             Self::inject_no_emoji_styling(system_prompt);
         }
-    }
-
-    fn inject_detected_commit_style(prompt: &mut String) {
-        let Some(style) = Self::detect_local_conventional_commit_style() else {
-            tracing::info!("🔍 No high-confidence conventional commit pattern detected locally");
-            return;
-        };
-
-        tracing::info!("📋 Detected conventional commit history locally");
-        prompt.push_str("\n\n=== STYLE INSTRUCTIONS ===\n");
-        prompt.push_str(
-            "Detected repository commit format from recent history: Conventional Commits without emojis.\n",
-        );
-        prompt.push_str(
-            "Use `<type>[optional scope]: <description>` with a lowercase type, optional scope, and imperative description. ",
-        );
-        prompt.push_str(
-            "Set the `emoji` field to null and do not include emojis anywhere in the title or body.\n",
-        );
-
-        if !style.examples().is_empty() {
-            prompt.push_str("Observed examples:\n");
-            for example in style.examples() {
-                prompt.push_str("- `");
-                prompt.push_str(example);
-                prompt.push_str("`\n");
-            }
-        }
-    }
-
-    fn detect_local_conventional_commit_style() -> Option<ConventionalCommitStyle> {
-        let current_dir = std::env::current_dir().ok()?;
-        let repo = crate::git::GitRepo::new(&current_dir).ok()?;
-        let commits = repo.get_recent_commits(12).ok()?;
-        detect_conventional_commit_style(&commits)
     }
 
     fn inject_pr_review_emoji_styling(prompt: &mut String) {
