@@ -4,9 +4,9 @@ Git-Iris uses a dual-model strategy: **primary models** for complex analysis and
 
 ## Model Strategy
 
-| Model Type  | Used For                                       | Examples                                    |
-| ----------- | ---------------------------------------------- | ------------------------------------------- |
-| **Primary** | Commit messages, code reviews, PR descriptions | `claude-opus-4-6`, `gpt-5.4`, `gemini-3-pro-preview` |
+| Model Type  | Used For                                       | Examples                                                        |
+| ----------- | ---------------------------------------------- | --------------------------------------------------------------- |
+| **Primary** | Commit messages, code reviews, PR descriptions | `claude-opus-4-6`, `gpt-5.4`, `gemini-3-pro-preview`            |
 | **Fast**    | Status updates, parsing, simple queries        | `claude-haiku-4-5-20251001`, `gpt-5.4-mini`, `gemini-2.5-flash` |
 
 This dual-model approach optimizes for both quality and speed.
@@ -43,10 +43,10 @@ model = "claude-opus-4-6"
 fast_model = "claude-haiku-4-5-20251001"
 ```
 
-| Model                        | Use Case | Context | Notes                       |
-| ---------------------------- | -------- | ------- | --------------------------- |
-| `claude-opus-4-6`            | Primary  | 200K    | Excellent for code analysis |
-| `claude-haiku-4-5-20251001`  | Fast     | 200K    | Fastest response times      |
+| Model                       | Use Case | Context | Notes                       |
+| --------------------------- | -------- | ------- | --------------------------- |
+| `claude-opus-4-6`           | Primary  | 200K    | Excellent for code analysis |
+| `claude-haiku-4-5-20251001` | Fast     | 200K    | Fastest response times      |
 
 ### Google
 
@@ -103,12 +103,12 @@ fast_model = "claude-haiku-4-5-20251001"
 
 ### Choose Primary Model Based On
 
-| Priority    | Consideration                | Recommendation           |
-| ----------- | ---------------------------- | ------------------------ |
-| **Quality** | Need best analysis           | Claude Opus 4.6          |
-| **Context** | Large changesets (>50 files) | Gemini 3 Pro (1M tokens) |
+| Priority    | Consideration                | Recommendation                   |
+| ----------- | ---------------------------- | -------------------------------- |
+| **Quality** | Need best analysis           | Claude Opus 4.6                  |
+| **Context** | Large changesets (>50 files) | Gemini 3 Pro (1M tokens)         |
 | **Speed**   | Fast turnaround              | GPT-5.4-mini or Gemini 2.5 Flash |
-| **Cost**    | Budget constraints           | Use fast models more     |
+| **Cost**    | Budget constraints           | Use fast models more             |
 
 ### Optimize Fast Model For
 
@@ -226,11 +226,11 @@ fast_model = "claude-haiku-4-5-20251001"  # Speed for status
 
 ## Model Comparison Table
 
-| Model             | Provider  | Context | Speed  | Quality   | Cost   |
-| ----------------- | --------- | ------- | ------ | --------- | ------ |
-| claude-opus-4-6   | Anthropic | 200K    | Medium | Excellent | Medium |
-| claude-haiku-4-5  | Anthropic | 200K    | Fast   | Good      | Low    |
-| gpt-5.4           | OpenAI    | 128K    | Medium | Excellent | Medium |
-| gpt-5.4-mini      | OpenAI    | 128K    | Fast   | Good      | Low    |
-| gemini-3-pro-preview | Google | 1M      | Slow   | Excellent | High   |
-| gemini-2.5-flash  | Google    | 1M      | Fast   | Good      | Low    |
+| Model                | Provider  | Context | Speed  | Quality   | Cost   |
+| -------------------- | --------- | ------- | ------ | --------- | ------ |
+| claude-opus-4-6      | Anthropic | 200K    | Medium | Excellent | Medium |
+| claude-haiku-4-5     | Anthropic | 200K    | Fast   | Good      | Low    |
+| gpt-5.4              | OpenAI    | 128K    | Medium | Excellent | Medium |
+| gpt-5.4-mini         | OpenAI    | 128K    | Fast   | Good      | Low    |
+| gemini-3-pro-preview | Google    | 1M      | Slow   | Excellent | High   |
+| gemini-2.5-flash     | Google    | 1M      | Fast   | Good      | Low    |

@@ -102,13 +102,12 @@ Once saved, your theme is automatically available:
 
 ```bash
 # List themes (yours will appear)
-git-iris theme list
-
-# Activate your theme
-git-iris theme set my-theme
+git-iris themes
 
 # Preview in Studio
 git-iris studio --theme my-theme
+
+# Set persistently in config.toml: theme = "my-theme"
 ```
 
 ## Complete Theme Template
@@ -423,7 +422,7 @@ Git-Iris validates themes at load time:
 
 ```bash
 # If invalid, you'll see helpful errors
-git-iris theme set my-broken-theme
+git-iris studio --theme my-broken-theme
 
 # Error: Theme validation failed
 #   Missing required token: "accent.primary"
@@ -555,7 +554,7 @@ ls ~/.config/git-iris/themes/
 mv my-theme.txt my-theme.toml
 
 # Check for TOML syntax errors
-git-iris theme set my-theme
+git-iris studio --theme my-theme
 ```
 
 ### Colors Look Wrong

@@ -32,7 +32,7 @@ Iris doesn't use templates. She **explores** your codebase:
 
 - 🔭 **Explore** — Navigate code with AI-powered semantic blame
 - 💫 **Commit** — Generate and refine commit messages
-- 🔬 **Review** — Get comprehensive code reviews
+- 🔬 **Review** — Get multi-dimensional code reviews
 - 📜 **PR** — Create pull request descriptions
 - 🗂️ **Changelog** — Generate structured changelogs
 - 🎊 **Release Notes** — Document releases with style
@@ -43,11 +43,11 @@ Press `/` in any mode to chat with Iris. Ask her to refine content, explain chan
 
 Work with your preferred LLM:
 
-| Provider      | Default Model              | Context Window |
-| ------------- | -------------------------- | -------------- |
-| **OpenAI**    | gpt-5.4                    | 128K tokens    |
-| **Anthropic** | claude-opus-4-6            | 200K tokens    |
-| **Google**    | gemini-3-pro-preview       | 1M tokens      |
+| Provider      | Default Model        | Context Window |
+| ------------- | -------------------- | -------------- |
+| **OpenAI**    | gpt-5.4              | 128K tokens    |
+| **Anthropic** | claude-opus-4-6      | 200K tokens    |
+| **Google**    | gemini-3-pro-preview | 1M tokens      |
 
 Switch providers instantly—configuration is shared across your system.
 

@@ -228,6 +228,7 @@ This release introduces **Iris Studio**, a stunning terminal interface for AI-po
 - Deletions: -16,771
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
@@ -393,7 +394,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- -------------------------------------------------------------- -->
 
-## [0.7.0] - 
+## [0.7.0] -
 
 ### 🗑️ Removed
 

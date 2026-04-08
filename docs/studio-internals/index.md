@@ -45,15 +45,15 @@ flowchart TB
 
 ### Key Components
 
-| Component      | Location         | Purpose                                             |
-| -------------- | ---------------- | --------------------------------------------------- |
-| **State**      | `state/mod.rs`   | Single source of truth for all UI state             |
-| **Events**     | `events.rs`      | 30+ event variants for all state transitions        |
-| **Reducer**    | `reducer/mod.rs` | Central event reducer for cross-mode state changes  |
-| **Handlers**   | `handlers/`      | Map user input to events                            |
-| **Components** | `components/`    | Reusable UI widgets with local state                |
-| **History**    | `history.rs`     | Complete audit trail, session persistence           |
-| **App**        | `app/mod.rs`     | Event loop, rendering, effect execution             |
+| Component      | Location         | Purpose                                            |
+| -------------- | ---------------- | -------------------------------------------------- |
+| **State**      | `state/mod.rs`   | Single source of truth for all UI state            |
+| **Events**     | `events.rs`      | 30+ event variants for all state transitions       |
+| **Reducer**    | `reducer/mod.rs` | Central event reducer for cross-mode state changes |
+| **Handlers**   | `handlers/`      | Map user input to events                           |
+| **Components** | `components/`    | Reusable UI widgets with local state               |
+| **History**    | `history.rs`     | Complete audit trail, session persistence          |
+| **App**        | `app/mod.rs`     | Event loop, rendering, effect execution            |
 
 ## Why This Architecture?
 

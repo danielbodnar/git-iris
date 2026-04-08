@@ -23,10 +23,23 @@ export default defineConfig({
     },
 
     nav: [
-      { text: 'Guide', link: '/getting-started/' },
+      {
+        text: 'Guide',
+        items: [
+          { text: 'Getting Started', link: '/getting-started/' },
+          { text: 'User Guide', link: '/user-guide/' },
+          { text: 'Configuration', link: '/configuration/' },
+        ]
+      },
       { text: 'Studio', link: '/studio/' },
       { text: 'Themes', link: '/themes/' },
-      { text: 'Architecture', link: '/architecture/' },
+      {
+        text: 'Architecture',
+        items: [
+          { text: 'Overview', link: '/architecture/' },
+          { text: 'Studio Internals', link: '/studio-internals/' },
+        ]
+      },
       { text: 'Extending', link: '/extending/' },
       {
         text: 'Reference',

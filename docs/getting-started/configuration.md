@@ -54,11 +54,11 @@ This displays your active provider, model, presets, and all configured providers
 
 Git-Iris supports three LLM providers with different strengths:
 
-| Provider      | Default Model              | Fast Model                | Context Window | Best For                          |
-| ------------- | -------------------------- | ------------------------- | -------------- | --------------------------------- |
-| **openai**    | gpt-5.4                    | gpt-5.4-mini              | 128K           | General purpose, fast             |
-| **anthropic** | claude-opus-4-6            | claude-haiku-4-5-20251001 | 200K           | Deep analysis, code understanding |
-| **google**    | gemini-3-pro-preview       | gemini-2.5-flash          | 1M             | Massive context windows           |
+| Provider      | Default Model        | Fast Model                | Context Window | Best For                          |
+| ------------- | -------------------- | ------------------------- | -------------- | --------------------------------- |
+| **openai**    | gpt-5.4              | gpt-5.4-mini              | 128K           | General purpose, fast             |
+| **anthropic** | claude-opus-4-6      | claude-haiku-4-5-20251001 | 200K           | Deep analysis, code understanding |
+| **google**    | gemini-3-pro-preview | gemini-2.5-flash          | 1M             | Massive context windows           |
 
 **Fast models** are used for simple tasks like status updates and parsing. The primary model handles complex analysis.
 
@@ -331,8 +331,8 @@ You can edit this manually if you prefer, but the `git-iris config` command is s
 
 With configuration complete, explore Git-Iris features:
 
-- **[User Guide: Commits](/user-guide/commits.md)** — Master AI-generated commit messages
-- **[User Guide: Reviews](/user-guide/reviews.md)** — Get comprehensive code reviews
+- **[User Guide: Commits](/user-guide/commits)** — Master AI-generated commit messages
+- **[User Guide: Reviews](/user-guide/reviews)** — Get detailed code reviews
 - **[Iris Studio](/studio/)** — Learn all six Studio modes
 
 Press `Shift+S` in Studio to adjust settings without leaving the interface.

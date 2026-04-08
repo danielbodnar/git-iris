@@ -1,6 +1,6 @@
 # Pull Request Descriptions
 
-Iris generates comprehensive PR descriptions by analyzing commit ranges, branch differences, or individual commits as atomic units. She creates professional descriptions with summaries, detailed explanations, and testing notes.
+Iris generates PR descriptions by analyzing commit ranges, branch differences, or individual commits as atomic units. She creates professional descriptions with summaries, detailed explanations, and testing notes.
 
 ## Quick Example
 

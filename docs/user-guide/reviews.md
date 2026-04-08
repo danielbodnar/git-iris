@@ -1,6 +1,6 @@
 # Code Reviews
 
-Iris performs comprehensive multi-dimensional code analysis across 10+ dimensions including complexity, security, performance, maintainability, and more.
+Iris performs multi-dimensional code analysis across 10+ dimensions including complexity, security, performance, maintainability, and more.
 
 ## Quick Example
 

@@ -428,7 +428,7 @@ Iris: Updated:
       - Quick toggle keybinding
 
       After:
-      - Comprehensive emoji selection system with modal UI,
+      - Full emoji selection system with modal UI,
         three-state mode (None/Auto/Custom), and keyboard shortcuts
 ```
 

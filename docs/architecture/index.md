@@ -223,11 +223,11 @@ Each subagent:
 
 Git-Iris supports multiple LLM providers through Rig's unified interface:
 
-| Provider  | Default Model                | Fast Model                  |
-| --------- | ---------------------------- | --------------------------- |
-| OpenAI    | `gpt-5.4`                    | `gpt-5.4-mini`              |
-| Anthropic | `claude-opus-4-6`            | `claude-haiku-4-5-20251001` |
-| Google    | `gemini-3-pro-preview`       | `gemini-2.5-flash`          |
+| Provider  | Default Model          | Fast Model                  |
+| --------- | ---------------------- | --------------------------- |
+| OpenAI    | `gpt-5.4`              | `gpt-5.4-mini`              |
+| Anthropic | `claude-opus-4-6`      | `claude-haiku-4-5-20251001` |
+| Google    | `gemini-3-pro-preview` | `gemini-2.5-flash`          |
 
 Provider switching is transparent — the same capabilities and tools work across all backends.
 
@@ -236,7 +236,7 @@ Provider switching is transparent — the same capabilities and tools work acros
 ### Why Rig?
 
 - **Agent-as-tool composition** — Subagents are just tools from the main agent's perspective
-- **Provider abstraction** — Swap between OpenAI/Anthropic/Google seamlessly
+- **Provider abstraction** — Swap between OpenAI/Anthropic/Google without configuration changes
 - **Tool system** — Clean trait-based tools with automatic schema generation
 - **Multi-turn support** — Built-in agentic loops with tool calling
 

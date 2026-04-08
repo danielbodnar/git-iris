@@ -100,7 +100,7 @@ Press `g` in Commit mode to explore.
 
 ### ⚡ Faster Navigation
 
-Keyboard shortcuts have been streamlined across all modes. Switch
+Keyboard shortcuts are consistent across all modes. Switch
 between panels with Tab, jump to files with Enter, and navigate
 code with vim-like hjkl keys.
 

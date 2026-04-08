@@ -4,11 +4,11 @@ Git-Iris supports three LLM providers: OpenAI, Anthropic, and Google.
 
 ## Provider Overview
 
-| Provider      | Default Model                | Fast Model                  | Context Window | API Key Env         |
-| ------------- | ---------------------------- | --------------------------- | -------------- | ------------------- |
-| **OpenAI**    | `gpt-5.4`                    | `gpt-5.4-mini`              | 128K           | `OPENAI_API_KEY`    |
-| **Anthropic** | `claude-opus-4-6`            | `claude-haiku-4-5-20251001` | 200K           | `ANTHROPIC_API_KEY` |
-| **Google**    | `gemini-3-pro-preview`       | `gemini-2.5-flash`          | 1M             | `GOOGLE_API_KEY`    |
+| Provider      | Default Model          | Fast Model                  | Context Window | API Key Env         |
+| ------------- | ---------------------- | --------------------------- | -------------- | ------------------- |
+| **OpenAI**    | `gpt-5.4`              | `gpt-5.4-mini`              | 128K           | `OPENAI_API_KEY`    |
+| **Anthropic** | `claude-opus-4-6`      | `claude-haiku-4-5-20251001` | 200K           | `ANTHROPIC_API_KEY` |
+| **Google**    | `gemini-3-pro-preview` | `gemini-2.5-flash`          | 1M             | `GOOGLE_API_KEY`    |
 
 ## Configuration Format
 

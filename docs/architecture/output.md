@@ -1,6 +1,6 @@
 # Structured Output & Validation
 
-Git-Iris enforces structured output from LLMs using JSON schemas and robust validation. This ensures predictable, parseable responses even when LLMs produce malformed or verbose output.
+Git-Iris enforces structured output from LLMs using JSON schemas and strict validation. This ensures predictable, parseable responses even when LLMs produce malformed or verbose output.
 
 **Source:** `src/agents/output_validator.rs`, `src/agents/iris.rs`
 

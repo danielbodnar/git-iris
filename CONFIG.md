@@ -1,6 +1,6 @@
 # 🔧 Git-Iris Configuration Guide
 
-> **📚 For comprehensive configuration guides, examples, and advanced topics, see the [full documentation](/docs/configuration/).**
+> **📚 For detailed configuration guides, examples, and advanced topics, see the [full documentation](/docs/configuration/).**
 
 Git-Iris uses a TOML configuration file located at `~/.config/git-iris/config.toml`. This document provides a quick reference for all available configuration options.
 
@@ -16,11 +16,11 @@ The configuration file is organized into these main sections:
 
 ### Global Settings
 
-| Option                | Type    | Default     | Description                                     |
-| --------------------- | ------- | ----------- | ----------------------------------------------- |
-| `use_gitmoji`         | Boolean | `false`     | Enable Gitmoji in commit messages               |
-| `instructions`        | String  | `""`        | Custom instructions included in all LLM prompts |
-| `instruction_preset`  | String  | `"default"` | Default preset for AI instructions              |
+| Option               | Type    | Default     | Description                                     |
+| -------------------- | ------- | ----------- | ----------------------------------------------- |
+| `use_gitmoji`        | Boolean | `false`     | Enable Gitmoji in commit messages               |
+| `instructions`       | String  | `""`        | Custom instructions included in all LLM prompts |
+| `instruction_preset` | String  | `"default"` | Default preset for AI instructions              |
 
 **Examples:**
 
@@ -49,23 +49,23 @@ default_provider = "openai"
 
 Each provider has its own subtable under `[providers]` with these fields:
 
-| Field                | Type    | Required | Description                                           |
-| -------------------- | ------- | -------- | ----------------------------------------------------- |
-| `api_key`            | String  | Yes      | The provider's API key                                |
-| `model`              | String  | No       | Primary model for complex analysis tasks              |
-| `fast_model`         | String  | No       | Fast model for simple tasks (status updates, parsing) |
-| `additional_params`  | Table   | No       | Additional provider-specific parameters               |
-| `token_limit`        | Integer | No       | Token limit override                                  |
+| Field               | Type    | Required | Description                                           |
+| ------------------- | ------- | -------- | ----------------------------------------------------- |
+| `api_key`           | String  | Yes      | The provider's API key                                |
+| `model`             | String  | No       | Primary model for complex analysis tasks              |
+| `fast_model`        | String  | No       | Fast model for simple tasks (status updates, parsing) |
+| `additional_params` | Table   | No       | Additional provider-specific parameters               |
+| `token_limit`       | Integer | No       | Token limit override                                  |
 
 ## 🤖 Supported Providers
 
 Git-Iris supports three LLM providers:
 
-| Provider      | Default Model              | Fast Model                | Context Window | API Key Env         |
-| ------------- | -------------------------- | ------------------------- | -------------- | ------------------- |
-| **openai**    | gpt-5.4                    | gpt-5.4-mini              | 128,000        | `OPENAI_API_KEY`    |
-| **anthropic** | claude-opus-4-6            | claude-haiku-4-5-20251001 | 200,000        | `ANTHROPIC_API_KEY` |
-| **google**    | gemini-3-pro-preview       | gemini-2.5-flash          | 1,000,000      | `GOOGLE_API_KEY`    |
+| Provider      | Default Model        | Fast Model                | Context Window | API Key Env         |
+| ------------- | -------------------- | ------------------------- | -------------- | ------------------- |
+| **openai**    | gpt-5.4              | gpt-5.4-mini              | 128,000        | `OPENAI_API_KEY`    |
+| **anthropic** | claude-opus-4-6      | claude-haiku-4-5-20251001 | 200,000        | `ANTHROPIC_API_KEY` |
+| **google**    | gemini-3-pro-preview | gemini-2.5-flash          | 1,000,000      | `GOOGLE_API_KEY`    |
 
 > **Note:** `claude` and `gemini` are still supported as legacy aliases for `anthropic` and `google`.
 
@@ -153,18 +153,18 @@ git-iris project-config --preset security
 git-iris project-config --print
 ```
 
-> **Security:** Project configuration files do not store API keys—only models, presets, and custom instructions.
+> **Security:** Project configuration files do not store API keys, only models, presets, and custom instructions.
 
 ## 🔧 Environment Variables
 
 You can also configure Git-Iris using environment variables:
 
-| Variable            | Description                      |
-| ------------------- | -------------------------------- |
-| `OPENAI_API_KEY`    | OpenAI API key                   |
-| `ANTHROPIC_API_KEY` | Anthropic API key                |
-| `GOOGLE_API_KEY`    | Google API key                   |
-| `RUST_LOG`          | Logging level for debugging      |
+| Variable            | Description                 |
+| ------------------- | --------------------------- |
+| `OPENAI_API_KEY`    | OpenAI API key              |
+| `ANTHROPIC_API_KEY` | Anthropic API key           |
+| `GOOGLE_API_KEY`    | Google API key              |
+| `RUST_LOG`          | Logging level for debugging |
 
 **Example (Docker/CI):**
 

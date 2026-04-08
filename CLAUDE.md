@@ -1,6 +1,7 @@
 # Git-Iris Developer Guide
 
 > **Note:** This is a quick-reference guide for AI assistants. For comprehensive documentation, see:
+>
 > - **[Architecture Documentation](/docs/architecture/)** — System design, patterns, and data flow
 > - **[Theme System Documentation](/docs/themes/)** — SilkCircuit design language and theming
 > - **[Studio Internals](/docs/studio-internals/)** — Deep dive into TUI implementation
@@ -190,20 +191,20 @@ Each capability is defined in `src/agents/capabilities/*.toml`:
 
 ### Tools Available to Iris
 
-| Tool                         | Purpose                                   |
-| ---------------------------- | ----------------------------------------- |
-| `git_diff(detail, from, to)` | Get changes with relevance scores         |
-| `git_log(count)`             | Recent commit history for style reference |
-| `git_status()`               | Repository status                         |
-| `git_changed_files()`        | List of changed files                     |
-| `file_read(path, start, end)` | Read targeted file content and excerpts  |
-| `code_search()`              | Search for patterns, functions, classes   |
-| `workspace()`                | Iris's notes and task tracking            |
-| `project_docs(doc_type)`     | Read README, AGENTS.md, CLAUDE.md         |
-| `parallel_analyze()`         | Concurrent subagent processing            |
-| `update_commit()`            | Chat: update commit message               |
-| `update_pr()`                | Chat: update PR description               |
-| `update_review()`            | Chat: update review                       |
+| Tool                          | Purpose                                   |
+| ----------------------------- | ----------------------------------------- |
+| `git_diff(detail, from, to)`  | Get changes with relevance scores         |
+| `git_log(count)`              | Recent commit history for style reference |
+| `git_status()`                | Repository status                         |
+| `git_changed_files()`         | List of changed files                     |
+| `file_read(path, start, end)` | Read targeted file content and excerpts   |
+| `code_search()`               | Search for patterns, functions, classes   |
+| `workspace()`                 | Iris's notes and task tracking            |
+| `project_docs(doc_type)`      | Read README, AGENTS.md, CLAUDE.md         |
+| `parallel_analyze()`          | Concurrent subagent processing            |
+| `update_commit()`             | Chat: update commit message               |
+| `update_pr()`                 | Chat: update PR description               |
+| `update_review()`             | Chat: update review                       |
 
 ### Context Strategy
 
@@ -387,11 +388,11 @@ git-iris config --provider anthropic --model claude-opus-4-6
 
 ### Provider Details
 
-| Provider  | Default Model              | Fast Model                | Context |
-| --------- | -------------------------- | ------------------------- | ------- |
-| openai    | gpt-5.4                    | gpt-5.4-mini              | 128K    |
-| anthropic | claude-opus-4-6            | claude-haiku-4-5-20251001 | 200K    |
-| google    | gemini-3-pro-preview       | gemini-2.5-flash          | 1M      |
+| Provider  | Default Model        | Fast Model                | Context |
+| --------- | -------------------- | ------------------------- | ------- |
+| openai    | gpt-5.4              | gpt-5.4-mini              | 128K    |
+| anthropic | claude-opus-4-6      | claude-haiku-4-5-20251001 | 200K    |
+| google    | gemini-3-pro-preview | gemini-2.5-flash          | 1M      |
 
 OpenAI GPT-5 defaults are workflow-aware: main agent generations use medium reasoning, subagents
 use low reasoning, and status messages use none unless the provider config explicitly overrides

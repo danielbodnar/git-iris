@@ -8,7 +8,7 @@ Git-Iris is an AI-powered Git workflow assistant that uses Iris, an intelligent 
 | ------------------- | ------------------------ | -------------------------------------------------------------- |
 | **Commit Messages** | `git-iris gen`           | Generates conventional commit messages with optional emoji     |
 | **Code Reviews**    | `git-iris review`        | Performs multi-dimensional code analysis across 10+ dimensions |
-| **PR Descriptions** | `git-iris pr`            | Creates comprehensive pull request descriptions                |
+| **PR Descriptions** | `git-iris pr`            | Creates detailed pull request descriptions                     |
 | **Changelogs**      | `git-iris changelog`     | Generates Keep a Changelog-formatted entries                   |
 | **Release Notes**   | `git-iris release-notes` | Creates release documentation                                  |
 | **Studio TUI**      | `git-iris studio`        | Unified terminal interface for all operations                  |

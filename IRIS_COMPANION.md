@@ -1,13 +1,15 @@
 # Iris Companion Mode
 
-> Iris as an ambient, always-present git companion — not just a tool you invoke, but an intelligence that watches, learns, and assists throughout your development flow.
+> **This is a design document for a planned feature, not current functionality.**
+
+Iris as an ambient, always-present git companion: not just a tool you invoke, but an intelligence that watches, learns, and assists throughout your development flow.
 
 ## Vision
 
 **From:** "Invoke Iris when you need something"
 **To:** "Iris is always watching, learning, and ready"
 
-Iris becomes a persistent daemon that understands your working context, notices patterns, offers proactive insights, and is ready to assist at any moment — all while staying out of your way until needed.
+Iris becomes a persistent daemon that understands your working context, notices patterns, offers proactive insights, and is ready to assist at any moment, all while staying out of your way until needed.
 
 ---
 
@@ -17,15 +19,16 @@ Iris becomes a persistent daemon that understands your working context, notices 
 
 The foundation: Iris maintains real-time awareness of your repository state.
 
-| Feature | Description |
-|---------|-------------|
-| **File Watcher** | Real-time detection of file saves via `notify` crate |
+| Feature                    | Description                                                       |
+| -------------------------- | ----------------------------------------------------------------- |
+| **File Watcher**           | Real-time detection of file saves via `notify` crate              |
 | **Working Tree Evolution** | Tracks what you've been editing over time, not just current state |
-| **Session Context** | "You've been in this file for 40 minutes" |
-| **Git Event Hooks** | Reacts to commits, rebases, merges, checkouts, stashes |
-| **Change Velocity** | Understands your editing pace and patterns |
+| **Session Context**        | "You've been in this file for 40 minutes"                         |
+| **Git Event Hooks**        | Reacts to commits, rebases, merges, checkouts, stashes            |
+| **Change Velocity**        | Understands your editing pace and patterns                        |
 
 **Example Insights:**
+
 - "You've touched 12 files in the last hour"
 - "Heavy activity in `src/auth/` today"
 - "This is your third time editing this function this session"
@@ -36,15 +39,16 @@ The foundation: Iris maintains real-time awareness of your repository state.
 
 Iris learns your commit patterns and suggests natural breakpoints.
 
-| Feature | Description |
-|---------|-------------|
-| **Commit Nudges** | "You've edited 6 files over 2 hours — ready to commit?" |
-| **Concern Detection** | "These staged changes look like 2 separate concerns" |
-| **Test Awareness** | "You modified tests but not implementation — intentional?" |
-| **Size Warnings** | "This file grew 200 lines — consider splitting?" |
-| **Pattern Learning** | Learns your natural commit cadence |
+| Feature               | Description                                                |
+| --------------------- | ---------------------------------------------------------- |
+| **Commit Nudges**     | "You've edited 6 files over 2 hours — ready to commit?"    |
+| **Concern Detection** | "These staged changes look like 2 separate concerns"       |
+| **Test Awareness**    | "You modified tests but not implementation — intentional?" |
+| **Size Warnings**     | "This file grew 200 lines — consider splitting?"           |
+| **Pattern Learning**  | Learns your natural commit cadence                         |
 
 **Example Scenarios:**
+
 - After sustained editing with a natural pause: "Natural breakpoint? These changes tell a complete story."
 - When staging: "This looks like Feature A + Bugfix B mixed together"
 - Before leaving: "You have uncommitted changes spanning 3 features"
@@ -55,15 +59,16 @@ Iris learns your commit patterns and suggests natural breakpoints.
 
 AI-powered staging that understands semantic relationships between changes.
 
-| Feature | Description |
-|---------|-------------|
-| **Atomic Boundary Detection** | Suggests which files belong together |
-| **Semantic Grouping** | "These 3 files are all auth-related — stage together?" |
-| **Mixed Change Warnings** | Warns when staging unrelated changes |
-| **Visual Groupings** | Studio shows suggested commit boundaries |
-| **One-Key Accept** | Quick accept suggested grouping |
+| Feature                       | Description                                            |
+| ----------------------------- | ------------------------------------------------------ |
+| **Atomic Boundary Detection** | Suggests which files belong together                   |
+| **Semantic Grouping**         | "These 3 files are all auth-related — stage together?" |
+| **Mixed Change Warnings**     | Warns when staging unrelated changes                   |
+| **Visual Groupings**          | Studio shows suggested commit boundaries               |
+| **One-Key Accept**            | Quick accept suggested grouping                        |
 
 **Grouping Signals:**
+
 - Import/dependency relationships
 - Test + implementation pairs
 - Config + code that uses it
@@ -76,17 +81,17 @@ AI-powered staging that understands semantic relationships between changes.
 
 Per-branch persistent memory — Iris remembers what you were doing.
 
-| Feature | Description |
-|---------|-------------|
-| **Branch Welcome** | "Welcome back to `feature-oauth` — you were implementing token refresh" |
-| **TODO Tracking** | Tracks TODOs added/removed on this branch |
-| **WIP Detection** | "You have 3 uncommitted WIP sessions on other branches" |
-| **Stash Context** | Auto-labels stashes with meaningful context |
-| **Last Position** | Remembers which files/lines you were focused on |
-| **Branch Sessions** | Switching branches starts a fresh live session snapshot |
-| **Branch Sessions** | Switching branches starts a fresh live session snapshot |
+| Feature             | Description                                                             |
+| ------------------- | ----------------------------------------------------------------------- |
+| **Branch Welcome**  | "Welcome back to `feature-oauth` — you were implementing token refresh" |
+| **TODO Tracking**   | Tracks TODOs added/removed on this branch                               |
+| **WIP Detection**   | "You have 3 uncommitted WIP sessions on other branches"                 |
+| **Stash Context**   | Auto-labels stashes with meaningful context                             |
+| **Last Position**   | Remembers which files/lines you were focused on                         |
+| **Branch Sessions** | Switching branches starts a fresh live session snapshot                 |
 
 **Example Flow:**
+
 ```
 $ git checkout feature-auth
 
@@ -102,15 +107,16 @@ Iris: Welcome back to feature-auth
 
 Stay aware of what's happening in the remote without constant manual checking.
 
-| Feature | Description |
-|---------|-------------|
-| **Remote Tracking** | "main has 8 new commits since you branched" |
-| **PR Branch Watch** | "Someone pushed to your PR branch" |
+| Feature                 | Description                                                      |
+| ----------------------- | ---------------------------------------------------------------- |
+| **Remote Tracking**     | "main has 8 new commits since you branched"                      |
+| **PR Branch Watch**     | "Someone pushed to your PR branch"                               |
 | **Conflict Prediction** | "Conflict likely: remote changed `auth.rs` which you're editing" |
-| **Change Summaries** | Summarize incoming changes in plain English |
-| **Rebase Suggestions** | "Good time to rebase — no conflicts detected" |
+| **Change Summaries**    | Summarize incoming changes in plain English                      |
+| **Rebase Suggestions**  | "Good time to rebase — no conflicts detected"                    |
 
 **Example Notifications:**
+
 - Subtle: "↓ main +5 commits (no conflicts)"
 - Warning: "⚠ Upstream modified `config.rs` — you have local changes"
 - Urgent: "🔴 Your PR has merge conflicts"
@@ -121,20 +127,22 @@ Stay aware of what's happening in the remote without constant manual checking.
 
 Passive review that catches issues before they become commits.
 
-| Category | Detections |
-|----------|------------|
-| **Debug Artifacts** | Console.log, print statements, debug flags |
-| **Secrets** | API keys, tokens, passwords, connection strings |
+| Category            | Detections                                         |
+| ------------------- | -------------------------------------------------- |
+| **Debug Artifacts** | Console.log, print statements, debug flags         |
+| **Secrets**         | API keys, tokens, passwords, connection strings    |
 | **Incomplete Work** | TODO/FIXME without issue refs, unfinished comments |
-| **Code Quality** | Unhandled errors, unused imports, obvious bugs |
-| **Style Issues** | Formatting inconsistencies, naming violations |
+| **Code Quality**    | Unhandled errors, unused imports, obvious bugs     |
+| **Style Issues**    | Formatting inconsistencies, naming violations      |
 
 **Configurable Modes:**
+
 - **Silent** — Only surface critical issues (secrets, obvious bugs)
 - **Subtle** — Gentle reminders, non-blocking
 - **Thorough** — Full review before every commit
 
 **Example:**
+
 ```
 Pre-commit scan:
   ⚠ Debug log in src/api.rs:45
@@ -150,15 +158,16 @@ Proceed anyway? [y/N/review]
 
 Long-term awareness of how your codebase evolves.
 
-| Feature | Description |
-|---------|-------------|
-| **Churn Analysis** | "This function has been modified 8 times in 2 weeks" |
-| **Complexity Trends** | "Cyclomatic complexity trending up in this module" |
-| **Hot Files** | Identify files that might need refactoring attention |
-| **Pattern Detection** | "You often forget to update README when touching CLI args" |
-| **Technical Debt Signals** | Growing file sizes, increasing dependencies |
+| Feature                    | Description                                                |
+| -------------------------- | ---------------------------------------------------------- |
+| **Churn Analysis**         | "This function has been modified 8 times in 2 weeks"       |
+| **Complexity Trends**      | "Cyclomatic complexity trending up in this module"         |
+| **Hot Files**              | Identify files that might need refactoring attention       |
+| **Pattern Detection**      | "You often forget to update README when touching CLI args" |
+| **Technical Debt Signals** | Growing file sizes, increasing dependencies                |
 
 **Example Insights:**
+
 - "🔥 `auth.rs` is a hot file — 12 changes this month"
 - "📈 `handlers/` complexity up 23% since last release"
 - "💡 You usually update docs when changing API — forgot this time?"
@@ -169,19 +178,18 @@ Long-term awareness of how your codebase evolves.
 
 Context survives across restarts — pick up exactly where you left off.
 
-| Feature | Description |
-|---------|-------------|
-| **Session Resume** | "Last session: debugging token expiration" |
-| **Workspace Notes** | Your notes persist: "edge case when user is nil" |
-| **Edit History** | What files you focused on, in what order |
-| **Insight History** | What Iris told you, what you acknowledged |
-| **Cross-Session Patterns** | Learn from your behavior over time |
-
-Live session data is branch-scoped. When you switch branches, Iris preserves the previous branch memory separately and starts a fresh session snapshot for the new branch.
+| Feature                    | Description                                      |
+| -------------------------- | ------------------------------------------------ |
+| **Session Resume**         | "Last session: debugging token expiration"       |
+| **Workspace Notes**        | Your notes persist: "edge case when user is nil" |
+| **Edit History**           | What files you focused on, in what order         |
+| **Insight History**        | What Iris told you, what you acknowledged        |
+| **Cross-Session Patterns** | Learn from your behavior over time               |
 
 Live session data is branch-scoped. When you switch branches, Iris preserves the previous branch memory separately and starts a fresh session snapshot for the new branch.
 
 **Persistence Format:**
+
 ```
 ~/.iris/sessions/
   └── {repo-hash}/
@@ -197,20 +205,21 @@ Live session data is branch-scoped. When you switch branches, Iris preserves the
 
 Instant actions for common operations — zero friction.
 
-| Key | Action | Description |
-|-----|--------|-------------|
-| `c` | Quick Commit | Commit staged with auto-generated message |
-| `C` | Commit + Edit | Generate message, open for editing |
-| `a` | Amend | Amend last commit with staged changes |
-| `s` | Smart Stash | Stash with auto-generated context label |
-| `S` | Stash Pop | Pop most recent stash |
-| `p` | Push | Push with safety checks |
-| `P` | Force Push | Push with lease (safe force) |
-| `r` | Regenerate | Re-run current generation (commit, PR, etc.) |
-| `?` | Suggest | "What should I do next?" |
-| `/` | Chat | Open chat with Iris |
+| Key | Action        | Description                                  |
+| --- | ------------- | -------------------------------------------- |
+| `c` | Quick Commit  | Commit staged with auto-generated message    |
+| `C` | Commit + Edit | Generate message, open for editing           |
+| `a` | Amend         | Amend last commit with staged changes        |
+| `s` | Smart Stash   | Stash with auto-generated context label      |
+| `S` | Stash Pop     | Pop most recent stash                        |
+| `p` | Push          | Push with safety checks                      |
+| `P` | Force Push    | Push with lease (safe force)                 |
+| `r` | Regenerate    | Re-run current generation (commit, PR, etc.) |
+| `?` | Suggest       | "What should I do next?"                     |
+| `/` | Chat          | Open chat with Iris                          |
 
 **Safety Checks on Push:**
+
 - "You're pushing 3 commits, one has a TODO — continue?"
 - "This will push to main — are you sure?"
 - "Remote has changes you haven't pulled"
@@ -221,20 +230,22 @@ Instant actions for common operations — zero friction.
 
 Configurable alerts that stay out of your way until important.
 
-| Level | Behavior |
-|-------|----------|
-| **Silent** | No notifications, check manually |
-| **Subtle** | Status line only, no interruptions |
+| Level      | Behavior                                       |
+| ---------- | ---------------------------------------------- |
+| **Silent** | No notifications, check manually               |
+| **Subtle** | Status line only, no interruptions             |
 | **Normal** | Status line + occasional desktop notifications |
-| **Chatty** | All insights surfaced proactively |
+| **Chatty** | All insights surfaced proactively              |
 
 **Notification Categories:**
+
 - 🔴 **Critical**: Secrets detected, merge conflicts, CI failure
 - 🟡 **Warning**: Upstream changes, uncommitted work, long session
 - 🔵 **Info**: Commit suggestions, pattern observations
 - ⚪ **Subtle**: Background status updates
 
 **Desktop Integration:**
+
 - macOS: Native notifications via `notify-rust`
 - Linux: D-Bus notifications
 - Optional: Terminal bell for critical only
@@ -243,17 +254,18 @@ Configurable alerts that stay out of your way until important.
 
 ### 11. Learning & Adaptation
 
-Iris gets smarter about *you* over time.
+Iris gets smarter about _you_ over time.
 
-| Learning Area | Examples |
-|---------------|----------|
-| **Commit Style** | Message length, emoji usage, conventional commits |
-| **Work Patterns** | When you commit, how long you edit, break patterns |
-| **Code Preferences** | File organization, naming conventions |
-| **Review Habits** | What warnings you dismiss vs. address |
-| **Project Conventions** | Per-repo learned patterns |
+| Learning Area           | Examples                                           |
+| ----------------------- | -------------------------------------------------- |
+| **Commit Style**        | Message length, emoji usage, conventional commits  |
+| **Work Patterns**       | When you commit, how long you edit, break patterns |
+| **Code Preferences**    | File organization, naming conventions              |
+| **Review Habits**       | What warnings you dismiss vs. address              |
+| **Project Conventions** | Per-repo learned patterns                          |
 
 **Adaptation Examples:**
+
 - "You usually write longer messages for API changes"
 - "You prefer to commit tests separately"
 - "You always update CHANGELOG for features, not fixes"
@@ -351,30 +363,35 @@ Upstream Poll ─┘                   Session State          Insight Queue
 ## Implementation Phases
 
 ### Phase 1: Foundation
+
 - [ ] Daemon mode infrastructure (start/stop/status)
 - [ ] File watcher integration (`notify` crate)
 - [ ] Session state persistence
 - [ ] Basic event bus
 
 ### Phase 2: Awareness
+
 - [ ] Git event detection (commits, checkouts, etc.)
 - [ ] Working tree timeline tracking
 - [ ] Branch memory system
 - [ ] Upstream polling
 
 ### Phase 3: Intelligence
+
 - [ ] Insight engine framework
 - [ ] Commit boundary detection
 - [ ] Pre-commit guardian rules
 - [ ] Pattern learning basics
 
 ### Phase 4: Integration
+
 - [ ] Studio TUI daemon mode
 - [ ] Desktop notifications
 - [ ] Quick action hotkeys
 - [ ] Configuration system
 
 ### Phase 5: Learning
+
 - [ ] Commit style learning
 - [ ] Work pattern adaptation
 - [ ] Per-project conventions
@@ -384,25 +401,26 @@ Upstream Poll ─┘                   Session State          Insight Queue
 
 ## User Experience
 
-### Starting Iris Companion
+### Starting Iris Companion (Planned)
 
 ```bash
 # Start daemon in current repo
-$ iris watch
+$ git-iris watch
 
 # Start with Studio TUI
-$ iris studio --watch
+$ git-iris studio --watch
 
 # Check daemon status
-$ iris status
+$ git-iris status
 
 # Stop daemon
-$ iris stop
+$ git-iris stop
 ```
 
 ### Studio Integration
 
 Companion mode enhances Studio with:
+
 - **Status Bar**: Live awareness indicators
 - **Insight Panel**: Proactive suggestions sidebar
 - **Timeline View**: Session activity visualization
@@ -411,7 +429,7 @@ Companion mode enhances Studio with:
 ### Example Session
 
 ```
-$ iris studio --watch
+$ git-iris studio --watch
 
 ┌─ Iris Studio ─────────────────────────────────────────────────┐
 │                                                                │

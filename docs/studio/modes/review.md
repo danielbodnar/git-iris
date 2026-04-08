@@ -1,6 +1,6 @@
 # Review Mode
 
-**Review Mode** provides AI-powered code reviews analyzing security, performance, best practices, and potential bugs. Get comprehensive feedback before committing or creating PRs.
+**Review Mode** provides AI-powered code reviews analyzing security, performance, best practices, and potential bugs. Get detailed feedback before committing or creating PRs.
 
 ![Review Mode](/mode-review.png)
 
@@ -98,11 +98,11 @@ Press <kbd>f</kbd> or <kbd>t</kbd> to select **from/to refs**. The modal display
 
 ### Common Ranges
 
-| From          | To       | Reviews                       |
-| ------------- | -------- | ----------------------------- |
-| `<default-branch>` | `HEAD`   | All changes on current branch |
-| `v1.0.0`      | `v1.1.0` | Changes between releases      |
-| `abc123f`     | `HEAD`   | Changes since specific commit |
+| From                      | To       | Reviews                       |
+| ------------------------- | -------- | ----------------------------- |
+| `<default-branch>`        | `HEAD`   | All changes on current branch |
+| `v1.0.0`                  | `v1.1.0` | Changes between releases      |
+| `abc123f`                 | `HEAD`   | Changes since specific commit |
 | `origin/<default-branch>` | `HEAD`   | Local changes not pushed      |
 
 ## Review Dimensions
@@ -369,7 +369,7 @@ Takes 10-30 seconds.
 
 ### Deep Review (Future)
 
-Comprehensive analysis including:
+Full analysis including:
 
 - Test coverage gaps
 - Documentation completeness

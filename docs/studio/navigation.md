@@ -294,7 +294,7 @@ See specific mode documentation for modal-specific keys.
 - <kbd>G</kbd> then <kbd>[</kbd> — Jump to last hunk
 - <kbd>v</kbd> then <kbd>G</kbd> — Select from current to end
 
-### 3. Leverage Smart Actions
+### 3. Use Smart Actions
 
 - <kbd>Enter</kbd> on a directory = expand it
 - <kbd>Enter</kbd> on a file = load and move focus

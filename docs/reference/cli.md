@@ -71,11 +71,11 @@ Launch unified TUI for all operations.
 
 **Options:**
 
-| Flag            | Description                                                    |
-| --------------- | -------------------------------------------------------------- |
+| Flag            | Description                                                                     |
+| --------------- | ------------------------------------------------------------------------------- |
 | `--mode <MODE>` | Initial mode: `explore`, `commit`, `review`, `pr`, `changelog`, `release-notes` |
-| `--from <REF>`  | Starting ref for comparison                                    |
-| `--to <REF>`    | Ending ref for comparison                                      |
+| `--from <REF>`  | Starting ref for comparison                                                     |
+| `--to <REF>`    | Ending ref for comparison                                                       |
 
 **Examples:**
 
@@ -101,17 +101,17 @@ git-iris studio --mode release-notes
 git-iris review [OPTIONS]
 ```
 
-Generate comprehensive code reviews with AI.
+Generate multi-dimensional code reviews with AI.
 
 **Options:**
 
-| Flag                 | Short | Description                            |
-| -------------------- | ----- | -------------------------------------- |
-| `--print`            | `-p`  | Print review to stdout                 |
-| `--raw`              |       | Output raw markdown without formatting |
-| `--include-unstaged` |       | Include unstaged changes               |
-| `--commit <HASH>`    |       | Review specific commit                 |
-| `--from <REF>`       |       | Starting branch for comparison         |
+| Flag                 | Short | Description                                                |
+| -------------------- | ----- | ---------------------------------------------------------- |
+| `--print`            | `-p`  | Print review to stdout                                     |
+| `--raw`              |       | Output raw markdown without formatting                     |
+| `--include-unstaged` |       | Include unstaged changes                                   |
+| `--commit <HASH>`    |       | Review specific commit                                     |
+| `--from <REF>`       |       | Starting branch for comparison                             |
 | `--to <REF>`         |       | Target branch for comparison (alone, compares from `main`) |
 
 **Examples:**
@@ -217,7 +217,7 @@ git-iris changelog --from v1.0.0 --version-name "v2.0.0"
 git-iris release-notes --from <REF> [OPTIONS]
 ```
 
-Generate comprehensive release notes.
+Generate detailed release notes.
 
 **Options:**
 
@@ -258,19 +258,19 @@ Configure global Git-Iris settings.
 
 **Options:**
 
-| Flag                           | Description                    |
-| ------------------------------ | ------------------------------ |
-| `--instructions <TEXT>`        | Set default instructions       |
-| `--preset <NAME>`              | Set default preset             |
-| `--gitmoji`                    | Enable gitmoji                 |
-| `--no-gitmoji`                 | Disable gitmoji                |
-| `--provider <NAME>`            | Set default provider           |
-| `--api-key <KEY>`              | Set API key                    |
-| `--model <NAME>`               | Set primary model              |
-| `--fast-model <NAME>`          | Set fast model                 |
-| `--token-limit <NUM>`          | Set token limit                |
-| `--param <KEY=VALUE>`          | Set additional parameters      |
-| `--subagent-timeout <SECONDS>` | Set parallel subagent timeout  |
+| Flag                           | Description                   |
+| ------------------------------ | ----------------------------- |
+| `--instructions <TEXT>`        | Set default instructions      |
+| `--preset <NAME>`              | Set default preset            |
+| `--gitmoji`                    | Enable gitmoji                |
+| `--no-gitmoji`                 | Disable gitmoji               |
+| `--provider <NAME>`            | Set default provider          |
+| `--api-key <KEY>`              | Set API key                   |
+| `--model <NAME>`               | Set primary model             |
+| `--fast-model <NAME>`          | Set fast model                |
+| `--token-limit <NUM>`          | Set token limit               |
+| `--param <KEY=VALUE>`          | Set additional parameters     |
+| `--subagent-timeout <SECONDS>` | Set parallel subagent timeout |
 
 **Examples:**
 
@@ -367,12 +367,12 @@ Generate shell completion scripts.
 
 **Arguments:**
 
-| Argument | Description |
-| -------- | ----------- |
-| `bash` | Generate Bash completions |
-| `zsh` | Generate Zsh completions |
-| `fish` | Generate Fish completions |
-| `elvish` | Generate Elvish completions |
+| Argument     | Description                     |
+| ------------ | ------------------------------- |
+| `bash`       | Generate Bash completions       |
+| `zsh`        | Generate Zsh completions        |
+| `fish`       | Generate Fish completions       |
+| `elvish`     | Generate Elvish completions     |
 | `powershell` | Generate PowerShell completions |
 
 **Examples:**
@@ -394,15 +394,15 @@ Install or uninstall the `prepare-commit-msg` hook.
 
 **Subcommands:**
 
-| Subcommand | Description |
-| ---------- | ----------- |
-| `install` | Install the prepare-commit-msg hook |
-| `uninstall` | Remove the prepare-commit-msg hook |
+| Subcommand  | Description                         |
+| ----------- | ----------------------------------- |
+| `install`   | Install the prepare-commit-msg hook |
+| `uninstall` | Remove the prepare-commit-msg hook  |
 
 **Options for `install`:**
 
-| Flag | Description |
-| ---- | ----------- |
+| Flag      | Description                             |
+| --------- | --------------------------------------- |
 | `--force` | Overwrite an existing non-git-iris hook |
 
 **Examples:**
@@ -513,12 +513,12 @@ git-iris gen --repo https://github.com/user/repo --print
 
 See [Environment Variables](../configuration/environment.md) for details.
 
-| Variable            | Purpose                   |
-| ------------------- | ------------------------- |
-| `OPENAI_API_KEY`    | OpenAI authentication     |
-| `ANTHROPIC_API_KEY` | Anthropic authentication  |
-| `GOOGLE_API_KEY`    | Google authentication     |
-| `RUST_LOG`          | Logging and debug output  |
+| Variable            | Purpose                  |
+| ------------------- | ------------------------ |
+| `OPENAI_API_KEY`    | OpenAI authentication    |
+| `ANTHROPIC_API_KEY` | Anthropic authentication |
+| `GOOGLE_API_KEY`    | Google authentication    |
+| `RUST_LOG`          | Logging and debug output |
 
 ## Shell Aliases
 

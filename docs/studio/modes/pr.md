@@ -6,7 +6,7 @@
 
 ## When to Use PR Mode
 
-- **Creating pull requests**: Generate comprehensive PR descriptions
+- **Creating pull requests**: Generate detailed PR descriptions
 - **Documenting feature branches**: Explain what changed and why
 - **Code review preparation**: Give reviewers context before they dive in
 - **Release preparation**: Document all changes for stakeholders
@@ -171,7 +171,7 @@ Iris generates structured markdown:
 
 ## Summary
 
-Introduces a comprehensive emoji selection interface for commit
+Introduces a full-featured emoji selection interface for commit
 messages, replacing the boolean gitmoji flag with a three-state
 system (None/Auto/Custom). Users can now manually override emoji
 selection with a filterable modal.
@@ -272,7 +272,7 @@ Existing configs are auto-migrated on first run.
 3. Press <kbd>t</kbd> → select `v1.1.0` (new release)
 4. Press <kbd>r</kbd> to generate
 5. Left panel shows all commits since v1.0.0
-6. Description includes comprehensive change summary
+6. Description includes full change summary
 7. Use as release PR description
 
 ### Example 5: Adding Context After Generation

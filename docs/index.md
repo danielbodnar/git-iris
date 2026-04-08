@@ -25,7 +25,7 @@ features:
     details: Multi-dimensional AI analysis covering security, performance, and best practices
   - icon: 📝
     title: Pull Requests
-    details: Comprehensive PR descriptions that tell the story of your changes
+    details: Detailed PR descriptions that tell the story of your changes
   - icon: 📋
     title: Changelogs
     details: Keep a Changelog format with intelligent categorization

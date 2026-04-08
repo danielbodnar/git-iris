@@ -1,6 +1,6 @@
 # Release Notes Generation
 
-Iris generates comprehensive release documentation between Git references, providing user-facing highlights, technical details, upgrade instructions, and known issues.
+Iris generates release documentation between Git references, covering user-facing highlights, technical details, upgrade instructions, and known issues.
 
 ## Quick Example
 
@@ -32,11 +32,13 @@ git-iris release-notes --from <ref> [FLAGS] [OPTIONS]
 
 ### Key Flags
 
-| Flag                    | Description                                    |
-| ----------------------- | ---------------------------------------------- |
-| `--to <ref>`            | Ending reference (defaults to HEAD)            |
-| `--version-name <name>` | Explicit version name instead of Git tag       |
-| `--raw`                 | Output raw markdown without console formatting |
+| Flag                    | Description                                               |
+| ----------------------- | --------------------------------------------------------- |
+| `--to <ref>`            | Ending reference (defaults to HEAD)                       |
+| `--version-name <name>` | Explicit version name instead of Git tag                  |
+| `--raw`                 | Output raw markdown without console formatting            |
+| `--update`              | Update the release notes file with new content            |
+| `--file <path>`         | Path to release notes file (defaults to RELEASE_NOTES.md) |
 
 ### Global Options
 
@@ -93,7 +95,7 @@ git-iris release-notes --from stable --to develop
 
 ## Release Notes Format
 
-Iris generates comprehensive release documentation:
+Iris generates structured release documentation:
 
 ````markdown
 # Release v2.0.0

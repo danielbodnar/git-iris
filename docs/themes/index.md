@@ -10,9 +10,9 @@ SilkCircuit was designed around three core principles:
 
 1. **Electric Energy** — Bold, saturated colors that command attention
 2. **Elegant Structure** — Semantic tokens that maintain visual hierarchy
-3. **Effortless Customization** — Simple TOML configuration, no code required
+3. **Easy Customization** — Simple TOML configuration, no code required
 
-The result is a visual language that feels both futuristic and refined—perfect for developers who spend hours in the terminal.
+The result is a visual language that feels futuristic and refined, built for developers who spend hours in the terminal.
 
 ## Core Color Palette
 
@@ -69,13 +69,12 @@ This three-layer architecture enables:
 
 ```bash
 # List available themes
-git-iris theme list
+git-iris themes
 
-# Switch to a different theme
-git-iris theme set silkcircuit-soft
+# Use a different theme for this session
+git-iris studio --theme silkcircuit-soft
 
-# Preview theme in Studio
-git-iris studio --theme silkcircuit-glow
+# Set persistently in config.toml: theme = "silkcircuit-glow"
 ```
 
 ### Creating Custom Themes

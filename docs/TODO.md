@@ -41,12 +41,13 @@ All screenshots should go in `/docs/assets/screenshots/`
 
 ### Theme Variants
 
-| Filename             | Description                  | Where Used           |
-| -------------------- | ---------------------------- | -------------------- |
-| `theme-neon.png`     | SilkCircuit Neon variant     | `/themes/gallery.md` |
-| `theme-dawn.png`     | SilkCircuit Dawn variant     | `/themes/gallery.md` |
-| `theme-midnight.png` | SilkCircuit Midnight variant | `/themes/gallery.md` |
-| `theme-ember.png`    | SilkCircuit Ember variant    | `/themes/gallery.md` |
+| Filename            | Description                 | Where Used           |
+| ------------------- | --------------------------- | -------------------- |
+| `theme-neon.png`    | SilkCircuit Neon variant    | `/themes/gallery.md` |
+| `theme-soft.png`    | SilkCircuit Soft variant    | `/themes/gallery.md` |
+| `theme-glow.png`    | SilkCircuit Glow variant    | `/themes/gallery.md` |
+| `theme-vibrant.png` | SilkCircuit Vibrant variant | `/themes/gallery.md` |
+| `theme-dawn.png`    | SilkCircuit Dawn variant    | `/themes/gallery.md` |
 
 ---
 
@@ -54,9 +55,11 @@ All screenshots should go in `/docs/assets/screenshots/`
 
 ### High Priority
 
-- [ ] Add `logo.svg` to `/docs/public/logo.svg`
-- [ ] Create assets directory: `mkdir -p docs/assets/screenshots`
-- [ ] Capture all screenshots listed above
+- [x] ~~Add logo to `/docs/public/`~~ (logo.png exists)
+- [x] ~~Create assets directory~~ (`docs/assets/screenshots/` exists)
+- [x] ~~Capture mode screenshots~~ (all 6 modes captured)
+- [ ] Capture theme variant screenshots (Neon, Soft, Glow, Vibrant, Dawn)
+- [ ] Capture CLI output screenshots (`cli-gen.png`, `cli-review.png`)
 
 ### Medium Priority
 

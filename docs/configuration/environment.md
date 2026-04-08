@@ -288,12 +288,12 @@ git-iris gen --print
 
 ### All Environment Variables
 
-| Variable            | Purpose                   | Example         |
-| ------------------- | ------------------------- | --------------- |
-| `OPENAI_API_KEY`    | OpenAI authentication     | `sk-proj-...`   |
-| `ANTHROPIC_API_KEY` | Anthropic authentication  | `sk-ant-...`    |
-| `GOOGLE_API_KEY`    | Google authentication     | `AIza...`       |
-| `RUST_LOG`          | Logging level             | `debug`, `info` |
+| Variable            | Purpose                  | Example         |
+| ------------------- | ------------------------ | --------------- |
+| `OPENAI_API_KEY`    | OpenAI authentication    | `sk-proj-...`   |
+| `ANTHROPIC_API_KEY` | Anthropic authentication | `sk-ant-...`    |
+| `GOOGLE_API_KEY`    | Google authentication    | `AIza...`       |
+| `RUST_LOG`          | Logging level            | `debug`, `info` |
 
 ### Example Complete Setup
 

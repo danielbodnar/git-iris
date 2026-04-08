@@ -340,7 +340,7 @@ three modes: None (no emoji), Auto (AI chooses), and Custom
 ```
 ✨ Add emoji selector to commit UI
 
-Introduces a comprehensive emoji selection interface that
+Introduces a full-featured emoji selection interface that
 replaces the previous boolean gitmoji flag with a richer
 three-state system.
 

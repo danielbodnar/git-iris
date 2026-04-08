@@ -38,9 +38,7 @@ The flagship SilkCircuit theme—bold, energetic, and unmistakably electric.
 ### Theme Identifier
 
 ```bash
-git-iris theme set silkcircuit-neon
-# or
-git-iris theme set default
+git-iris studio --theme silkcircuit-neon
 ```
 
 ---
@@ -81,7 +79,7 @@ A gentler variant with softer pastels and warmer backgrounds—perfect for exten
 ### Theme Identifier
 
 ```bash
-git-iris theme set silkcircuit-soft
+git-iris studio --theme silkcircuit-soft
 ```
 
 ---
@@ -123,7 +121,7 @@ For those who want their terminal to look like a cyberpunk nightclub—pure neon
 ### Theme Identifier
 
 ```bash
-git-iris theme set silkcircuit-glow
+git-iris studio --theme silkcircuit-glow
 ```
 
 ---
@@ -165,7 +163,7 @@ A balanced middle ground between Neon and Glow—intense colors with slightly de
 ### Theme Identifier
 
 ```bash
-git-iris theme set silkcircuit-vibrant
+git-iris studio --theme silkcircuit-vibrant
 ```
 
 ---
@@ -207,7 +205,7 @@ The only light theme variant—elegant purple tones on soft lavender backgrounds
 ### Theme Identifier
 
 ```bash
-git-iris theme set silkcircuit-dawn
+git-iris studio --theme silkcircuit-dawn
 ```
 
 ---
@@ -228,13 +226,12 @@ git-iris theme set silkcircuit-dawn
 
 ```bash
 # List all available themes
-git-iris theme list
+git-iris themes
 
-# Switch theme persistently
-git-iris theme set silkcircuit-soft
+# Use a theme for this session
+git-iris studio --theme silkcircuit-soft
 
-# Preview theme temporarily in Studio
-git-iris studio --theme silkcircuit-glow
+# Set persistently in config.toml: theme = "silkcircuit-soft"
 ```
 
 ### In Studio

@@ -28,7 +28,7 @@
 
 ## 💜 Overview
 
-Git-Iris is powered by **Iris**, an intelligent agent that actively explores your codebase to understand what you're building. Rather than dumping context and hoping for the best, Iris uses tools to gather precisely the information she needs—analyzing diffs, exploring file relationships, and building understanding iteratively.
+Git-Iris is powered by **Iris**, an intelligent agent that actively explores your codebase to understand what you're building. Rather than dumping context and hoping for the best, Iris uses tools to gather precisely the information she needs: analyzing diffs, exploring file relationships, and building understanding iteratively.
 
 ### 🪄 What Iris Can Do
 
@@ -36,14 +36,14 @@ Git-Iris is powered by **Iris**, an intelligent agent that actively explores you
 | ---------------------- | ----------------------------------------------------------------------------- |
 | ✍️ **Commit Messages** | Context-aware messages that capture the essence of your changes               |
 | 🔬 **Code Reviews**    | Multi-dimensional analysis covering security, performance, and best practices |
-| 📜 **Pull Requests**   | Comprehensive PR descriptions for branches or individual commits              |
+| 📜 **Pull Requests**   | Detailed PR descriptions for branches or individual commits                   |
 | 🗂️ **Changelogs**      | Keep a Changelog format with intelligent categorization                       |
 | 🎊 **Release Notes**   | User-focused documentation highlighting impact and benefits                   |
 | 🔭 **Semantic Blame**  | Ask "why does this code exist?" and get real answers                          |
 
 ### 🌌 Iris Studio
 
-**Studio** is a stunning terminal interface built with the **SilkCircuit Neon** design language that brings everything together. Press `/` to chat with Iris, ask her to refine your commit message or explain changes—she can update content directly through intelligent tool calls!
+**Studio** is a stunning terminal interface built with the **SilkCircuit Neon** design language that brings everything together. Press `/` to chat with Iris, ask her to refine your commit message or explain changes. She can update content directly through tool calls.
 
 ## 📦 Installation
 

@@ -433,7 +433,7 @@ Guide a workflow:
 
 ### Project-Specific Adaptation
 
-Leverage project docs:
+Use project docs:
 
 ```toml
 When `project_docs(doc_type="context")` is relevant:
