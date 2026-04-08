@@ -1,4 +1,4 @@
-use git_iris::gitmoji::{apply_gitmoji, get_gitmoji, get_gitmoji_list, get_gitmoji_prompt_guide};
+use git_iris::gitmoji::{get_gitmoji, get_gitmoji_list, get_gitmoji_prompt_guide};
 
 // Use our centralized test infrastructure
 #[path = "test_utils.rs"]
@@ -8,41 +8,6 @@ use test_utils::TestAssertions;
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_apply_gitmoji() {
-        // Test standard gitmoji applications
-        assert_eq!(
-            apply_gitmoji("feat: add new feature"),
-            "✨ feat: add new feature"
-        );
-        assert_eq!(apply_gitmoji("fix: resolve bug"), "🐛 fix: resolve bug");
-        assert_eq!(
-            apply_gitmoji("docs: update documentation"),
-            "📝 docs: update documentation"
-        );
-        assert_eq!(apply_gitmoji("style: format code"), "💄 style: format code");
-        assert_eq!(
-            apply_gitmoji("refactor: improve code structure"),
-            "♻️ refactor: improve code structure"
-        );
-        assert_eq!(
-            apply_gitmoji("test: add unit tests"),
-            "✅ test: add unit tests"
-        );
-        assert_eq!(
-            apply_gitmoji("chore: update dependencies"),
-            "🔨 chore: update dependencies"
-        );
-
-        // Test edge cases
-        assert_eq!(
-            apply_gitmoji("unknown: some message"),
-            "unknown: some message"
-        );
-        assert_eq!(apply_gitmoji(""), "");
-        assert_eq!(apply_gitmoji("no_colon_here"), "no_colon_here");
-    }
 
     #[test]
     fn test_get_gitmoji_list() {

@@ -53,16 +53,6 @@ pub fn get_gitmoji(commit_type: &str) -> Option<&'static str> {
     GITMOJI_MAP.get(commit_type).map(|&(emoji, _)| emoji)
 }
 
-pub fn apply_gitmoji(commit_message: &str) -> String {
-    let parts: Vec<&str> = commit_message.splitn(2, ':').collect();
-    if parts.len() == 2
-        && let Some((gitmoji, _)) = GITMOJI_MAP.get(parts[0].trim())
-    {
-        return format!("{} {}: {}", gitmoji, parts[0].trim(), parts[1].trim());
-    }
-    commit_message.to_string()
-}
-
 pub fn get_gitmoji_list() -> String {
     let mut entries: Vec<_> = GITMOJI_MAP.iter().collect();
     entries.sort_by_key(|(key, _)| *key);
@@ -90,14 +80,4 @@ pub fn get_gitmoji_prompt_guide() -> String {
         "Common gitmoji choices:\n{}\n- Reuse the closest option above instead of inventing a new emoji",
         entries.join("\n")
     )
-}
-
-/// Post-processes a commit message, applying gitmoji if enabled
-#[must_use]
-pub fn process_commit_message(message: String, use_gitmoji: bool) -> String {
-    if use_gitmoji {
-        apply_gitmoji(&message)
-    } else {
-        message
-    }
 }
