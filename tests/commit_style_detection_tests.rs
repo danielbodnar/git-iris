@@ -16,7 +16,7 @@ fn cwd_lock() -> MutexGuard<'static, ()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| Mutex::new(()))
         .lock()
-        .unwrap_or_else(|e| e.into_inner())
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 fn pick_fast_provider() -> Option<(&'static str, &'static str)> {
@@ -56,7 +56,8 @@ fn build_service(repo_path: &std::path::Path, provider: &str, model: &str) -> Ir
 
 /// Repo with pure gitmoji history → agent should produce a commit with emoji.
 #[tokio::test]
-#[ignore] // requires live API key — run with: cargo test -- --ignored
+#[ignore = "requires live API key — run with: cargo test -- --ignored"]
+#[allow(clippy::await_holding_lock)]
 async fn gitmoji_history_produces_emoji_commit() {
     let _guard = cwd_lock();
     let Some((provider, model)) = pick_fast_provider() else {
@@ -114,7 +115,8 @@ async fn gitmoji_history_produces_emoji_commit() {
 
 /// Repo with conventional commits → agent should produce type-prefix format with no emoji.
 #[tokio::test]
-#[ignore]
+#[ignore = "requires live API key — run with: cargo test -- --ignored"]
+#[allow(clippy::await_holding_lock)]
 async fn conventional_history_produces_no_emoji_commit() {
     let _guard = cwd_lock();
     let Some((provider, model)) = pick_fast_provider() else {
@@ -187,7 +189,8 @@ async fn conventional_history_produces_no_emoji_commit() {
 
 /// Mixed gitmoji + conventional history (like git-iris) → gitmoji presence should win.
 #[tokio::test]
-#[ignore]
+#[ignore = "requires live API key — run with: cargo test -- --ignored"]
+#[allow(clippy::await_holding_lock)]
 async fn mixed_history_with_gitmoji_produces_emoji_commit() {
     let _guard = cwd_lock();
     let Some((provider, model)) = pick_fast_provider() else {
