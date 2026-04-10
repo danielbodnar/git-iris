@@ -1,3 +1,69 @@
+## [2.0.8] - 2026-04-10
+
+This release introduces **automatic commit style detection**, expands XDG-style configuration path support to macOS, and hardens security with API key redaction and restricted file permissions. Logging has been unified under tracing, documentation is aligned to actual tool capabilities, and default models are updated to GPT-5.4 and Claude Opus 4.6.
+
+### Added
+
+- ✨ Add `git-iris hook install/uninstall` for `prepare-commit-msg` Git hook integration (`3777f00`)
+- ✨ Add automatic conventional commit style detection from repository history—agent now adapts to gitmoji, conventional, or freeform styles (`07a9a7c`)
+- ✨ Add `justfile` with common development workflows (`build`, `check`, `test`, `studio`, `docs-*`) (`90c29da`)
+- ✨ Overhaul `config` display to show all providers with resolved defaults and API key status (`0a1932e`)
+- ✨ Prefer XDG-style config path (`~/.config/git-iris`) on macOS, aligning with modern CLI ecosystem (`55352518`)
+- ✨ Add `src/theme.rs` for git-iris-specific style derivation using Opaline token system (`e0548b1`)
+- Add `get_default_base_ref()` helper to resolve remote HEAD or common primary branches for comparisons (`d38a631`, `8ead043`)
+- Add comprehensive test suites for commit style detection, config paths, project docs, and Studio handlers
+
+### Changed
+
+- ♻️ Migrate logging from `log` crate to `tracing` with unified output writer (`ff157b8`)
+- ♻️ Move commit style detection from Rust regex to agent prompt logic for improved accuracy (`b6d8feb`)
+- ♻️ Derive Iris-specific theme styles locally instead of upstream Opaline core (`e0548b1`, `b97c445`)
+- ♻️ Deduplicate task spawners and data loaders in Studio (`614387e`)
+- ♻️ Deduplicate streaming builder setup across agent tasks (`ff157b8`)
+- Update default models: OpenAI `gpt-5.4`/`gpt-5.4-mini`, Anthropic `claude-opus-4-6`/`claude-haiku-4-5-20251001` (`e28883d`, `539f64f`)
+- Bump `rig-core` to 0.33 (`e28883d`)
+- Compact `project_docs(doc_type="context")` output with summary, key headings, and highlights (`9c07967`)
+- Align capability prompts (`changelog`, `commit`, `pr`, `review`, etc.) with real agent tool signatures (`42fcb1e`)
+- Support `gemini` as alias for `google` provider in config and CLI (`src/providers.rs`)
+- Improve project config merging to track explicit keys and avoid false overwrites (`src/config.rs`)
+
+### Fixed
+
+- 🐛 Use `max_completion_tokens` instead of `max_tokens` for newer OpenAI models (`200bcf9`, `49fa3fb`)
+- 🐛 Fix JSON extraction false positives from template expressions like `${...}` (`ab145575`)
+- 🐛 Read staged file content from Git index instead of working directory (`src/git/files.rs`)
+- Fix companion session consistency across branch switches (`acc2c8b`)
+- Fix Studio range handling and release notes defaults (`290ef11`)
+- Fix streaming panel stale content not clearing between runs (`7edc923`, `28d4385`)
+- Fix explore history context not being honored in Studio (`73776630`)
+- Fix repo-aware PR suggestions in Studio (`c70e13e`)
+- Fix remote fetch to use configured refspecs, supporting non-main primary branches (`src/git/repository.rs`)
+- Honor XDG config paths in Docker fast-model setup (`9c290a8`)
+- Harden action wrapper, provider docs, and docker entrypoint (`484af38`, `bc3baa9`)
+- Address cross-model review findings—8 security and correctness fixes (`7b75ac8`)
+- Clear pedantic Clippy lint backlog (`e9d5014`)
+- Stabilize default-branch fixtures in CI (`39e5742`)
+
+### Security
+
+- 🔒 Redact API keys in `ProviderConfig` Debug output (`src/providers.rs`)
+- 🔒 Write config files with restricted 0o600 permissions on Unix (`src/config.rs`)
+- 🔒 Escape regex meta-characters in user-supplied search patterns (`0e1d0ae`)
+- 🔒 Add file size guard when reading repository files (`0e1d0ae`)
+
+### Removed
+
+- 🔥 Remove unused `apply_gitmoji` and `process_commit_message` functions from `gitmoji.rs` (`178a6456`)
+- 🔥 Drop UX journey fixture files (`tests/ux-journeys/*`) (`9ba7158`)
+
+### Metrics
+
+- Total Commits: 56
+- Files Changed: 172
+- Insertions: +9,671
+- Deletions: -3,358
+<!-- -------------------------------------------------------------- -->
+
 ## [2.0.6] - 2026-03-02
 
 This release migrates the **theme engine to the standalone Opaline library** (removing ~3,600 lines of code), adds **Google/Gemini support for parallel subagents**, and improves **API key security** with validation and sanitized error messages.
