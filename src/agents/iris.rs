@@ -1454,7 +1454,10 @@ Line2\"}";
         let response = "prose ${{ template }} more prose";
         let err = extract_json_from_response(response).expect_err("should fail");
         let msg = err.to_string();
-        assert!(msg.contains("Preview:"), "error should include a preview: {msg}");
+        assert!(
+            msg.contains("Preview:"),
+            "error should include a preview: {msg}"
+        );
     }
 
     #[test]

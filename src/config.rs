@@ -9,7 +9,7 @@ use crate::log_debug;
 use crate::providers::{Provider, ProviderConfig};
 
 use anyhow::{Context, Result, anyhow};
-use dirs::config_dir;
+use dirs::{config_dir, home_dir};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -392,16 +392,42 @@ impl Config {
         Ok(())
     }
 
+    /// Resolve the directory that should hold `config.toml`.
+    ///
+    /// Precedence:
+    /// 1. `$XDG_CONFIG_HOME/git-iris` when the env var is set and non-empty.
+    /// 2. `~/Library/Application Support/git-iris` on macOS **only** when a
+    ///    config already exists there — this keeps pre-XDG installs working.
+    /// 3. `$HOME/.config/git-iris` — the XDG-style default that lines up with
+    ///    how `gh`, `neovim`, `bat`, `ripgrep`, `helix`, `starship`, and the
+    ///    rest of the modern CLI ecosystem behave on macOS.
+    /// 4. `dirs::config_dir()/git-iris` as a last-resort fallback when `$HOME`
+    ///    is unreachable (should only happen in exotic sandboxes).
+    ///
+    /// This function is pure — filesystem probing for the legacy macOS path
+    /// happens in `get_personal_config_path` so the resolver stays easy to
+    /// unit-test with synthetic inputs.
     fn resolve_personal_config_dir(
         xdg_config_home: Option<PathBuf>,
+        home_dir: Option<PathBuf>,
         platform_config_dir: Option<PathBuf>,
+        legacy_macos_config_exists: bool,
     ) -> Result<PathBuf> {
-        let base_dir = xdg_config_home
-            .filter(|path| !path.as_os_str().is_empty())
-            .or(platform_config_dir)
-            .ok_or_else(|| anyhow!("Unable to determine config directory"))?;
+        if let Some(xdg) = xdg_config_home.filter(|path| !path.as_os_str().is_empty()) {
+            return Ok(xdg.join("git-iris"));
+        }
 
-        Ok(base_dir.join("git-iris"))
+        if legacy_macos_config_exists && let Some(platform) = platform_config_dir.clone() {
+            return Ok(platform.join("git-iris"));
+        }
+
+        if let Some(home) = home_dir {
+            return Ok(home.join(".config").join("git-iris"));
+        }
+
+        platform_config_dir
+            .map(|p| p.join("git-iris"))
+            .ok_or_else(|| anyhow!("Unable to determine config directory"))
     }
 
     /// Get path to personal config file
@@ -410,9 +436,22 @@ impl Config {
     ///
     /// Returns an error when the config directory cannot be resolved or created.
     pub fn get_personal_config_path() -> Result<PathBuf> {
+        let platform_dir = config_dir();
+
+        // Only probe the legacy macOS location on macOS. On every other
+        // platform `dirs::config_dir()` already maps to `$HOME/.config` (or an
+        // equivalent), so treating the existence check as macOS-only avoids
+        // falsely flagging a Linux user's `~/.config/git-iris` as "legacy".
+        let legacy_macos_config_exists = cfg!(target_os = "macos")
+            && platform_dir
+                .as_ref()
+                .is_some_and(|dir| dir.join("git-iris").join("config.toml").exists());
+
         let mut path = Self::resolve_personal_config_dir(
             std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from),
-            config_dir(),
+            home_dir(),
+            platform_dir,
+            legacy_macos_config_exists,
         )?;
         fs::create_dir_all(&path)?;
         path.push("config.toml");

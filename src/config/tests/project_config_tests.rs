@@ -49,7 +49,10 @@ fast_model = "gemini-2.5-flash"
     let config: Config = toml::from_str(config_toml).expect("valid config");
     let (migrated, needs_save) = Config::migrate_if_needed(config);
 
-    assert!(needs_save, "legacy gemini provider should trigger migration");
+    assert!(
+        needs_save,
+        "legacy gemini provider should trigger migration"
+    );
     assert_eq!(migrated.default_provider, "google");
     assert!(!migrated.providers.contains_key("gemini"));
 
