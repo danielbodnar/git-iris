@@ -185,6 +185,35 @@ impl fmt::Display for StructuredResponse {
     }
 }
 
+/// Locate the first balanced `{ ... }` pair in `s`, returning `(start, end)` byte
+/// offsets where `end` is exclusive. Returns `None` if no balanced pair exists.
+///
+/// The scanner is intentionally simple — it does not track string literals, so
+/// braces embedded inside strings may still close an enclosing object. Callers
+/// compensate by trying subsequent candidates when parsing fails.
+fn find_balanced_braces(s: &str) -> Option<(usize, usize)> {
+    let mut depth: i32 = 0;
+    let mut start: Option<usize> = None;
+    for (i, ch) in s.char_indices() {
+        match ch {
+            '{' => {
+                if depth == 0 {
+                    start = Some(i);
+                }
+                depth += 1;
+            }
+            '}' if depth > 0 => {
+                depth -= 1;
+                if depth == 0 {
+                    return start.map(|s_idx| (s_idx, i + 1));
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
 /// Extract JSON from a potentially verbose response that might contain explanations
 fn extract_json_from_response(response: &str) -> Result<String> {
     use crate::agents::debug;
@@ -236,61 +265,57 @@ fn extract_json_from_response(response: &str) -> Result<String> {
         return Ok(trimmed);
     }
 
-    // Look for JSON objects by finding { and matching }
-    let mut brace_count = 0;
-    let mut json_start = None;
-    let mut json_end = None;
-
-    for (i, ch) in response.char_indices() {
-        match ch {
-            '{' => {
-                if brace_count == 0 {
-                    json_start = Some(i);
-                }
-                brace_count += 1;
-            }
-            '}' => {
-                brace_count -= 1;
-                if brace_count == 0 && json_start.is_some() {
-                    json_end = Some(i + 1);
-                    break;
-                }
-            }
-            _ => {}
-        }
-    }
-
-    if let (Some(start), Some(end)) = (json_start, json_end) {
+    // Look for JSON objects by scanning for balanced `{ ... }` pairs.
+    //
+    // The response may contain several `{` characters that are NOT the real JSON
+    // payload — for example `${{ github.ref_name }}` lifted verbatim from a diff,
+    // or template placeholders the model echoes in its prose. We try each balanced
+    // candidate in order and return the first one that parses. If every candidate
+    // fails, we fall through with an error built from the last attempt.
+    let mut last_error: Option<anyhow::Error> = None;
+    let mut cursor = 0;
+    while cursor < response.len() {
+        let Some((rel_start, rel_end)) = find_balanced_braces(&response[cursor..]) else {
+            break;
+        };
+        let start = cursor + rel_start;
+        let end = cursor + rel_end;
         let json_content = &response[start..end];
         debug::debug_json_parse_attempt(json_content);
 
-        // Try to sanitize before validating (control characters in strings)
         let sanitized = sanitize_json_response(json_content);
+        match serde_json::from_str::<serde_json::Value>(&sanitized) {
+            Ok(_) => {
+                debug::debug_context_management(
+                    "Found valid JSON object",
+                    &format!("{} characters", json_content.len()),
+                );
+                return Ok(sanitized.into_owned());
+            }
+            Err(e) => {
+                debug::debug_json_parse_error(&format!(
+                    "Candidate at offset {} is not valid JSON: {}",
+                    start, e
+                ));
+                let preview = if json_content.len() > 200 {
+                    format!("{}...", &json_content[..200])
+                } else {
+                    json_content.to_string()
+                };
+                last_error = Some(anyhow::anyhow!(
+                    "Found JSON-like content but it's not valid JSON: {}\nPreview: {}",
+                    e,
+                    preview
+                ));
+                // Advance past the opening brace of this failed candidate so we
+                // can try the next `{` in the response.
+                cursor = start + 1;
+            }
+        }
+    }
 
-        // Validate it's actually JSON by attempting to parse it
-        let _: serde_json::Value = serde_json::from_str(&sanitized).map_err(|e| {
-            debug::debug_json_parse_error(&format!(
-                "Found JSON-like content but it's not valid JSON: {}",
-                e
-            ));
-            // Include more context in the error for debugging
-            let preview = if json_content.len() > 200 {
-                format!("{}...", &json_content[..200])
-            } else {
-                json_content.to_string()
-            };
-            anyhow::anyhow!(
-                "Found JSON-like content but it's not valid JSON: {}\nPreview: {}",
-                e,
-                preview
-            )
-        })?;
-
-        debug::debug_context_management(
-            "Found valid JSON object",
-            &format!("{} characters", json_content.len()),
-        );
-        return Ok(sanitized.into_owned());
+    if let Some(err) = last_error {
+        return Err(err);
     }
 
     // If no JSON found, check if the response is raw markdown that we can wrap
@@ -1348,7 +1373,10 @@ impl Default for IrisAgentBuilder {
 
 #[cfg(test)]
 mod tests {
-    use super::{IrisAgent, sanitize_json_response, streaming_response_instructions};
+    use super::{
+        IrisAgent, extract_json_from_response, find_balanced_braces, sanitize_json_response,
+        streaming_response_instructions,
+    };
     use serde_json::Value;
     use std::borrow::Cow;
 
@@ -1382,6 +1410,51 @@ Line2\"}";
         let instructions = streaming_response_instructions("review");
         assert!(instructions.contains("markdown format"));
         assert!(instructions.contains("well-structured"));
+    }
+
+    #[test]
+    fn find_balanced_braces_returns_first_balanced_pair() {
+        let (start, end) = find_balanced_braces("prefix {\"a\":1} suffix").expect("balanced pair");
+        assert_eq!(&"prefix {\"a\":1} suffix"[start..end], "{\"a\":1}");
+    }
+
+    #[test]
+    fn find_balanced_braces_returns_none_for_unbalanced() {
+        assert_eq!(find_balanced_braces("no braces here"), None);
+        assert_eq!(find_balanced_braces("{ unclosed"), None);
+    }
+
+    #[test]
+    fn extract_json_skips_github_actions_expression_false_positive() {
+        // Regression for a real failure: a diff hunk that adds
+        // `commit_message: "Update to ${{ github.ref_name }}"` to a workflow
+        // lands in the model's response. The old scanner grabbed `{{ github.ref_name }}`
+        // as its first balanced pair and errored out before seeing the real JSON.
+        let response = r#"Looking at the diff, I see the new value `${{ github.ref_name }}` replacing the old bash expansion. Here's the commit:
+
+{"emoji": "🔧", "title": "Upgrade AUR deploy action", "message": "Bump to v4.1.2 to fix bash --command error."}
+"#;
+        let extracted = extract_json_from_response(response).expect("should recover real JSON");
+        let parsed: Value = serde_json::from_str(&extracted).expect("extracted value is JSON");
+        assert_eq!(parsed["emoji"], "🔧");
+        assert_eq!(parsed["title"], "Upgrade AUR deploy action");
+    }
+
+    #[test]
+    fn extract_json_from_pure_json_response() {
+        let response = r##"{"content": "# Heading\n\nBody text."}"##;
+        let extracted = extract_json_from_response(response).expect("pure JSON passes through");
+        assert_eq!(extracted, response);
+    }
+
+    #[test]
+    fn extract_json_errors_when_no_candidate_parses() {
+        // A single malformed candidate and no other braces: we surface the
+        // parse error with a preview so the user sees what went wrong.
+        let response = "prose ${{ template }} more prose";
+        let err = extract_json_from_response(response).expect_err("should fail");
+        let msg = err.to_string();
+        assert!(msg.contains("Preview:"), "error should include a preview: {msg}");
     }
 
     #[test]

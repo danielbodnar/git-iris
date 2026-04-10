@@ -47,8 +47,9 @@ fast_model = "gemini-2.5-flash"
 "#;
 
     let config: Config = toml::from_str(config_toml).expect("valid config");
-    let migrated = Config::migrate_if_needed(config);
+    let (migrated, needs_save) = Config::migrate_if_needed(config);
 
+    assert!(needs_save, "legacy gemini provider should trigger migration");
     assert_eq!(migrated.default_provider, "google");
     assert!(!migrated.providers.contains_key("gemini"));
 
@@ -79,8 +80,9 @@ model = "gemini-2.5-flash"
 "#;
 
     let config: Config = toml::from_str(config_toml).expect("valid config");
-    let migrated = Config::migrate_if_needed(config);
+    let (migrated, needs_save) = Config::migrate_if_needed(config);
 
+    assert!(needs_save, "legacy alias should trigger migration");
     assert_eq!(migrated.default_provider, "google");
     assert!(!migrated.providers.contains_key("gemini"));
 
@@ -90,4 +92,46 @@ model = "gemini-2.5-flash"
         .expect("google config should exist after migration");
     assert_eq!(google_config.api_key, "AIza-canonical");
     assert_eq!(google_config.model, "gemini-3-pro-preview");
+}
+
+/// Regression: `migrate_if_needed` must never touch the filesystem. A prior
+/// version called `config.save()` internally, which would stomp the user's
+/// live `~/.config/git-iris/config.toml` every time these tests ran (the
+/// `canonical_provider_config_wins_over_legacy_alias` fixture happened to
+/// deserialize cleanly and overwrite whatever providers the user had set up).
+///
+/// Our guardrail is the function signature: `migrate_if_needed` now returns
+/// `(Self, bool)` and never sees `&self.save()`. This test exercises a
+/// migration and asserts we got the side-effect flag back — any future
+/// refactor that re-introduces a hidden save would need to either break this
+/// contract or ignore the flag, both of which are easier to catch in review.
+#[test]
+fn migrate_if_needed_returns_save_flag_without_writing() {
+    let config_toml = r#"
+default_provider = "gemini"
+
+[providers.gemini]
+api_key = "should-never-reach-disk"
+model = "gemini-3-pro-preview"
+"#;
+    let config: Config = toml::from_str(config_toml).expect("valid config");
+    let (migrated, needs_save) = Config::migrate_if_needed(config);
+
+    assert!(needs_save, "legacy provider must request a save");
+    assert_eq!(migrated.default_provider, "google");
+    assert!(!migrated.providers.contains_key("gemini"));
+}
+
+#[test]
+fn migrate_if_needed_skips_save_flag_when_no_migration_needed() {
+    let config_toml = r#"
+default_provider = "anthropic"
+
+[providers.anthropic]
+api_key = "sk-ant-example"
+model = "claude-opus-4-6"
+"#;
+    let config: Config = toml::from_str(config_toml).expect("valid config");
+    let (_migrated, needs_save) = Config::migrate_if_needed(config);
+    assert!(!needs_save, "no-op migration must not request a save");
 }

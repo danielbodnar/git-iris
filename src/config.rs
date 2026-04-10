@@ -121,8 +121,12 @@ impl Config {
         let config_path = Self::get_personal_config_path()?;
         let mut config = if config_path.exists() {
             let content = fs::read_to_string(&config_path)?;
-            let config: Self = toml::from_str(&content)?;
-            Self::migrate_if_needed(config)
+            let parsed: Self = toml::from_str(&content)?;
+            let (migrated, needs_save) = Self::migrate_if_needed(parsed);
+            if needs_save && let Err(e) = migrated.save() {
+                log_debug!("Failed to save migrated config: {}", e);
+            }
+            migrated
         } else {
             Self::default()
         };
@@ -284,8 +288,14 @@ impl Config {
             .is_some_and(|table| table.contains_key(key))
     }
 
-    /// Migrate older config formats
-    fn migrate_if_needed(mut config: Self) -> Self {
+    /// Migrate older config formats. Pure — never touches the filesystem.
+    ///
+    /// Returns the (possibly updated) config and a flag indicating whether any
+    /// migration actually happened. Callers that loaded from disk (i.e. `load`)
+    /// are responsible for persisting the migrated form; tests and other
+    /// in-memory users can ignore the flag. Keeping this pure stops test
+    /// fixtures from clobbering the user's real config file.
+    fn migrate_if_needed(mut config: Self) -> (Self, bool) {
         let mut migrated = false;
 
         for (legacy, canonical) in [("claude", "anthropic"), ("gemini", "google")] {
@@ -311,11 +321,7 @@ impl Config {
             }
         }
 
-        if migrated && let Err(e) = config.save() {
-            log_debug!("Failed to save migrated config: {}", e);
-        }
-
-        config
+        (config, migrated)
     }
 
     /// Save configuration to personal config file
