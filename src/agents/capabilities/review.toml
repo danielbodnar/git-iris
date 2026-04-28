@@ -41,11 +41,27 @@ Evaluate code quality across relevant dimensions—use your judgment about which
 - **Style**: inconsistencies, naming, formatting
 - **Best Practices**: anti-patterns, deprecated APIs, ignored warnings
 
+## Agentic Review Strategy
+
+Treat the review as a staged investigation, not a single sweep:
+
+1. **Plan the review** from the summary diff: identify risky surfaces, changed contracts, and missing evidence.
+2. **Run specialist passes** when the changeset touches distinct concerns:
+   - Security/auth/data validation
+   - API and compatibility contracts
+   - State, concurrency, async, or resource lifetime
+   - Tests, migrations, generated artifacts, and release/docs impact
+3. **Use `parallel_analyze`** for large or multi-domain changes even below the hard "Very Large" threshold when independent specialist passes would reduce blind spots.
+4. **Aggregate ruthlessly**: deduplicate overlapping findings, discard weak speculation, and keep only issues backed by code evidence.
+5. **Second-pass suspicious findings**: before reporting a [CRITICAL] or [HIGH] issue, verify it by reading the relevant code path, tests, or nearby callers. If you cannot verify it, lower confidence or mark it as a question.
+6. **Evidence gates**: when behavior depends on UI, API, agent behavior, or tooling, name the concrete verification evidence expected (screenshot, command output, test/eval run, curl example, fixture, or migration check).
+
 For every issue provide:
 - Severity: [CRITICAL], [HIGH], [MEDIUM], or [LOW]
 - Location: exact file:line reference
 - Explanation of why this matters
 - Concrete fix recommendation
+- Confidence: High, Medium, or Low
 
 Balance critique with praise—call out strengths and thoughtful improvements.
 
@@ -57,6 +73,8 @@ Balance critique with praise—call out strengths and thoughtful improvements.
 - Be precise about confidence. If evidence is incomplete, gather more context and call out what is verified versus inferred.
 - DO NOT speculate about intent—review only what the code does and what the history supports
 - Keep observations tight and actionable
+- Write findings so they can be pasted into a GitHub PR review without extra editing
+- Prefer "No blocking issues found" over inventing low-value observations
 
 ## Output Format
 

@@ -34,6 +34,10 @@ git-iris review [FLAGS] [OPTIONS]
 | `--commit <ref>`     | Review specific commit (hash, branch, or reference)    |
 | `--from <ref>`       | Starting reference for comparison (defaults to `main`) |
 | `--to <ref>`         | Target reference for comparison                        |
+| `--github-review`    | Publish the review as a GitHub PR review comment       |
+| `--pr <number>`      | GitHub PR number for publishing                        |
+| `--github-inline-comments` | Add validated inline comments for findings in the PR diff |
+| `--github-review-event <event>` | Review event: `comment`, `request-changes`, or `approve` |
 
 ### Global Options
 
@@ -210,6 +214,26 @@ git-iris review --raw > review.md
 # For markdown processors
 git-iris review --raw | pandoc -f markdown -t html
 ```
+
+### GitHub Review Publishing
+
+Publish the generated review directly to an open GitHub PR:
+
+```bash
+# Auto-detect the PR from the current branch
+git-iris review --github-review
+
+# Or target a specific PR
+git-iris review --from main --to feature-branch --github-review --pr 123
+
+# Request changes when publishing
+git-iris review --github-review --github-review-event request-changes
+
+# Add inline comments only where Iris cites lines present in the PR diff
+git-iris review --github-review --github-inline-comments
+```
+
+Git-Iris reads `GH_TOKEN` / `GITHUB_TOKEN`, then falls back to the GitHub CLI auth store.
 
 ## Integration Workflows
 

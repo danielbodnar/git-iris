@@ -6,7 +6,7 @@ use crate::theme;
 use crate::theme::names::tokens;
 use crate::ui;
 use clap::builder::{Styles, styling::AnsiColor};
-use clap::{CommandFactory, Parser, Subcommand, crate_version};
+use clap::{CommandFactory, Parser, Subcommand, ValueEnum, crate_version};
 use clap_complete::{Shell, generate};
 use colored::Colorize;
 use std::io;
@@ -167,6 +167,30 @@ pub enum Commands {
             help = "Target branch for comparison (e.g., 'feature-branch', 'pr-branch'). Used with --from for branch comparison reviews or on its own to compare from the repository's primary branch"
         )]
         to: Option<String>,
+
+        /// Publish the generated review as a GitHub PR review comment
+        #[arg(
+            long,
+            help = "Publish the generated review as a GitHub PR review comment"
+        )]
+        github_review: bool,
+
+        /// GitHub pull request number to publish to (auto-detects from branch when omitted)
+        #[arg(long = "pr", help = "GitHub pull request number to publish to")]
+        pull_number: Option<u64>,
+
+        /// Add inline comments for findings whose file and line references are present in the PR diff
+        #[arg(long, help = "Add validated inline comments for review findings")]
+        github_inline_comments: bool,
+
+        /// GitHub review event to submit
+        #[arg(
+            long = "github-review-event",
+            value_enum,
+            default_value_t = GitHubReviewEvent::Comment,
+            help = "GitHub review event to submit"
+        )]
+        github_review_event: GitHubReviewEvent,
     },
 
     /// Generate a pull request description
@@ -211,6 +235,17 @@ pub enum Commands {
             help = "Target branch, commit, or commitish for comparison. For single commit analysis, specify just this parameter with a commit hash or commitish (e.g., --to HEAD~2)"
         )]
         to: Option<String>,
+
+        /// Update the GitHub PR body with the generated description
+        #[arg(
+            long,
+            help = "Update the GitHub PR body with the generated description"
+        )]
+        github_update: bool,
+
+        /// GitHub pull request number to update (auto-detects from branch when omitted)
+        #[arg(long = "pr", help = "GitHub pull request number to update")]
+        pull_number: Option<u64>,
     },
 
     /// Generate a changelog
@@ -773,22 +808,64 @@ fn handle_config(
 }
 
 /// Handle the `Review` command
-#[allow(clippy::too_many_arguments)]
+struct ReviewOutputOptions {
+    mode: OutputMode,
+    github_review: bool,
+    github_inline_comments: bool,
+    github_review_event: GitHubReviewEvent,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum GitHubReviewEvent {
+    Comment,
+    RequestChanges,
+    Approve,
+}
+
+impl From<GitHubReviewEvent> for octocrab::models::pulls::ReviewAction {
+    fn from(event: GitHubReviewEvent) -> Self {
+        match event {
+            GitHubReviewEvent::Comment => Self::Comment,
+            GitHubReviewEvent::RequestChanges => Self::RequestChanges,
+            GitHubReviewEvent::Approve => Self::Approve,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum OutputMode {
+    Default,
+    Print,
+    Raw,
+}
+
+impl OutputMode {
+    const fn from_flags(print: bool, raw: bool) -> Self {
+        if raw {
+            Self::Raw
+        } else if print {
+            Self::Print
+        } else {
+            Self::Default
+        }
+    }
+}
+
 async fn handle_review(
     common: CommonParams,
-    print: bool,
-    raw: bool,
+    output: ReviewOutputOptions,
     repository_url: Option<String>,
     include_unstaged: bool,
     commit: Option<String>,
     from: Option<String>,
     to: Option<String>,
+    pull_number: Option<u64>,
 ) -> anyhow::Result<()> {
     log_debug!(
         "Handling 'review' command with common: {:?}, print: {}, raw: {}, include_unstaged: {}, commit: {:?}, from: {:?}, to: {:?}",
         common,
-        print,
-        raw,
+        output.mode == OutputMode::Print,
+        output.mode == OutputMode::Raw,
         include_unstaged,
         commit,
         from,
@@ -796,15 +873,16 @@ async fn handle_review(
     );
 
     // For raw output, skip all formatting
-    if !raw {
+    if output.mode != OutputMode::Raw {
         ui::print_version(crate_version!());
         ui::print_newline();
     }
 
-    use crate::agents::{IrisAgentService, TaskContext};
+    use crate::agents::{IrisAgentService, StructuredResponse, TaskContext};
+    use crate::github::{GitHubClient, ReviewPublishOptions};
 
     // Create spinner for progress indication (skip for raw output)
-    let spinner = if raw {
+    let spinner = if output.mode == OutputMode::Raw {
         None
     } else {
         Some(ui::create_spinner("Initializing Iris..."))
@@ -825,7 +903,40 @@ async fn handle_review(
         s.finish_and_clear();
     }
 
-    if raw || print {
+    let review_content = match &response {
+        StructuredResponse::MarkdownReview(review) => review.content.clone(),
+        _ => response.to_string(),
+    };
+
+    if output.github_review {
+        let git_repo = service
+            .git_repo()
+            .ok_or_else(|| anyhow::anyhow!("GitHub publishing requires a git repository"))?;
+        let github = GitHubClient::from_git_repo(git_repo)?;
+        let number = github.resolve_pull_number(pull_number, git_repo).await?;
+        github
+            .publish_review(
+                number,
+                &review_content,
+                ReviewPublishOptions {
+                    event: output.github_review_event.into(),
+                    inline_comments: output.github_inline_comments,
+                },
+            )
+            .await?;
+        if output.mode != OutputMode::Raw {
+            ui::print_success(&format!(
+                "Published review to {}/{} PR #{}",
+                github.repo().owner,
+                github.repo().name,
+                number
+            ));
+        }
+    }
+
+    if output.mode == OutputMode::Raw {
+        println!("{review_content}");
+    } else if output.mode == OutputMode::Print {
         println!("{response}");
     } else {
         ui::print_success("Code review completed successfully");
@@ -1091,16 +1202,25 @@ pub async fn handle_command(
             commit,
             from,
             to,
+            github_review,
+            github_inline_comments,
+            github_review_event,
+            pull_number,
         } => {
             handle_review(
                 common,
-                print,
-                raw,
+                ReviewOutputOptions {
+                    mode: OutputMode::from_flags(print, raw),
+                    github_review,
+                    github_inline_comments,
+                    github_review_event,
+                },
                 repository_url,
                 include_unstaged,
                 commit,
                 from,
                 to,
+                pull_number,
             )
             .await
         }
@@ -1179,7 +1299,23 @@ pub async fn handle_command(
             copy,
             from,
             to,
-        } => handle_pr(common, print, raw, copy, from, to, repository_url).await,
+            github_update,
+            pull_number,
+        } => {
+            handle_pr(
+                common,
+                PrOutputOptions {
+                    mode: OutputMode::from_flags(print, raw),
+                    copy,
+                    github_update,
+                },
+                from,
+                to,
+                pull_number,
+                repository_url,
+            )
+            .await
+        }
         Commands::Studio {
             common,
             mode,
@@ -1280,21 +1416,27 @@ fn handle_completions(shell: Shell) {
 }
 
 /// Handle the `Pr` command with agent framework
+struct PrOutputOptions {
+    mode: OutputMode,
+    copy: bool,
+    github_update: bool,
+}
+
 async fn handle_pr_with_agent(
     common: CommonParams,
-    print: bool,
-    raw: bool,
-    copy: bool,
+    output: PrOutputOptions,
     from: Option<String>,
     to: Option<String>,
+    pull_number: Option<u64>,
     repository_url: Option<String>,
 ) -> anyhow::Result<()> {
     use crate::agents::{IrisAgentService, StructuredResponse, TaskContext};
+    use crate::github::GitHubClient;
     use crate::instruction_presets::PresetType;
     use arboard::Clipboard;
 
     // Check if the preset is appropriate for PR descriptions (skip for raw output only)
-    if !raw
+    if output.mode != OutputMode::Raw
         && !common.is_valid_preset_for_type(PresetType::Review)
         && !common.is_valid_preset_for_type(PresetType::Both)
     {
@@ -1305,7 +1447,7 @@ async fn handle_pr_with_agent(
     }
 
     // Create spinner for progress indication (skip for raw output only)
-    let spinner = if raw {
+    let spinner = if output.mode == OutputMode::Raw {
         None
     } else {
         Some(ui::create_spinner("Initializing Iris..."))
@@ -1329,10 +1471,27 @@ async fn handle_pr_with_agent(
     let StructuredResponse::PullRequest(generated_pr) = response else {
         return Err(anyhow::anyhow!("Expected pull request response"));
     };
+    let raw_content = generated_pr.raw_content();
+
+    if output.github_update {
+        let git_repo = service
+            .git_repo()
+            .ok_or_else(|| anyhow::anyhow!("GitHub publishing requires a git repository"))?;
+        let github = GitHubClient::from_git_repo(git_repo)?;
+        let number = github.resolve_pull_number(pull_number, git_repo).await?;
+        github.update_pull_body(number, raw_content).await?;
+        if output.mode != OutputMode::Raw {
+            ui::print_success(&format!(
+                "Updated {}/{} PR #{}",
+                github.repo().owner,
+                github.repo().name,
+                number
+            ));
+        }
+    }
 
     // Handle clipboard copy
-    if copy {
-        let raw_content = generated_pr.raw_content();
+    if output.copy {
         match Clipboard::new() {
             Ok(mut clipboard) => match clipboard.set_text(raw_content) {
                 Ok(()) => {
@@ -1350,10 +1509,10 @@ async fn handle_pr_with_agent(
                 println!("{raw_content}");
             }
         }
-    } else if raw {
+    } else if output.mode == OutputMode::Raw {
         // Raw markdown for piping to files or APIs
         println!("{}", generated_pr.raw_content());
-    } else if print {
+    } else if output.mode == OutputMode::Print {
         // Formatted output for terminal viewing
         println!("{}", generated_pr.format());
     } else {
@@ -1367,31 +1526,30 @@ async fn handle_pr_with_agent(
 /// Handle the `Pr` command
 async fn handle_pr(
     common: CommonParams,
-    print: bool,
-    raw: bool,
-    copy: bool,
+    output: PrOutputOptions,
     from: Option<String>,
     to: Option<String>,
+    pull_number: Option<u64>,
     repository_url: Option<String>,
 ) -> anyhow::Result<()> {
     log_debug!(
         "Handling 'pr' command with common: {:?}, print: {}, raw: {}, copy: {}, from: {:?}, to: {:?}",
         common,
-        print,
-        raw,
-        copy,
+        output.mode == OutputMode::Print,
+        output.mode == OutputMode::Raw,
+        output.copy,
         from,
         to
     );
 
     // For raw output, skip version banner (piped output should be clean)
     // For copy mode, show the banner since we're giving user feedback
-    if !raw {
+    if output.mode != OutputMode::Raw {
         ui::print_version(crate_version!());
         ui::print_newline();
     }
 
-    handle_pr_with_agent(common, print, raw, copy, from, to, repository_url).await
+    handle_pr_with_agent(common, output, from, to, pull_number, repository_url).await
 }
 
 /// Handle the `Studio` command

@@ -33,6 +33,8 @@ git-iris pr [FLAGS] [OPTIONS]
 | `--raw`        | Output raw markdown without console formatting |
 | `--from <ref>` | Starting reference (commit, branch, commitish) |
 | `--to <ref>`   | Target reference (commit, branch, commitish)   |
+| `--github-update` | Update the GitHub PR body with the generated description |
+| `--pr <number>` | GitHub PR number to update |
 
 ### Global Options
 
@@ -227,6 +229,20 @@ git-iris pr --from main --to feature-branch --raw > pr.md
 # For GitHub CLI
 git-iris pr --from main --to feature-branch --raw | gh pr create --body-file -
 ```
+
+### GitHub PR Update
+
+Update an existing GitHub PR body after generation:
+
+```bash
+# Auto-detect the PR from the current branch
+git-iris pr --github-update
+
+# Or target a specific PR
+git-iris pr --from main --to feature-branch --github-update --pr 123
+```
+
+Git-Iris reads `GH_TOKEN` / `GITHUB_TOKEN`, then falls back to the GitHub CLI auth store.
 
 ## Integration Workflows
 

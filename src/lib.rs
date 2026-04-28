@@ -22,6 +22,7 @@ pub mod companion;
 pub mod config;
 pub mod context;
 pub mod git;
+pub mod github;
 pub mod gitmoji;
 pub mod instruction_presets;
 pub mod logger;
