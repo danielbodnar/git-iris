@@ -1401,6 +1401,7 @@ dependencies = [
  "regex",
  "reqwest",
  "rig-core",
+ "rustls",
  "schemars",
  "serde",
  "serde_json",

@@ -21,6 +21,7 @@ pub mod common;
 pub mod companion;
 pub mod config;
 pub mod context;
+pub mod crypto;
 pub mod git;
 pub mod github;
 pub mod gitmoji;
