@@ -479,30 +479,8 @@ pub fn get_branch_diff_files(
     // Create diff between the merge-base tree and target tree
     // This shows only changes made in the target branch since it diverged
     let diff = repo.diff_tree_to_tree(Some(&base_tree), Some(&target_tree), None)?;
-
-    // Get statistics for each file and convert to our StagedFile format
     diff.foreach(
-        &mut |delta, _| {
-            if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
-                let change_type = match delta.status() {
-                    git2::Delta::Added => ChangeType::Added,
-                    git2::Delta::Modified => ChangeType::Modified,
-                    git2::Delta::Deleted => ChangeType::Deleted,
-                    _ => return true, // Skip other types of changes
-                };
-
-                let should_exclude = should_exclude_file(path);
-
-                branch_files.push(StagedFile {
-                    path: path.to_string(),
-                    change_type,
-                    diff: String::new(), // Will be populated later
-                    content: None,
-                    content_excluded: should_exclude,
-                });
-            }
-            true
-        },
+        &mut |delta, _| collect_delta_file(&delta, &mut branch_files),
         None,
         None,
         None,
@@ -510,46 +488,7 @@ pub fn get_branch_diff_files(
 
     // Get the diff for each file
     for file in &mut branch_files {
-        if file.content_excluded {
-            file.diff = String::from("[Content excluded]");
-            continue;
-        }
-
-        let mut diff_options = git2::DiffOptions::new();
-        diff_options.pathspec(&file.path);
-
-        let file_diff = repo.diff_tree_to_tree(
-            Some(&base_tree),
-            Some(&target_tree),
-            Some(&mut diff_options),
-        )?;
-
-        let mut diff_string = String::new();
-        file_diff.print(git2::DiffFormat::Patch, |_delta, _hunk, line| {
-            let origin = match line.origin() {
-                '+' | '-' | ' ' => line.origin(),
-                _ => ' ',
-            };
-            diff_string.push(origin);
-            diff_string.push_str(&String::from_utf8_lossy(line.content()));
-            true
-        })?;
-
-        if is_binary_diff(&diff_string) {
-            file.diff = "[Binary file changed]".to_string();
-        } else {
-            file.diff = diff_string;
-        }
-
-        // Get file content from target branch if it's a modified or added file
-        if matches!(file.change_type, ChangeType::Added | ChangeType::Modified)
-            && let Ok(entry) = target_tree.get_path(std::path::Path::new(&file.path))
-            && let Ok(object) = entry.to_object(repo)
-            && let Some(blob) = object.as_blob()
-            && let Ok(content) = std::str::from_utf8(blob.content())
-        {
-            file.content = Some(content.to_string());
-        }
+        populate_branch_file(repo, &base_tree, &target_tree, file)?;
     }
 
     log_debug!(
@@ -557,6 +496,99 @@ pub fn get_branch_diff_files(
         branch_files.len()
     );
     Ok(branch_files)
+}
+
+fn collect_delta_file(delta: &git2::DiffDelta<'_>, branch_files: &mut Vec<StagedFile>) -> bool {
+    if let Some(file) = staged_file_from_delta(delta) {
+        branch_files.push(file);
+    }
+    true
+}
+
+fn staged_file_from_delta(delta: &git2::DiffDelta<'_>) -> Option<StagedFile> {
+    let path = delta.new_file().path()?.to_str()?;
+    let change_type = change_type_from_delta(delta.status())?;
+
+    Some(StagedFile {
+        path: path.to_string(),
+        change_type,
+        diff: String::new(),
+        content: None,
+        content_excluded: should_exclude_file(path),
+    })
+}
+
+fn change_type_from_delta(delta: git2::Delta) -> Option<ChangeType> {
+    match delta {
+        git2::Delta::Added => Some(ChangeType::Added),
+        git2::Delta::Modified => Some(ChangeType::Modified),
+        git2::Delta::Deleted => Some(ChangeType::Deleted),
+        _ => None,
+    }
+}
+
+fn populate_branch_file(
+    repo: &Repository,
+    base_tree: &git2::Tree<'_>,
+    target_tree: &git2::Tree<'_>,
+    file: &mut StagedFile,
+) -> Result<()> {
+    file.diff = branch_file_diff(repo, base_tree, target_tree, file)?;
+    file.content = branch_file_content(repo, target_tree, file);
+    Ok(())
+}
+
+fn branch_file_diff(
+    repo: &Repository,
+    base_tree: &git2::Tree<'_>,
+    target_tree: &git2::Tree<'_>,
+    file: &StagedFile,
+) -> Result<String> {
+    if file.content_excluded {
+        return Ok(String::from("[Content excluded]"));
+    }
+
+    let mut diff_options = git2::DiffOptions::new();
+    diff_options.pathspec(&file.path);
+
+    let file_diff =
+        repo.diff_tree_to_tree(Some(base_tree), Some(target_tree), Some(&mut diff_options))?;
+    let mut diff_string = String::new();
+    file_diff.print(git2::DiffFormat::Patch, |_delta, _hunk, line| {
+        diff_string.push(patch_line_origin(line.origin()));
+        diff_string.push_str(&String::from_utf8_lossy(line.content()));
+        true
+    })?;
+
+    if is_binary_diff(&diff_string) {
+        Ok("[Binary file changed]".to_string())
+    } else {
+        Ok(diff_string)
+    }
+}
+
+fn patch_line_origin(origin: char) -> char {
+    match origin {
+        '+' | '-' | ' ' => origin,
+        _ => ' ',
+    }
+}
+
+fn branch_file_content(
+    repo: &Repository,
+    target_tree: &git2::Tree<'_>,
+    file: &StagedFile,
+) -> Option<String> {
+    if !matches!(file.change_type, ChangeType::Added | ChangeType::Modified) {
+        return None;
+    }
+
+    target_tree
+        .get_path(std::path::Path::new(&file.path))
+        .ok()
+        .and_then(|entry| entry.to_object(repo).ok())
+        .and_then(|object| object.as_blob().map(|blob| blob.content().to_vec()))
+        .and_then(|content| String::from_utf8(content).ok())
 }
 
 /// Extract branch comparison info without crossing async boundaries

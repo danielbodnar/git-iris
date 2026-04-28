@@ -32,6 +32,70 @@ pub struct GitRepo {
     remote_url: Option<String>,
 }
 
+fn execute_hook_command(
+    hook_name: &str,
+    hook_path: &Path,
+    git_dir: &Path,
+    repo_workdir: &Path,
+) -> Result<()> {
+    log_hook_start(hook_name, hook_path, repo_workdir);
+    wait_for_hook(hook_name, hook_command(hook_path, git_dir, repo_workdir))
+}
+
+fn log_hook_start(hook_name: &str, hook_path: &Path, repo_workdir: &Path) {
+    log_debug!("Executing hook: {}", hook_name);
+    log_debug!("Hook path: {:?}", hook_path);
+    log_debug!("Repository working directory: {:?}", repo_workdir);
+}
+
+fn hook_command(hook_path: &Path, git_dir: &Path, repo_workdir: &Path) -> Command {
+    let mut command = Command::new(hook_path);
+    command
+        .current_dir(repo_workdir)
+        .env("GIT_DIR", git_dir)
+        .env("GIT_WORK_TREE", repo_workdir)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    log_debug!("Executing hook command: {:?}", command);
+    command
+}
+
+fn wait_for_hook(hook_name: &str, mut command: Command) -> Result<()> {
+    let mut child = command.spawn()?;
+    pipe_hook_output(&mut child)?;
+
+    let status = child.wait()?;
+    if !status.success() {
+        return Err(anyhow!(
+            "Hook '{}' failed with exit code: {:?}",
+            hook_name,
+            status.code()
+        ));
+    }
+
+    log_debug!("Hook '{}' executed successfully", hook_name);
+    Ok(())
+}
+
+fn pipe_hook_output(child: &mut std::process::Child) -> Result<()> {
+    let stdout = child.stdout.take().context("Could not get stdout")?;
+    let stderr = child.stderr.take().context("Could not get stderr")?;
+
+    std::thread::spawn(move || copy_hook_stream(stdout, std::io::stdout(), "stdout"));
+    std::thread::spawn(move || copy_hook_stream(stderr, std::io::stderr(), "stderr"));
+    Ok(())
+}
+
+fn copy_hook_stream<R, W>(stream: R, mut output: W, name: &str)
+where
+    R: std::io::Read,
+    W: std::io::Write,
+{
+    if let Err(e) = std::io::copy(&mut std::io::BufReader::new(stream), &mut output) {
+        tracing::debug!("Failed to copy hook {name}: {e}");
+    }
+}
+
 impl GitRepo {
     /// Creates a new `GitRepo` instance from a local path.
     ///
@@ -252,63 +316,15 @@ impl GitRepo {
         let repo = self.open_repo()?;
         let hook_path = repo.path().join("hooks").join(hook_name);
 
-        if hook_path.exists() {
-            log_debug!("Executing hook: {}", hook_name);
-            log_debug!("Hook path: {:?}", hook_path);
-
-            // Get the repository's working directory (top level)
-            let repo_workdir = repo
-                .workdir()
-                .context("Repository has no working directory")?;
-            log_debug!("Repository working directory: {:?}", repo_workdir);
-
-            // Create a command with the proper environment and working directory
-            let mut command = Command::new(&hook_path);
-            command
-                .current_dir(repo_workdir) // Use the repository's working directory, not .git
-                .env("GIT_DIR", repo.path()) // Set GIT_DIR to the .git directory
-                .env("GIT_WORK_TREE", repo_workdir) // Set GIT_WORK_TREE to the working directory
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped());
-
-            log_debug!("Executing hook command: {:?}", command);
-
-            let mut child = command.spawn()?;
-
-            let stdout = child.stdout.take().context("Could not get stdout")?;
-            let stderr = child.stderr.take().context("Could not get stderr")?;
-
-            std::thread::spawn(move || {
-                if let Err(e) =
-                    std::io::copy(&mut std::io::BufReader::new(stdout), &mut std::io::stdout())
-                {
-                    tracing::debug!("Failed to copy hook stdout: {e}");
-                }
-            });
-            std::thread::spawn(move || {
-                if let Err(e) =
-                    std::io::copy(&mut std::io::BufReader::new(stderr), &mut std::io::stderr())
-                {
-                    tracing::debug!("Failed to copy hook stderr: {e}");
-                }
-            });
-
-            let status = child.wait()?;
-
-            if !status.success() {
-                return Err(anyhow!(
-                    "Hook '{}' failed with exit code: {:?}",
-                    hook_name,
-                    status.code()
-                ));
-            }
-
-            log_debug!("Hook '{}' executed successfully", hook_name);
-        } else {
+        if !hook_path.exists() {
             log_debug!("Hook '{}' not found at {:?}", hook_name, hook_path);
+            return Ok(());
         }
 
-        Ok(())
+        let repo_workdir = repo
+            .workdir()
+            .context("Repository has no working directory")?;
+        execute_hook_command(hook_name, &hook_path, repo.path(), repo_workdir)
     }
 
     /// Get the root directory of the current git repository

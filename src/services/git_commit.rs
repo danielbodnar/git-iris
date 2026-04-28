@@ -92,41 +92,12 @@ impl GitCommitService {
     ///
     /// Returns an error when the repository is remote, hooks fail, or Git cannot create the commit.
     pub fn perform_commit(&self, message: &str) -> Result<CommitResult> {
-        if self.is_remote() {
-            return Err(anyhow::anyhow!("Cannot commit to a remote repository"));
-        }
-
-        log_debug!("Performing commit with message: {}", message);
-
-        if !self.verify {
-            log_debug!("Skipping pre-commit hook (verify=false)");
-            return self.repo.commit(message);
-        }
-
-        // Execute pre-commit hook
-        log_debug!("Executing pre-commit hook");
-        if let Err(e) = self.repo.execute_hook("pre-commit") {
-            log_debug!("Pre-commit hook failed: {}", e);
-            return Err(e);
-        }
-        log_debug!("Pre-commit hook executed successfully");
-
-        // Perform the commit
-        match self.repo.commit(message) {
-            Ok(result) => {
-                // Execute post-commit hook (failure doesn't fail the commit)
-                log_debug!("Executing post-commit hook");
-                if let Err(e) = self.repo.execute_hook("post-commit") {
-                    log_debug!("Post-commit hook failed: {}", e);
-                }
-                log_debug!("Commit performed successfully");
-                Ok(result)
-            }
-            Err(e) => {
-                log_debug!("Commit failed: {}", e);
-                Err(e)
-            }
-        }
+        self.perform_local_change(
+            message,
+            "commit",
+            "Cannot commit to a remote repository",
+            GitRepo::commit,
+        )
     }
 
     /// Amend the previous commit with staged changes and a new message
@@ -148,42 +119,71 @@ impl GitCommitService {
     ///
     /// Returns an error when the repository is remote, hooks fail, or Git cannot amend the commit.
     pub fn perform_amend(&self, message: &str) -> Result<CommitResult> {
+        self.perform_local_change(
+            message,
+            "amend",
+            "Cannot amend a commit in a remote repository",
+            GitRepo::amend_commit,
+        )
+    }
+
+    fn perform_local_change(
+        &self,
+        message: &str,
+        action: &str,
+        remote_error: &str,
+        operation: fn(&GitRepo, &str) -> Result<CommitResult>,
+    ) -> Result<CommitResult> {
         if self.is_remote() {
-            return Err(anyhow::anyhow!(
-                "Cannot amend a commit in a remote repository"
-            ));
+            return Err(anyhow::anyhow!("{remote_error}"));
         }
 
-        log_debug!("Performing amend with message: {}", message);
+        log_debug!("Performing {} with message: {}", action, message);
 
         if !self.verify {
             log_debug!("Skipping pre-commit hook (verify=false)");
-            return self.repo.amend_commit(message);
+            return operation(&self.repo, message);
         }
 
-        // Execute pre-commit hook
+        self.run_pre_commit_hook()?;
+        self.finish_local_change(message, action, operation)
+    }
+
+    fn run_pre_commit_hook(&self) -> Result<()> {
         log_debug!("Executing pre-commit hook");
-        if let Err(e) = self.repo.execute_hook("pre-commit") {
-            log_debug!("Pre-commit hook failed: {}", e);
-            return Err(e);
-        }
-        log_debug!("Pre-commit hook executed successfully");
+        self.repo
+            .execute_hook("pre-commit")
+            .inspect(|()| {
+                log_debug!("Pre-commit hook executed successfully");
+            })
+            .inspect_err(|e| {
+                log_debug!("Pre-commit hook failed: {}", e);
+            })
+    }
 
-        // Perform the amend
-        match self.repo.amend_commit(message) {
+    fn finish_local_change(
+        &self,
+        message: &str,
+        action: &str,
+        operation: fn(&GitRepo, &str) -> Result<CommitResult>,
+    ) -> Result<CommitResult> {
+        match operation(&self.repo, message) {
             Ok(result) => {
-                // Execute post-commit hook (failure doesn't fail the amend)
-                log_debug!("Executing post-commit hook");
-                if let Err(e) = self.repo.execute_hook("post-commit") {
-                    log_debug!("Post-commit hook failed: {}", e);
-                }
-                log_debug!("Amend performed successfully");
+                self.run_post_commit_hook();
+                log_debug!("{} performed successfully", capitalized_action(action));
                 Ok(result)
             }
             Err(e) => {
-                log_debug!("Amend failed: {}", e);
+                log_debug!("{} failed: {}", capitalized_action(action), e);
                 Err(e)
             }
+        }
+    }
+
+    fn run_post_commit_hook(&self) {
+        log_debug!("Executing post-commit hook");
+        if let Err(e) = self.repo.execute_hook("post-commit") {
+            log_debug!("Post-commit hook failed: {}", e);
         }
     }
 
@@ -203,6 +203,13 @@ impl GitCommitService {
     pub fn repo(&self) -> &GitRepo {
         &self.repo
     }
+}
+
+fn capitalized_action(action: &str) -> String {
+    let mut chars = action.chars();
+    chars.next().map_or_else(String::new, |first| {
+        first.to_uppercase().collect::<String>() + chars.as_str()
+    })
 }
 
 #[cfg(test)]

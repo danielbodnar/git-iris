@@ -14,7 +14,7 @@ pub use storage::CompanionStorage;
 pub use watcher::{CompanionEvent, FileWatcherService};
 
 use anyhow::Result;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
@@ -42,48 +42,11 @@ impl CompanionService {
     /// Returns an error when companion storage cannot be initialized.
     pub fn new(repo_path: PathBuf, branch: &str) -> Result<Self> {
         let (event_tx, event_rx) = mpsc::unbounded_channel();
-
-        // Initialize storage
         let storage = CompanionStorage::new(&repo_path)?;
-
-        // Try to load existing session or create new one.
-        // Session data should never block companion startup.
-        let session = match storage.load_session() {
-            Ok(Some(mut session)) if session.branch == branch => {
-                repo_path.clone_into(&mut session.repo_path);
-                session
-            }
-            Ok(Some(session)) => {
-                tracing::info!(
-                    "Ignoring session data for branch {} while starting on {}",
-                    session.branch,
-                    branch
-                );
-                SessionState::new(repo_path.clone(), branch.to_owned())
-            }
-            Ok(None) => SessionState::new(repo_path.clone(), branch.to_owned()),
-            Err(e) => {
-                tracing::warn!("Failed to load companion session; starting fresh: {}", e);
-                SessionState::new(repo_path.clone(), branch.to_owned())
-            }
-        };
-
-        let session = Arc::new(parking_lot::RwLock::new(session));
-
-        // Try to start file watcher (non-fatal if it fails)
-        let watcher = match FileWatcherService::new(&repo_path, event_tx.clone()) {
-            Ok(w) => {
-                tracing::info!("Companion file watcher started");
-                Some(w)
-            }
-            Err(e) => {
-                tracing::warn!(
-                    "Failed to start file watcher: {}. Companion will run without live updates.",
-                    e
-                );
-                None
-            }
-        };
+        let session = Arc::new(parking_lot::RwLock::new(load_session(
+            &storage, &repo_path, branch,
+        )));
+        let watcher = start_file_watcher(&repo_path, event_tx.clone());
 
         Ok(Self {
             repo_path,
@@ -156,6 +119,47 @@ impl CompanionService {
     #[must_use]
     pub fn repo_path(&self) -> &PathBuf {
         &self.repo_path
+    }
+}
+
+fn load_session(storage: &CompanionStorage, repo_path: &Path, branch: &str) -> SessionState {
+    match storage.load_session() {
+        Ok(Some(mut session)) if session.branch == branch => {
+            repo_path.clone_into(&mut session.repo_path);
+            session
+        }
+        Ok(Some(session)) => {
+            tracing::info!(
+                "Ignoring session data for branch {} while starting on {}",
+                session.branch,
+                branch
+            );
+            SessionState::new(repo_path.to_path_buf(), branch.to_owned())
+        }
+        Ok(None) => SessionState::new(repo_path.to_path_buf(), branch.to_owned()),
+        Err(e) => {
+            tracing::warn!("Failed to load companion session; starting fresh: {}", e);
+            SessionState::new(repo_path.to_path_buf(), branch.to_owned())
+        }
+    }
+}
+
+fn start_file_watcher(
+    repo_path: &Path,
+    event_tx: mpsc::UnboundedSender<CompanionEvent>,
+) -> Option<FileWatcherService> {
+    match FileWatcherService::new(repo_path, event_tx) {
+        Ok(watcher) => {
+            tracing::info!("Companion file watcher started");
+            Some(watcher)
+        }
+        Err(e) => {
+            tracing::warn!(
+                "Failed to start file watcher: {}. Companion will run without live updates.",
+                e
+            );
+            None
+        }
     }
 }
 

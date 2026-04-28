@@ -274,35 +274,8 @@ impl StatusMessageGenerator {
     /// Internal generation logic
     async fn generate_internal(&self, context: &StatusContext) -> Result<StatusMessage> {
         let prompt = Self::build_prompt(context);
-        tracing::info!(
-            "Building status agent with provider={}, model={}",
-            self.provider,
-            self.fast_model
-        );
-
-        // Build agent synchronously (DynClientBuilder is not Send)
-        // The returned agent IS Send, so we can await after this
-        let agent = match Self::build_status_agent(
-            &self.provider,
-            &self.fast_model,
-            self.api_key.as_deref(),
-            Some(&self.additional_params),
-        ) {
-            Ok(a) => a,
-            Err(e) => {
-                tracing::warn!("Failed to build status agent: {}", e);
-                return Err(e);
-            }
-        };
-
-        tracing::info!("Prompting status agent...");
-        let response = match agent.prompt(&prompt).await {
-            Ok(r) => r,
-            Err(e) => {
-                tracing::warn!("Status agent prompt failed: {}", e);
-                return Err(anyhow::anyhow!("Prompt failed: {}", e));
-            }
-        };
+        let agent = self.status_agent()?;
+        let response = Self::prompt_status_agent(&agent, &prompt).await?;
 
         let message = capitalize_first(response.trim());
         tracing::info!(
@@ -320,6 +293,30 @@ impl StatusMessageGenerator {
         Ok(StatusMessage {
             message,
             time_hint: None,
+        })
+    }
+
+    fn status_agent(&self) -> Result<DynAgent> {
+        tracing::info!(
+            "Building status agent with provider={}, model={}",
+            self.provider,
+            self.fast_model
+        );
+
+        Self::build_status_agent(
+            &self.provider,
+            &self.fast_model,
+            self.api_key.as_deref(),
+            Some(&self.additional_params),
+        )
+        .inspect_err(|e| tracing::warn!("Failed to build status agent: {}", e))
+    }
+
+    async fn prompt_status_agent(agent: &DynAgent, prompt: &str) -> Result<String> {
+        tracing::info!("Prompting status agent...");
+        agent.prompt(prompt).await.map_err(|e| {
+            tracing::warn!("Status agent prompt failed: {}", e);
+            anyhow::anyhow!("Prompt failed: {}", e)
         })
     }
 

@@ -25,7 +25,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
 
-use crate::agents::IrisAgentService;
+use crate::agents::{IrisAgentService, StatusContext};
 use crate::config::Config;
 use crate::git::GitRepo;
 use crate::services::GitCommitService;
@@ -128,6 +128,44 @@ pub enum ChatUpdateType {
     PRDescription(String),
     /// Update review content
     Review(String),
+}
+
+fn agent_complete_event(task_type: TaskType, result: AgentResult) -> StudioEvent {
+    StudioEvent::AgentComplete { task_type, result }
+}
+
+fn chat_update_event(update: ChatUpdateType) -> StudioEvent {
+    let (content_type, content) = match update {
+        ChatUpdateType::CommitMessage(msg) => {
+            (ContentType::CommitMessage, ContentPayload::Commit(msg))
+        }
+        ChatUpdateType::PRDescription(content) => (
+            ContentType::PRDescription,
+            ContentPayload::Markdown(content),
+        ),
+        ChatUpdateType::Review(content) => {
+            (ContentType::CodeReview, ContentPayload::Markdown(content))
+        }
+    };
+
+    StudioEvent::UpdateContent {
+        content_type,
+        content,
+    }
+}
+
+fn first_line_hint(content: &str, max_chars: usize) -> Option<String> {
+    content
+        .lines()
+        .next()
+        .map(|line| line.chars().take(max_chars).collect())
+}
+
+fn status_file_name(file: &std::path::Path) -> String {
+    file.file_name().map_or_else(
+        || file.to_string_lossy().to_string(),
+        |name| name.to_string_lossy().to_string(),
+    )
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1083,163 +1121,135 @@ impl StudioApp {
     /// Convert async Iris results to events and push to queue
     fn check_iris_results(&mut self) {
         while let Ok(result) = self.iris_result_rx.try_recv() {
-            let event = match result {
-                IrisTaskResult::CommitMessages(messages) => {
-                    // Use completion_message from agent if available, otherwise spawn generation
-                    if let Some(msg) = messages.first().and_then(|m| m.completion_message.clone()) {
-                        tracing::info!("Using agent completion_message: {:?}", msg);
-                        self.state.set_iris_complete(msg);
-                    } else {
-                        tracing::info!(
-                            "No completion_message from agent, spawning generation. First msg: {:?}",
-                            messages.first().map(|m| &m.title)
-                        );
-                        let hint = messages.first().map(|m| m.title.clone());
-                        self.spawn_completion_message("commit", hint);
-                    }
-                    StudioEvent::AgentComplete {
-                        task_type: TaskType::Commit,
-                        result: AgentResult::CommitMessages(messages),
-                    }
-                }
-
-                IrisTaskResult::ReviewContent(content) => {
-                    // Extract first line as hint
-                    let hint = content.lines().next().map(|l| l.chars().take(60).collect());
-                    self.spawn_completion_message("review", hint);
-                    StudioEvent::AgentComplete {
-                        task_type: TaskType::Review,
-                        result: AgentResult::ReviewContent(content),
-                    }
-                }
-
-                IrisTaskResult::PRContent(content) => {
-                    let hint = content.lines().next().map(|l| l.chars().take(60).collect());
-                    self.spawn_completion_message("pr", hint);
-                    StudioEvent::AgentComplete {
-                        task_type: TaskType::PR,
-                        result: AgentResult::PRContent(content),
-                    }
-                }
-
-                IrisTaskResult::ChangelogContent(content) => {
-                    let hint = content.lines().next().map(|l| l.chars().take(60).collect());
-                    self.spawn_completion_message("changelog", hint);
-                    StudioEvent::AgentComplete {
-                        task_type: TaskType::Changelog,
-                        result: AgentResult::ChangelogContent(content),
-                    }
-                }
-
-                IrisTaskResult::ReleaseNotesContent(content) => {
-                    let hint = content.lines().next().map(|l| l.chars().take(60).collect());
-                    self.spawn_completion_message("release_notes", hint);
-                    StudioEvent::AgentComplete {
-                        task_type: TaskType::ReleaseNotes,
-                        result: AgentResult::ReleaseNotesContent(content),
-                    }
-                }
-
-                IrisTaskResult::ChatResponse(response) => {
-                    // Chat doesn't need fancy completion message
-                    StudioEvent::AgentComplete {
-                        task_type: TaskType::Chat,
-                        result: AgentResult::ChatResponse(response),
-                    }
-                }
-
-                IrisTaskResult::ChatUpdate(update) => {
-                    let (content_type, content) = match update {
-                        ChatUpdateType::CommitMessage(msg) => {
-                            (ContentType::CommitMessage, ContentPayload::Commit(msg))
-                        }
-                        ChatUpdateType::PRDescription(content) => (
-                            ContentType::PRDescription,
-                            ContentPayload::Markdown(content),
-                        ),
-                        ChatUpdateType::Review(content) => {
-                            (ContentType::CodeReview, ContentPayload::Markdown(content))
-                        }
-                    };
-                    StudioEvent::UpdateContent {
-                        content_type,
-                        content,
-                    }
-                }
-
-                IrisTaskResult::SemanticBlame(result) => StudioEvent::AgentComplete {
-                    task_type: TaskType::SemanticBlame,
-                    result: AgentResult::SemanticBlame(result),
-                },
-
-                IrisTaskResult::ToolStatus { tool_name, message } => {
-                    // Tool status updates - move current tool to history, set new current
-                    let tool_desc = format!("{} - {}", tool_name, message);
-                    if let Some(prev) = self.state.chat_state.current_tool.take() {
-                        self.state.chat_state.add_tool_to_history(prev);
-                    }
-                    self.state.chat_state.current_tool = Some(tool_desc);
-                    self.state.mark_dirty();
-                    continue; // Already handled, skip event push
-                }
-
-                IrisTaskResult::StreamingChunk {
-                    task_type,
-                    chunk,
-                    aggregated,
-                } => StudioEvent::StreamingChunk {
-                    task_type,
-                    chunk,
-                    aggregated,
-                },
-
-                IrisTaskResult::StreamingComplete { task_type } => {
-                    StudioEvent::StreamingComplete { task_type }
-                }
-
-                IrisTaskResult::StatusMessage(message) => {
-                    tracing::info!("Received status message via channel: {:?}", message.message);
-                    StudioEvent::StatusMessage(message)
-                }
-
-                IrisTaskResult::CompletionMessage(message) => {
-                    // Directly update status - no event needed
-                    tracing::info!("Received completion message: {:?}", message);
-                    self.state.set_iris_complete(message);
-                    self.state.mark_dirty();
-                    continue; // Already handled, skip event push
-                }
-
-                IrisTaskResult::Error { task_type, error } => {
-                    StudioEvent::AgentError { task_type, error }
-                }
-
-                IrisTaskResult::FileLogLoaded { file, entries } => {
-                    StudioEvent::FileLogLoaded { file, entries }
-                }
-
-                IrisTaskResult::GlobalLogLoaded { entries } => {
-                    StudioEvent::GlobalLogLoaded { entries }
-                }
-
-                IrisTaskResult::GitStatusLoaded(data) => {
-                    // Apply git status data directly (not through reducer)
-                    self.apply_git_status_data(*data);
-                    continue; // Already handled
-                }
-
-                IrisTaskResult::CompanionReady(data) => {
-                    // Apply companion data directly
-                    self.state.companion = Some(data.service);
-                    self.state.companion_display = data.display;
-                    self.state.mark_dirty();
-                    tracing::info!("Companion service initialized asynchronously");
-                    continue; // Already handled
-                }
-            };
-
-            self.push_event(event);
+            if let Some(event) = self.iris_result_event(result) {
+                self.push_event(event);
+            }
         }
+    }
+
+    fn iris_result_event(&mut self, result: IrisTaskResult) -> Option<StudioEvent> {
+        match result {
+            IrisTaskResult::CommitMessages(messages) => Some(self.commit_messages_event(messages)),
+            IrisTaskResult::ReviewContent(content) => Some(self.markdown_agent_event(
+                TaskType::Review,
+                "review",
+                content,
+                AgentResult::ReviewContent,
+            )),
+            IrisTaskResult::PRContent(content) => {
+                Some(self.markdown_agent_event(TaskType::PR, "pr", content, AgentResult::PRContent))
+            }
+            IrisTaskResult::ChangelogContent(content) => Some(self.markdown_agent_event(
+                TaskType::Changelog,
+                "changelog",
+                content,
+                AgentResult::ChangelogContent,
+            )),
+            IrisTaskResult::ReleaseNotesContent(content) => Some(self.markdown_agent_event(
+                TaskType::ReleaseNotes,
+                "release_notes",
+                content,
+                AgentResult::ReleaseNotesContent,
+            )),
+            IrisTaskResult::ChatResponse(response) => Some(agent_complete_event(
+                TaskType::Chat,
+                AgentResult::ChatResponse(response),
+            )),
+            IrisTaskResult::ChatUpdate(update) => Some(chat_update_event(update)),
+            IrisTaskResult::SemanticBlame(result) => Some(agent_complete_event(
+                TaskType::SemanticBlame,
+                AgentResult::SemanticBlame(result),
+            )),
+            IrisTaskResult::ToolStatus { tool_name, message } => {
+                self.handle_tool_status(&tool_name, &message);
+                None
+            }
+            IrisTaskResult::StreamingChunk {
+                task_type,
+                chunk,
+                aggregated,
+            } => Some(StudioEvent::StreamingChunk {
+                task_type,
+                chunk,
+                aggregated,
+            }),
+            IrisTaskResult::StreamingComplete { task_type } => {
+                Some(StudioEvent::StreamingComplete { task_type })
+            }
+            IrisTaskResult::StatusMessage(message) => {
+                tracing::info!("Received status message via channel: {:?}", message.message);
+                Some(StudioEvent::StatusMessage(message))
+            }
+            IrisTaskResult::CompletionMessage(message) => {
+                self.apply_completion_message(message);
+                None
+            }
+            IrisTaskResult::Error { task_type, error } => {
+                Some(StudioEvent::AgentError { task_type, error })
+            }
+            IrisTaskResult::FileLogLoaded { file, entries } => {
+                Some(StudioEvent::FileLogLoaded { file, entries })
+            }
+            IrisTaskResult::GlobalLogLoaded { entries } => {
+                Some(StudioEvent::GlobalLogLoaded { entries })
+            }
+            IrisTaskResult::GitStatusLoaded(data) => {
+                self.apply_git_status_data(*data);
+                None
+            }
+            IrisTaskResult::CompanionReady(data) => {
+                self.apply_companion_ready(*data);
+                None
+            }
+        }
+    }
+
+    fn commit_messages_event(&mut self, messages: Vec<GeneratedMessage>) -> StudioEvent {
+        if let Some(msg) = messages.first().and_then(|m| m.completion_message.clone()) {
+            tracing::info!("Using agent completion_message: {:?}", msg);
+            self.state.set_iris_complete(msg);
+        } else {
+            tracing::info!(
+                "No completion_message from agent, spawning generation. First msg: {:?}",
+                messages.first().map(|m| &m.title)
+            );
+            self.spawn_completion_message("commit", messages.first().map(|m| m.title.clone()));
+        }
+
+        agent_complete_event(TaskType::Commit, AgentResult::CommitMessages(messages))
+    }
+
+    fn markdown_agent_event(
+        &mut self,
+        task_type: TaskType,
+        completion_type: &str,
+        content: String,
+        result: fn(String) -> AgentResult,
+    ) -> StudioEvent {
+        self.spawn_completion_message(completion_type, first_line_hint(&content, 60));
+        agent_complete_event(task_type, result(content))
+    }
+
+    fn handle_tool_status(&mut self, tool_name: &str, message: &str) {
+        let tool_desc = format!("{tool_name} - {message}");
+        if let Some(prev) = self.state.chat_state.current_tool.take() {
+            self.state.chat_state.add_tool_to_history(prev);
+        }
+        self.state.chat_state.current_tool = Some(tool_desc);
+        self.state.mark_dirty();
+    }
+
+    fn apply_completion_message(&mut self, message: String) {
+        tracing::info!("Received completion message: {:?}", message);
+        self.state.set_iris_complete(message);
+        self.state.mark_dirty();
+    }
+
+    fn apply_companion_ready(&mut self, data: CompanionInitData) {
+        self.state.companion = Some(data.service);
+        self.state.companion_display = data.display;
+        self.state.mark_dirty();
+        tracing::info!("Companion service initialized asynchronously");
     }
 
     /// Apply git status data from async loading
@@ -1324,7 +1334,7 @@ impl StudioApp {
     /// the user waits for the main agent task to complete. Messages are
     /// sent via the result channel and displayed in the status bar.
     fn spawn_status_messages(&self, task: &super::events::AgentTask) {
-        use crate::agents::{StatusContext, StatusMessageGenerator};
+        use crate::agents::StatusMessageGenerator;
 
         tracing::info!("spawn_status_messages called for task: {:?}", task);
 
@@ -1339,7 +1349,59 @@ impl StudioApp {
             agent.fast_model()
         );
 
-        // Build context from task type
+        let context = self.status_context_for_task(task);
+        let tx = self.iris_result_tx.clone();
+        let additional_params = agent
+            .config()
+            .get_provider_config(agent.provider())
+            .map(|provider_config| provider_config.additional_params.clone());
+        let status_gen = StatusMessageGenerator::new(
+            agent.provider(),
+            agent.fast_model(),
+            agent.api_key(),
+            additional_params,
+        );
+
+        tokio::spawn(async move {
+            tracing::info!("Status message starting for task: {}", context.task_type);
+            let start = std::time::Instant::now();
+            match tokio::time::timeout(
+                std::time::Duration::from_millis(2500),
+                status_gen.generate(&context),
+            )
+            .await
+            {
+                Ok(msg) => {
+                    let elapsed = start.elapsed();
+                    tracing::info!(
+                        "Status message generated in {:?}: {:?}",
+                        elapsed,
+                        msg.message
+                    );
+                    if let Err(e) = tx.send(IrisTaskResult::StatusMessage(msg)) {
+                        tracing::error!("Failed to send status message: {}", e);
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "Status message timed out after {:?}: {}",
+                        start.elapsed(),
+                        e
+                    );
+                }
+            }
+        });
+    }
+
+    fn status_context_for_task(&self, task: &super::events::AgentTask) -> StatusContext {
+        let (task_type, activity) = Self::task_status_activity(task);
+        let context = StatusContext::new(task_type, activity);
+        let context = self.with_status_branch(context);
+        let context = self.with_status_files(context);
+        self.with_regeneration_context(context, task)
+    }
+
+    fn task_status_activity(task: &super::events::AgentTask) -> (&'static str, &'static str) {
         let (task_type, activity) = match task {
             super::events::AgentTask::Commit { amend, .. } => {
                 if *amend {
@@ -1359,42 +1421,47 @@ impl StudioApp {
                 ("semantic_blame", "tracing code origins")
             }
         };
+        (task_type, activity)
+    }
 
-        let mut context = StatusContext::new(task_type, activity);
-
-        // Add branch if available
+    fn with_status_branch(&self, mut context: StatusContext) -> StatusContext {
         if let Some(repo) = &self.state.repo
             && let Ok(branch) = repo.get_current_branch()
         {
             context = context.with_branch(branch);
         }
+        context
+    }
 
-        // Collect actual file names for richer context
+    fn with_status_files(&self, context: StatusContext) -> StatusContext {
+        let files = self.status_file_names();
+        let file_count = files.len();
+        if file_count > 0 {
+            context.with_file_count(file_count).with_files(files)
+        } else {
+            context
+        }
+    }
+
+    fn status_file_names(&self) -> Vec<String> {
         let mut files: Vec<String> = Vec::new();
         for file in &self.state.git_status.staged_files {
-            // Extract just the filename, not the full path
-            let name = file.file_name().map_or_else(
-                || file.to_string_lossy().to_string(),
-                |n| n.to_string_lossy().to_string(),
-            );
-            files.push(name);
+            files.push(status_file_name(file));
         }
         for file in &self.state.git_status.modified_files {
-            let name = file.file_name().map_or_else(
-                || file.to_string_lossy().to_string(),
-                |n| n.to_string_lossy().to_string(),
-            );
+            let name = status_file_name(file);
             if !files.contains(&name) {
                 files.push(name);
             }
         }
+        files
+    }
 
-        let file_count = files.len();
-        if file_count > 0 {
-            context = context.with_file_count(file_count).with_files(files);
-        }
-
-        // Detect if this is a regeneration and extract content hint
+    fn with_regeneration_context(
+        &self,
+        mut context: StatusContext,
+        task: &super::events::AgentTask,
+    ) -> StatusContext {
         let (is_regen, content_hint) = match task {
             super::events::AgentTask::Commit { .. } => {
                 let has_content = !self.state.modes.commit.messages.is_empty();
@@ -1437,49 +1504,7 @@ impl StudioApp {
         if let Some(hint) = content_hint {
             context = context.with_content_hint(hint);
         }
-
-        // Fire-and-forget: spawn ONE generation attempt
-        let tx = self.iris_result_tx.clone();
-        let additional_params = agent
-            .config()
-            .get_provider_config(agent.provider())
-            .map(|provider_config| provider_config.additional_params.clone());
-        let status_gen = StatusMessageGenerator::new(
-            agent.provider(),
-            agent.fast_model(),
-            agent.api_key(),
-            additional_params,
-        );
-
-        tokio::spawn(async move {
-            tracing::info!("Status message starting for task: {}", context.task_type);
-            let start = std::time::Instant::now();
-            match tokio::time::timeout(
-                std::time::Duration::from_millis(2500),
-                status_gen.generate(&context),
-            )
-            .await
-            {
-                Ok(msg) => {
-                    let elapsed = start.elapsed();
-                    tracing::info!(
-                        "Status message generated in {:?}: {:?}",
-                        elapsed,
-                        msg.message
-                    );
-                    if let Err(e) = tx.send(IrisTaskResult::StatusMessage(msg)) {
-                        tracing::error!("Failed to send status message: {}", e);
-                    }
-                }
-                Err(e) => {
-                    tracing::warn!(
-                        "Status message timed out after {:?}: {}",
-                        start.elapsed(),
-                        e
-                    );
-                }
-            }
-        });
+        context
     }
 
     /// Spawn completion message generation using the fast model

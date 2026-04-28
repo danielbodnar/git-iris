@@ -177,29 +177,14 @@ pub fn debug_llm_request(prompt: &str, max_tokens: Option<usize>) {
         return;
     }
 
-    let char_count = prompt.chars().count();
-    let word_count = prompt.split_whitespace().count();
-
     tracing::debug!(target: "iris", "🧠 LLM Request: {} chars, {} words {}",
-        char_count,
-        word_count,
+        prompt.chars().count(),
+        prompt.split_whitespace().count(),
         max_tokens.map(|t| format!("(max {} tokens)", t)).unwrap_or_default()
     );
 
-    // Show first few lines of prompt
-    for line in prompt.lines().take(5) {
-        let truncated = if line.len() > 120 {
-            format!("{}...", truncate_at_char_boundary(line, 120))
-        } else {
-            line.to_string()
-        };
-        tracing::debug!(target: "iris", "   {}", truncated);
-    }
-    if prompt.lines().count() > 5 {
-        tracing::debug!(target: "iris", "   ... ({} more lines)", prompt.lines().count() - 5);
-    }
+    trace_prompt_preview(prompt);
 
-    // Save full prompt to debug artifact
     if let Ok(path) = write_debug_artifact("iris_last_prompt.txt", prompt) {
         tracing::debug!(target: "iris", "   Full prompt saved to: {}", path.display());
     }
@@ -223,35 +208,34 @@ pub fn debug_llm_response(response: &str, duration: Duration, tokens_used: Optio
         return;
     }
 
-    let char_count = response.chars().count();
-    let word_count = response.split_whitespace().count();
+    trace_response_summary(response, duration);
+    trace_response_tokens(tokens_used);
+    trace_response_artifact(response);
+    trace_response_lines(response);
+}
 
+fn trace_response_summary(response: &str, duration: Duration) {
     tracing::debug!(target: "iris", "✨ LLM Response: {} chars, {} words ({})",
-        char_count,
-        word_count,
+        response.chars().count(),
+        response.split_whitespace().count(),
         format_duration(duration)
     );
+}
 
+fn trace_response_tokens(tokens_used: Option<usize>) {
     if let Some(tokens) = tokens_used {
         tracing::debug!(target: "iris", "   Tokens: {}", tokens);
     }
+}
 
-    // Save full response to file for deep debugging
+fn trace_response_artifact(response: &str) {
     if let Ok(path) = write_debug_artifact("iris_last_response.txt", response) {
         tracing::debug!(target: "iris", "   Full response saved to: {}", path.display());
     }
+}
 
-    // Show response (truncated if too long)
-    let truncated = if response.len() > 1000 {
-        format!(
-            "{}...\n\n... ({} more characters)",
-            truncate_at_char_boundary(response, 1000),
-            response.len() - 1000
-        )
-    } else {
-        response.to_string()
-    };
-    for line in truncated.lines() {
+fn trace_response_lines(response: &str) {
+    for line in truncated_response(response).lines() {
         tracing::debug!(target: "iris", "{}", line);
     }
 }
@@ -263,24 +247,51 @@ pub fn debug_json_parse_attempt(json_str: &str) {
     }
 
     tracing::debug!(target: "iris", "📝 JSON Parse Attempt: {} chars", json_str.len());
+    tracing::debug!(target: "iris", "{}", truncated_line(json_str, 500));
 
-    // Show first 500 chars
-    let head = if json_str.len() > 500 {
-        format!("{}...", truncate_at_char_boundary(json_str, 500))
-    } else {
-        json_str.to_string()
-    };
-    tracing::debug!(target: "iris", "{}", head);
-
-    // Show last 200 chars to see where it got cut off
     if json_str.len() > 700 {
-        tracing::debug!(target: "iris", "... truncated ...");
-        let mut tail_start = json_str.len().saturating_sub(200);
-        while tail_start < json_str.len() && !json_str.is_char_boundary(tail_start) {
-            tail_start += 1;
-        }
-        tracing::debug!(target: "iris", "{}", &json_str[tail_start..]);
+        trace_json_tail(json_str);
     }
+}
+
+fn trace_prompt_preview(prompt: &str) {
+    for line in prompt.lines().take(5) {
+        tracing::debug!(target: "iris", "   {}", truncated_line(line, 120));
+    }
+
+    let line_count = prompt.lines().count();
+    if line_count > 5 {
+        tracing::debug!(target: "iris", "   ... ({} more lines)", line_count - 5);
+    }
+}
+
+fn truncated_line(line: &str, max_len: usize) -> String {
+    if line.len() > max_len {
+        format!("{}...", truncate_at_char_boundary(line, max_len))
+    } else {
+        line.to_string()
+    }
+}
+
+fn truncated_response(response: &str) -> String {
+    if response.len() > 1000 {
+        format!(
+            "{}...\n\n... ({} more characters)",
+            truncate_at_char_boundary(response, 1000),
+            response.len() - 1000
+        )
+    } else {
+        response.to_string()
+    }
+}
+
+fn trace_json_tail(json_str: &str) {
+    tracing::debug!(target: "iris", "... truncated ...");
+    let mut tail_start = json_str.len().saturating_sub(200);
+    while tail_start < json_str.len() && !json_str.is_char_boundary(tail_start) {
+        tail_start += 1;
+    }
+    tracing::debug!(target: "iris", "{}", &json_str[tail_start..]);
 }
 
 /// Print JSON parse success

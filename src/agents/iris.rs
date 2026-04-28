@@ -812,72 +812,75 @@ Guidelines:
         let preset_name = config.get_effective_preset_name();
         let is_conventional = preset_name == "conventional";
         let is_default_mode = preset_name == "default" || preset_name.is_empty();
-
-        // For commits in default mode with no explicit gitmoji override, use style detection
         let use_style_detection =
             capability == "commit" && is_default_mode && config.gitmoji_override.is_none();
-
-        // Commit emoji: respects preset (conventional = no emoji)
         let commit_emoji = config.use_gitmoji && !is_conventional && !use_style_detection;
-
-        // Output emoji: independent of preset, only respects use_gitmoji setting
-        // CLI --gitmoji/--no-gitmoji override is already applied to config.use_gitmoji
         let output_emoji = config.gitmoji_override.unwrap_or(config.use_gitmoji);
 
-        // Inject instruction preset if configured (skip for default mode)
-        if !preset_name.is_empty() && !is_default_mode {
-            let library = crate::instruction_presets::get_instruction_preset_library();
-            if let Some(preset) = library.get_preset(preset_name) {
-                tracing::info!("📋 Injecting '{}' preset style instructions", preset_name);
-                system_prompt.push_str("\n\n=== STYLE INSTRUCTIONS ===\n");
-                system_prompt.push_str(&preset.instructions);
-                system_prompt.push('\n');
-            } else {
-                tracing::warn!("⚠️ Preset '{}' not found in library", preset_name);
-            }
-        }
+        Self::inject_instruction_preset(system_prompt, preset_name, is_default_mode);
 
-        // Handle commit-specific styling (structured JSON output with emoji field)
-        // Default mode (use_style_detection): no style injection here — the agent
-        // detects format from git_log via commit.toml §Local Style Detection.
         if capability == "commit" {
-            if commit_emoji {
-                system_prompt.push_str("\n\n=== GITMOJI INSTRUCTIONS ===\n");
-                system_prompt.push_str("Set the 'emoji' field to a single relevant gitmoji. ");
-                system_prompt.push_str(
-                    "DO NOT include the emoji in the 'message' or 'title' text - only set the 'emoji' field. ",
-                );
-                system_prompt.push_str("Choose the closest match from this compact guide:\n\n");
-                system_prompt.push_str(&crate::gitmoji::get_gitmoji_prompt_guide());
-                system_prompt.push_str("\n\nThe emoji should match the primary type of change.");
-            } else if is_conventional {
-                system_prompt.push_str("\n\n=== CONVENTIONAL COMMITS FORMAT ===\n");
-                system_prompt.push_str("IMPORTANT: This uses Conventional Commits format. ");
-                system_prompt
-                    .push_str("DO NOT include any emojis in the commit message or PR title. ");
-                system_prompt.push_str("The 'emoji' field should be null.");
-            }
+            Self::inject_commit_styling(system_prompt, commit_emoji, is_conventional);
         }
 
-        // Handle non-commit outputs: use output_emoji (independent of preset)
-        if capability == "pr" || capability == "review" {
-            if output_emoji {
-                Self::inject_pr_review_emoji_styling(system_prompt);
-            } else {
+        Self::inject_markdown_output_styling(system_prompt, capability, output_emoji);
+    }
+
+    fn inject_instruction_preset(
+        system_prompt: &mut String,
+        preset_name: &str,
+        is_default_mode: bool,
+    ) {
+        if preset_name.is_empty() || is_default_mode {
+            return;
+        }
+
+        let library = crate::instruction_presets::get_instruction_preset_library();
+        if let Some(preset) = library.get_preset(preset_name) {
+            tracing::info!("📋 Injecting '{}' preset style instructions", preset_name);
+            system_prompt.push_str("\n\n=== STYLE INSTRUCTIONS ===\n");
+            system_prompt.push_str(&preset.instructions);
+            system_prompt.push('\n');
+        } else {
+            tracing::warn!("⚠️ Preset '{}' not found in library", preset_name);
+        }
+    }
+
+    fn inject_commit_styling(
+        system_prompt: &mut String,
+        commit_emoji: bool,
+        is_conventional: bool,
+    ) {
+        if commit_emoji {
+            system_prompt.push_str("\n\n=== GITMOJI INSTRUCTIONS ===\n");
+            system_prompt.push_str("Set the 'emoji' field to a single relevant gitmoji. ");
+            system_prompt.push_str(
+                "DO NOT include the emoji in the 'message' or 'title' text - only set the 'emoji' field. ",
+            );
+            system_prompt.push_str("Choose the closest match from this compact guide:\n\n");
+            system_prompt.push_str(&crate::gitmoji::get_gitmoji_prompt_guide());
+            system_prompt.push_str("\n\nThe emoji should match the primary type of change.");
+        } else if is_conventional {
+            system_prompt.push_str("\n\n=== CONVENTIONAL COMMITS FORMAT ===\n");
+            system_prompt.push_str("IMPORTANT: This uses Conventional Commits format. ");
+            system_prompt.push_str("DO NOT include any emojis in the commit message or PR title. ");
+            system_prompt.push_str("The 'emoji' field should be null.");
+        }
+    }
+
+    fn inject_markdown_output_styling(
+        system_prompt: &mut String,
+        capability: &str,
+        output_emoji: bool,
+    ) {
+        match (capability, output_emoji) {
+            ("pr" | "review", true) => Self::inject_pr_review_emoji_styling(system_prompt),
+            ("release_notes", true) => Self::inject_release_notes_emoji_styling(system_prompt),
+            ("changelog", true) => Self::inject_changelog_emoji_styling(system_prompt),
+            ("pr" | "review" | "release_notes" | "changelog", false) => {
                 Self::inject_no_emoji_styling(system_prompt);
             }
-        }
-
-        if capability == "release_notes" && output_emoji {
-            Self::inject_release_notes_emoji_styling(system_prompt);
-        } else if capability == "release_notes" {
-            Self::inject_no_emoji_styling(system_prompt);
-        }
-
-        if capability == "changelog" && output_emoji {
-            Self::inject_changelog_emoji_styling(system_prompt);
-        } else if capability == "changelog" {
-            Self::inject_no_emoji_styling(system_prompt);
+            _ => {}
         }
     }
 
