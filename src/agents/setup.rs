@@ -406,6 +406,15 @@ impl IrisAgentService {
                 )
             },
         );
+        let pr_template = context.pull_request_template().map_or_else(
+            String::new,
+            |template| {
+                format!(
+                    "\n\n## Pull Request Template\nAdapt the generated description around this GitHub PR template from `{}`. Preserve the template's required headings, checklist items, and prompts when they apply. Fill useful sections with evidence from the changes, remove placeholder text, and omit sections only when they are clearly irrelevant:\n\n----- BEGIN PR TEMPLATE -----\n{}\n----- END PR TEMPLATE -----",
+                    template.path, template.body
+                )
+            },
+        );
 
         match capability {
             "commit" => format!(
@@ -417,8 +426,8 @@ impl IrisAgentService {
                 context_json, diff_hint, instruction_suffix
             ),
             "pr" => format!(
-                "Generate a pull request description for:\n{}\n\nUse: {}{}{}",
-                context_json, diff_hint, existing_pr_body, instruction_suffix
+                "Generate a pull request description for:\n{}\n\nUse: {}{}{}{}",
+                context_json, diff_hint, pr_template, existing_pr_body, instruction_suffix
             ),
             "changelog" => format!(
                 "Generate a changelog for:\n{}\n\nUse: {}{}{}",

@@ -6,6 +6,15 @@
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 
+/// Pull request template context discovered from GitHub-supported locations.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PullRequestTemplateContext {
+    /// Repository-relative template path
+    pub path: String,
+    /// Markdown template body
+    pub body: String,
+}
+
 /// Validated, structured context for agent tasks.
 ///
 /// This enum represents the different modes of operation for code analysis,
@@ -42,6 +51,9 @@ pub enum TaskContext {
         /// Existing GitHub PR description to revise
         #[serde(skip)]
         existing_body: Option<String>,
+        /// Pull request template to adapt the description around
+        #[serde(skip)]
+        template: Option<PullRequestTemplateContext>,
     },
 
     /// Generate changelog or release notes with version metadata
@@ -167,7 +179,7 @@ impl TaskContext {
     /// CLI and Studio should prefer a repo-aware base from `GitRepo::get_default_base_ref()`.
     #[must_use]
     pub fn for_pr_with_base(from: Option<String>, to: Option<String>, default_base: &str) -> Self {
-        Self::for_pr_update_with_base(from, to, default_base, None)
+        Self::for_pr_update_with_base(from, to, default_base, None, None)
     }
 
     /// Create PR context with an optional existing PR description.
@@ -179,6 +191,7 @@ impl TaskContext {
         to: Option<String>,
         default_base: &str,
         existing_body: Option<String>,
+        template: Option<PullRequestTemplateContext>,
     ) -> Self {
         let (from, to) = match (from, to) {
             (Some(f), Some(t)) => (f, t),
@@ -191,6 +204,7 @@ impl TaskContext {
             from,
             to,
             existing_body,
+            template,
         }
     }
 
@@ -285,6 +299,18 @@ impl TaskContext {
                 existing_body: Some(body),
                 ..
             } => Some(body),
+            _ => None,
+        }
+    }
+
+    /// Get the pull request template when one was discovered.
+    #[must_use]
+    pub fn pull_request_template(&self) -> Option<&PullRequestTemplateContext> {
+        match self {
+            Self::PullRequest {
+                template: Some(template),
+                ..
+            } => Some(template),
             _ => None,
         }
     }
@@ -446,7 +472,7 @@ mod tests {
     fn test_pr_defaults() {
         let ctx = TaskContext::for_pr_with_base(None, None, "trunk");
         assert!(
-            matches!(ctx, TaskContext::PullRequest { from, to, existing_body } if from == "trunk" && to == "HEAD" && existing_body.is_none())
+            matches!(ctx, TaskContext::PullRequest { from, to, existing_body, template } if from == "trunk" && to == "HEAD" && existing_body.is_none() && template.is_none())
         );
     }
 
@@ -454,7 +480,7 @@ mod tests {
     fn test_pr_from_only() {
         let ctx = TaskContext::for_pr(Some("develop".to_string()), None);
         assert!(
-            matches!(ctx, TaskContext::PullRequest { from, to, existing_body } if from == "develop" && to == "HEAD" && existing_body.is_none())
+            matches!(ctx, TaskContext::PullRequest { from, to, existing_body, template } if from == "develop" && to == "HEAD" && existing_body.is_none() && template.is_none())
         );
     }
 
@@ -465,9 +491,10 @@ mod tests {
             Some("feature".to_string()),
             "trunk",
             Some("Existing body".to_string()),
+            None,
         );
         assert!(
-            matches!(ctx, TaskContext::PullRequest { from, to, existing_body } if from == "main" && to == "feature" && existing_body == Some("Existing body".to_string()))
+            matches!(ctx, TaskContext::PullRequest { from, to, existing_body, .. } if from == "main" && to == "feature" && existing_body == Some("Existing body".to_string()))
         );
     }
 

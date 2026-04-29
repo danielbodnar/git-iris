@@ -148,6 +148,6 @@ fn task_context_custom_base_overrides_main_defaults() {
 
     let pr = TaskContext::for_pr_with_base(None, None, "trunk");
     assert!(
-        matches!(pr, TaskContext::PullRequest { from, to, existing_body } if from == "trunk" && to == "HEAD" && existing_body.is_none())
+        matches!(pr, TaskContext::PullRequest { from, to, existing_body, template } if from == "trunk" && to == "HEAD" && existing_body.is_none() && template.is_none())
     );
 }

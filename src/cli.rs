@@ -1447,6 +1447,23 @@ async fn github_update_context(
     })
 }
 
+fn pull_request_template_context(
+    service: &crate::agents::IrisAgentService,
+) -> anyhow::Result<Option<crate::agents::context::PullRequestTemplateContext>> {
+    let Some(repo) = service.git_repo() else {
+        return Ok(None);
+    };
+
+    Ok(
+        crate::github::find_pull_request_template(repo.repo_path())?.map(|template| {
+            crate::agents::context::PullRequestTemplateContext {
+                path: template.path,
+                body: template.body,
+            }
+        }),
+    )
+}
+
 async fn handle_pr_with_agent(
     common: CommonParams,
     output: PrOutputOptions,
@@ -1491,7 +1508,9 @@ async fn handle_pr_with_agent(
     let existing_body = github_context.as_ref().and_then(|context| {
         (!context.existing_body.trim().is_empty()).then(|| context.existing_body.clone())
     });
-    let context = TaskContext::for_pr_update_with_base(from, to, &default_base, existing_body);
+    let template = pull_request_template_context(&service)?;
+    let context =
+        TaskContext::for_pr_update_with_base(from, to, &default_base, existing_body, template);
     let response = service.execute_task("pr", context).await?;
 
     // Finish spinner

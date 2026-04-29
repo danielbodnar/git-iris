@@ -244,6 +244,8 @@ git-iris pr --from main --to feature-branch --update --pr 123
 
 When updating, Git-Iris reads the existing PR body first and asks Iris to revise it instead of blindly replacing it. Git-Iris reads `GH_TOKEN` / `GITHUB_TOKEN`, then falls back to the GitHub CLI auth store.
 
+Git-Iris also looks for GitHub PR templates and asks Iris to adapt the generated body around the template. Supported locations include `.github/pull_request_template.md`, `pull_request_template.md`, `docs/pull_request_template.md`, and unambiguous markdown files in `PULL_REQUEST_TEMPLATE` directories.
+
 ## Integration Workflows
 
 ### GitHub CLI

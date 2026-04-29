@@ -5,6 +5,8 @@ use octocrab::{Octocrab, params};
 use regex::Regex;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 use url::Url;
 
@@ -24,6 +26,12 @@ static HUNK_RE: LazyLock<Regex> = LazyLock::new(|| {
 pub struct GitHubRepository {
     pub owner: String,
     pub name: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PullRequestTemplate {
+    pub path: String,
+    pub body: String,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -203,6 +211,88 @@ impl GitHubClient {
             })
             .collect())
     }
+}
+
+pub fn find_pull_request_template(repo_root: &Path) -> Result<Option<PullRequestTemplate>> {
+    for path in singular_template_paths(repo_root) {
+        if path.is_file() {
+            return read_template(repo_root, &path).map(Some);
+        }
+    }
+
+    for dir in template_directories(repo_root) {
+        if let Some(template) = directory_template(repo_root, &dir)? {
+            return Ok(Some(template));
+        }
+    }
+
+    Ok(None)
+}
+
+fn singular_template_paths(repo_root: &Path) -> [PathBuf; 3] {
+    [
+        repo_root.join(".github/pull_request_template.md"),
+        repo_root.join("pull_request_template.md"),
+        repo_root.join("docs/pull_request_template.md"),
+    ]
+}
+
+fn template_directories(repo_root: &Path) -> [PathBuf; 3] {
+    [
+        repo_root.join(".github/PULL_REQUEST_TEMPLATE"),
+        repo_root.join("PULL_REQUEST_TEMPLATE"),
+        repo_root.join("docs/PULL_REQUEST_TEMPLATE"),
+    ]
+}
+
+fn directory_template(repo_root: &Path, dir: &Path) -> Result<Option<PullRequestTemplate>> {
+    if !dir.is_dir() {
+        return Ok(None);
+    }
+
+    let default_path = dir.join("pull_request_template.md");
+    if default_path.is_file() {
+        return read_template(repo_root, &default_path).map(Some);
+    }
+
+    let markdown_templates = markdown_files(dir)?;
+    if markdown_templates.len() == 1 {
+        read_template(repo_root, &markdown_templates[0]).map(Some)
+    } else {
+        Ok(None)
+    }
+}
+
+fn markdown_files(dir: &Path) -> Result<Vec<PathBuf>> {
+    let mut files = Vec::new();
+    for entry in fs::read_dir(dir).with_context(|| format!("Failed to read {}", dir.display()))? {
+        let path = entry?.path();
+        if path.is_file()
+            && path
+                .extension()
+                .and_then(|extension| extension.to_str())
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("md"))
+        {
+            files.push(path);
+        }
+    }
+    files.sort();
+    Ok(files)
+}
+
+fn read_template(repo_root: &Path, path: &Path) -> Result<PullRequestTemplate> {
+    let body = fs::read_to_string(path)
+        .with_context(|| format!("Failed to read PR template {}", path.display()))?;
+    let relative_path = path
+        .strip_prefix(repo_root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .to_string();
+
+    Ok(PullRequestTemplate {
+        path: relative_path,
+        body,
+    })
 }
 
 impl GitHubRepository {

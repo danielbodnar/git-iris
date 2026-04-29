@@ -28,7 +28,7 @@ fn rejects_non_github_remote() {
 
 #[test]
 fn extracts_review_findings_with_locations() {
-    let review = r#"
+    let review = r"
 ## Issues
 
 - [HIGH] **Missing error handling in `src/github.rs:42`**
@@ -37,7 +37,7 @@ fn extracts_review_findings_with_locations() {
 
 - [LOW] **Docs typo in docs/user-guide/reviews.md:12**
   Minor polish.
-"#;
+";
 
     let candidates = extract_inline_comment_candidates(review);
 
@@ -51,7 +51,7 @@ fn extracts_review_findings_with_locations() {
 
 #[test]
 fn parses_reviewable_lines_from_unified_diff() {
-    let diff = r#"
+    let diff = r"
 diff --git a/src/github.rs b/src/github.rs
 index 1111111..2222222 100644
 --- a/src/github.rs
@@ -68,7 +68,7 @@ index 3333333..4444444 100644
 @@ -10,2 +10,3 @@
  docs context
 +new docs line
-"#;
+";
 
     let lines = parse_reviewable_lines(diff);
 
