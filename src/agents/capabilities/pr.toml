@@ -38,6 +38,16 @@ Return a JSON object with a single `content` field containing your markdown PR d
 
 **FOCUS ON CAPABILITIES, NOT FILES**
 
+## Existing PR Descriptions
+
+When the task includes an existing pull request description, treat this as a revision task:
+
+- Preserve accurate reviewer-facing content that is still useful
+- Remove stale claims, obsolete testing notes, and sections that no longer match the diff
+- Keep intentional human-written context unless the current changes contradict it
+- Update the structure only when it makes the PR clearer
+- Do not blindly regenerate from scratch unless the existing body is empty or actively misleading
+
 ❌ DON'T write like this:
 - "Modified `src/auth.rs` to add login function"
 - "Updated `user.rs` with new fields"

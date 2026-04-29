@@ -83,6 +83,17 @@ impl GitHubClient {
             .with_context(|| format!("Failed to update PR #{pull_number}"))
     }
 
+    pub async fn pull_body(&self, pull_number: u64) -> Result<String> {
+        let pull = self
+            .crab
+            .pulls(&self.repo.owner, &self.repo.name)
+            .get(pull_number)
+            .await
+            .with_context(|| format!("Failed to fetch PR #{pull_number}"))?;
+
+        Ok(pull.body.unwrap_or_default())
+    }
+
     pub async fn publish_review(
         &self,
         pull_number: u64,

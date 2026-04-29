@@ -238,7 +238,8 @@ pub enum Commands {
 
         /// Update the GitHub PR body with the generated description
         #[arg(
-            long,
+            long = "update",
+            visible_alias = "github-update",
             help = "Update the GitHub PR body with the generated description"
         )]
         github_update: bool,
@@ -1422,6 +1423,30 @@ struct PrOutputOptions {
     github_update: bool,
 }
 
+struct GitHubUpdateContext {
+    github: crate::github::GitHubClient,
+    number: u64,
+    existing_body: String,
+}
+
+async fn github_update_context(
+    service: &crate::agents::IrisAgentService,
+    pull_number: Option<u64>,
+) -> anyhow::Result<GitHubUpdateContext> {
+    let git_repo = service
+        .git_repo()
+        .ok_or_else(|| anyhow::anyhow!("GitHub publishing requires a git repository"))?;
+    let github = crate::github::GitHubClient::from_git_repo(git_repo)?;
+    let number = github.resolve_pull_number(pull_number, git_repo).await?;
+    let existing_body = github.pull_body(number).await?;
+
+    Ok(GitHubUpdateContext {
+        github,
+        number,
+        existing_body,
+    })
+}
+
 async fn handle_pr_with_agent(
     common: CommonParams,
     output: PrOutputOptions,
@@ -1431,7 +1456,6 @@ async fn handle_pr_with_agent(
     repository_url: Option<String>,
 ) -> anyhow::Result<()> {
     use crate::agents::{IrisAgentService, StructuredResponse, TaskContext};
-    use crate::github::GitHubClient;
     use crate::instruction_presets::PresetType;
     use arboard::Clipboard;
 
@@ -1459,7 +1483,15 @@ async fn handle_pr_with_agent(
         .git_repo()
         .and_then(|repo| repo.get_default_base_ref().ok())
         .unwrap_or_else(|| "main".to_string());
-    let context = TaskContext::for_pr_with_base(from, to, &default_base);
+    let github_context = if output.github_update {
+        Some(github_update_context(&service, pull_number).await?)
+    } else {
+        None
+    };
+    let existing_body = github_context.as_ref().and_then(|context| {
+        (!context.existing_body.trim().is_empty()).then(|| context.existing_body.clone())
+    });
+    let context = TaskContext::for_pr_update_with_base(from, to, &default_base, existing_body);
     let response = service.execute_task("pr", context).await?;
 
     // Finish spinner
@@ -1474,18 +1506,17 @@ async fn handle_pr_with_agent(
     let raw_content = generated_pr.raw_content();
 
     if output.github_update {
-        let git_repo = service
-            .git_repo()
-            .ok_or_else(|| anyhow::anyhow!("GitHub publishing requires a git repository"))?;
-        let github = GitHubClient::from_git_repo(git_repo)?;
-        let number = github.resolve_pull_number(pull_number, git_repo).await?;
-        github.update_pull_body(number, raw_content).await?;
+        let github_context = github_context.expect("GitHub update context should be loaded");
+        github_context
+            .github
+            .update_pull_body(github_context.number, raw_content)
+            .await?;
         if output.mode != OutputMode::Raw {
             ui::print_success(&format!(
                 "Updated {}/{} PR #{}",
-                github.repo().owner,
-                github.repo().name,
-                number
+                github_context.github.repo().owner,
+                github_context.github.repo().name,
+                github_context.number
             ));
         }
     }

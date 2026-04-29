@@ -33,6 +33,17 @@ pub enum TaskContext {
         to: String,
     },
 
+    /// Generate a pull request description, optionally revising an existing body
+    PullRequest {
+        /// Starting reference (exclusive)
+        from: String,
+        /// Ending reference (inclusive)
+        to: String,
+        /// Existing GitHub PR description to revise
+        #[serde(skip)]
+        existing_body: Option<String>,
+    },
+
     /// Generate changelog or release notes with version metadata
     Changelog {
         /// Starting reference (exclusive)
@@ -156,20 +167,30 @@ impl TaskContext {
     /// CLI and Studio should prefer a repo-aware base from `GitRepo::get_default_base_ref()`.
     #[must_use]
     pub fn for_pr_with_base(from: Option<String>, to: Option<String>, default_base: &str) -> Self {
-        match (from, to) {
-            (Some(f), Some(t)) => Self::Range { from: f, to: t },
-            (Some(f), None) => Self::Range {
-                from: f,
-                to: "HEAD".to_string(),
-            },
-            (None, Some(t)) => Self::Range {
-                from: default_base.to_string(),
-                to: t,
-            },
-            (None, None) => Self::Range {
-                from: default_base.to_string(),
-                to: "HEAD".to_string(),
-            },
+        Self::for_pr_update_with_base(from, to, default_base, None)
+    }
+
+    /// Create PR context with an optional existing PR description.
+    ///
+    /// When present, the agent should revise the existing body instead of blindly replacing it.
+    #[must_use]
+    pub fn for_pr_update_with_base(
+        from: Option<String>,
+        to: Option<String>,
+        default_base: &str,
+        existing_body: Option<String>,
+    ) -> Self {
+        let (from, to) = match (from, to) {
+            (Some(f), Some(t)) => (f, t),
+            (Some(f), None) => (f, "HEAD".to_string()),
+            (None, Some(t)) => (default_base.to_string(), t),
+            (None, None) => (default_base.to_string(), "HEAD".to_string()),
+        };
+
+        Self::PullRequest {
+            from,
+            to,
+            existing_body,
         }
     }
 
@@ -212,7 +233,9 @@ impl TaskContext {
             Self::Commit { commit_id } => {
                 format!("git_diff(from=\"{commit_id}^1\", to=\"{commit_id}\")")
             }
-            Self::Range { from, to } | Self::Changelog { from, to, .. } => {
+            Self::Range { from, to }
+            | Self::PullRequest { from, to, .. }
+            | Self::Changelog { from, to, .. } => {
                 format!("git_diff(from=\"{from}\", to=\"{to}\")")
             }
             Self::Amend { .. } => {
@@ -225,7 +248,7 @@ impl TaskContext {
     /// Check if this context represents a range comparison (vs staged/single commit)
     #[must_use]
     pub fn is_range(&self) -> bool {
-        matches!(self, Self::Range { .. })
+        matches!(self, Self::Range { .. } | Self::PullRequest { .. })
     }
 
     /// Check if this context involves unstaged changes
@@ -253,6 +276,18 @@ impl TaskContext {
             _ => None,
         }
     }
+
+    /// Get the existing pull request body when PR generation is revising one.
+    #[must_use]
+    pub fn existing_pull_request_body(&self) -> Option<&str> {
+        match self {
+            Self::PullRequest {
+                existing_body: Some(body),
+                ..
+            } => Some(body),
+            _ => None,
+        }
+    }
 }
 
 impl std::fmt::Display for TaskContext {
@@ -267,6 +302,9 @@ impl std::fmt::Display for TaskContext {
             }
             Self::Commit { commit_id } => write!(f, "commit {commit_id}"),
             Self::Range { from, to } => write!(f, "changes from {from} to {to}"),
+            Self::PullRequest { from, to, .. } => {
+                write!(f, "pull request changes from {from} to {to}")
+            }
             Self::Changelog {
                 from,
                 to,
@@ -407,14 +445,29 @@ mod tests {
     #[test]
     fn test_pr_defaults() {
         let ctx = TaskContext::for_pr_with_base(None, None, "trunk");
-        assert!(matches!(ctx, TaskContext::Range { from, to } if from == "trunk" && to == "HEAD"));
+        assert!(
+            matches!(ctx, TaskContext::PullRequest { from, to, existing_body } if from == "trunk" && to == "HEAD" && existing_body.is_none())
+        );
     }
 
     #[test]
     fn test_pr_from_only() {
         let ctx = TaskContext::for_pr(Some("develop".to_string()), None);
         assert!(
-            matches!(ctx, TaskContext::Range { from, to } if from == "develop" && to == "HEAD")
+            matches!(ctx, TaskContext::PullRequest { from, to, existing_body } if from == "develop" && to == "HEAD" && existing_body.is_none())
+        );
+    }
+
+    #[test]
+    fn test_pr_existing_body() {
+        let ctx = TaskContext::for_pr_update_with_base(
+            Some("main".to_string()),
+            Some("feature".to_string()),
+            "trunk",
+            Some("Existing body".to_string()),
+        );
+        assert!(
+            matches!(ctx, TaskContext::PullRequest { from, to, existing_body } if from == "main" && to == "feature" && existing_body == Some("Existing body".to_string()))
         );
     }
 

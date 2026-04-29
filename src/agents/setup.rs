@@ -398,6 +398,14 @@ impl IrisAgentService {
         } else {
             String::new()
         };
+        let existing_pr_body = context.existing_pull_request_body().map_or_else(
+            String::new,
+            |body| {
+                format!(
+                    "\n\n## Existing Pull Request Description\nRevise this existing PR description instead of blindly replacing it. Preserve accurate reviewer-facing sections, remove stale content, and update it for the current changes:\n\n----- BEGIN EXISTING PR DESCRIPTION -----\n{body}\n----- END EXISTING PR DESCRIPTION -----"
+                )
+            },
+        );
 
         match capability {
             "commit" => format!(
@@ -409,8 +417,8 @@ impl IrisAgentService {
                 context_json, diff_hint, instruction_suffix
             ),
             "pr" => format!(
-                "Generate a pull request description for:\n{}\n\nUse: {}{}",
-                context_json, diff_hint, instruction_suffix
+                "Generate a pull request description for:\n{}\n\nUse: {}{}{}",
+                context_json, diff_hint, existing_pr_body, instruction_suffix
             ),
             "changelog" => format!(
                 "Generate a changelog for:\n{}\n\nUse: {}{}{}",
