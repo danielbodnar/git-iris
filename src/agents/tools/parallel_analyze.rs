@@ -136,7 +136,8 @@ impl SubagentRunner {
                         "Failed to create OpenAI client: authentication or configuration error"
                     )
                 }),
-            None => Ok(openai::Client::from_env()),
+            None => openai::Client::from_env()
+                .map_err(|_| anyhow::anyhow!("Failed to create OpenAI client from environment")),
         }
     }
 
@@ -154,7 +155,8 @@ impl SubagentRunner {
                         "Failed to create Anthropic client: authentication or configuration error"
                     )
                 }),
-            None => Ok(anthropic::Client::from_env()),
+            None => anthropic::Client::from_env()
+                .map_err(|_| anyhow::anyhow!("Failed to create Anthropic client from environment")),
         }
     }
 
@@ -172,7 +174,8 @@ impl SubagentRunner {
                         "Failed to create Gemini client: authentication or configuration error"
                     )
                 }),
-            None => Ok(gemini::Client::from_env()),
+            None => gemini::Client::from_env()
+                .map_err(|_| anyhow::anyhow!("Failed to create Gemini client from environment")),
         }
     }
 

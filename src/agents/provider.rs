@@ -185,7 +185,8 @@ pub fn openai_builder(model: &str, api_key: Option<&str>) -> Result<OpenAIBuilde
                     "Failed to create OpenAI client: authentication or configuration error"
                 )
             })?,
-        None => openai::Client::from_env(),
+        None => openai::Client::from_env()
+            .map_err(|_| anyhow::anyhow!("Failed to create OpenAI client from environment"))?,
     };
     Ok(client.completions_api().agent(model))
 }
@@ -214,7 +215,8 @@ pub fn anthropic_builder(model: &str, api_key: Option<&str>) -> Result<Anthropic
                     "Failed to create Anthropic client: authentication or configuration error"
                 )
             })?,
-        None => anthropic::Client::from_env(),
+        None => anthropic::Client::from_env()
+            .map_err(|_| anyhow::anyhow!("Failed to create Anthropic client from environment"))?,
     };
     Ok(client.agent(model))
 }
@@ -243,7 +245,8 @@ pub fn gemini_builder(model: &str, api_key: Option<&str>) -> Result<GeminiBuilde
                     "Failed to create Gemini client: authentication or configuration error"
                 )
             })?,
-        None => gemini::Client::from_env(),
+        None => gemini::Client::from_env()
+            .map_err(|_| anyhow::anyhow!("Failed to create Gemini client from environment"))?,
     };
     Ok(client.agent(model))
 }
