@@ -80,6 +80,10 @@ async fn test_cli_with_remote_repository() -> Result<()> {
         include_unstaged: false,
         from: None,
         to: None,
+        github_review: false,
+        pull_number: None,
+        github_inline_comments: false,
+        github_review_event: git_iris::cli::GitHubReviewEvent::Comment,
     };
 
     // Just testing that it doesn't panic

@@ -122,6 +122,29 @@ dbg_macro = { level = "warn", priority = 31 }
 todo = { level = "warn", priority = 31 }
 #print_stdout = { level = "warn", priority = 31 }  # CLI should use proper output mechanisms
 
+# Panic / silent-failure / hygiene warnings (Schwartz-style restriction picks).
+# Restriction lints are not in `clippy::all`, so these are additive.
+# `await_holding_lock` / `await_holding_refcell_ref` are NOT listed — they
+# live in `clippy::suspicious` and are already covered by `all = deny`.
+panic = { level = "warn", priority = 31 }
+unimplemented = { level = "warn", priority = 31 }
+let_underscore_future = { level = "warn", priority = 31 }
+unchecked_time_subtraction = { level = "warn", priority = 31 }
+# Deferred — pending focused migration PRs:
+#   indexing_slicing            many `vec[i]` sites; out_of_bounds_indexing
+#                               already covers the compile-time bug class
+#   string_slice                ~38 sites; many ASCII-safe by construction
+#   unreachable                 idiomatic for invariant assertions
+#   let_underscore_must_use     each site needs review for intentional discard
+#   allow_attributes            requires rewriting every #[allow] to #[expect(reason)]
+#   allow_attributes_without_reason  same
+indexing_slicing = { level = "allow", priority = 31 }
+string_slice = { level = "allow", priority = 31 }
+unreachable = { level = "allow", priority = 31 }
+let_underscore_must_use = { level = "allow", priority = 31 }
+allow_attributes = { level = "allow", priority = 31 }
+allow_attributes_without_reason = { level = "allow", priority = 31 }
+
 # Async-specific lints (important for tokio-heavy codebase)
 future_not_send = { level = "warn", priority = 32 }
 async_yields_async = { level = "warn", priority = 32 }
