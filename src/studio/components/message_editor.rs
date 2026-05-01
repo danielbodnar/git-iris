@@ -215,12 +215,7 @@ impl MessageEditorState {
 /// Format a generated message for display
 #[must_use]
 pub fn format_message(msg: &GeneratedMessage) -> String {
-    let emoji = msg.emoji.as_deref().unwrap_or("");
-    let title = if emoji.is_empty() {
-        msg.title.clone()
-    } else {
-        format!("{} {}", emoji, msg.title)
-    };
+    let title = msg.subject();
 
     if msg.message.is_empty() {
         title
@@ -343,7 +338,7 @@ fn render_message_view(frame: &mut Frame, area: Rect, state: &MessageEditorState
     } else {
         width.saturating_sub(emoji.chars().count() + 1)
     };
-    let title = truncate_width(&msg.title, title_width);
+    let title = truncate_width(msg.title_without_repeated_emoji(), title_width);
 
     if emoji.is_empty() {
         lines.push(Line::from(Span::styled(
@@ -401,7 +396,7 @@ pub fn render_message_preview(msg: &GeneratedMessage, width: usize) -> Line<'sta
     } else {
         width.saturating_sub(emoji.chars().count() + 1)
     };
-    let title = truncate_width(&msg.title, title_width);
+    let title = truncate_width(msg.title_without_repeated_emoji(), title_width);
 
     if emoji.is_empty() {
         Line::from(Span::styled(title, theme::dimmed()))

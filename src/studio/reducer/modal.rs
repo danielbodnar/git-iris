@@ -62,7 +62,7 @@ pub fn create_modal(state: &StudioState, modal_type: ModalType) -> Modal {
                 .get(state.modes.commit.current_index)
             {
                 Modal::Confirm {
-                    message: format!("Commit with message:\n\n{}", msg.title),
+                    message: format!("Commit with message:\n\n{}", msg.subject()),
                     action: "commit".to_string(),
                 }
             } else {
@@ -80,7 +80,7 @@ pub fn create_modal(state: &StudioState, modal_type: ModalType) -> Modal {
                 .get(state.modes.commit.current_index)
             {
                 Modal::Confirm {
-                    message: format!("Amend previous commit with message:\n\n{}", msg.title),
+                    message: format!("Amend previous commit with message:\n\n{}", msg.subject()),
                     action: "amend".to_string(),
                 }
             } else {

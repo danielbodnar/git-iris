@@ -1,5 +1,6 @@
 //! Tests for the History system
 
+use crate::studio::components::message_editor::format_message;
 use crate::studio::events::{ContentType, EventSource};
 use crate::studio::history::{ChatRole, ContentData, History};
 use crate::studio::state::Mode;
@@ -65,6 +66,28 @@ fn test_content_preview() {
 
     let data = ContentData::Commit(msg);
     assert!(data.preview(50).starts_with("🔧 Fix"));
+}
+
+#[test]
+fn test_commit_content_avoids_repeated_title_emoji() {
+    let msg = GeneratedMessage {
+        emoji: Some("🧹".to_string()),
+        title: "🧹 Tighten clippy lints".to_string(),
+        message: "Relax assertions in tests.".to_string(),
+        completion_message: None,
+    };
+
+    let data = ContentData::Commit(msg.clone());
+
+    assert_eq!(data.preview(50), "🧹 Tighten clippy lints");
+    assert_eq!(
+        data.as_string(),
+        "🧹 Tighten clippy lints\n\nRelax assertions in tests."
+    );
+    assert_eq!(
+        format_message(&msg),
+        "🧹 Tighten clippy lints\n\nRelax assertions in tests."
+    );
 }
 
 #[test]

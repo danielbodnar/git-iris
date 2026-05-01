@@ -530,7 +530,7 @@ impl ContentData {
     pub fn preview(&self, max_len: usize) -> String {
         match self {
             Self::Commit(msg) => {
-                let full = format!("{} {}", msg.emoji.as_deref().unwrap_or(""), msg.title);
+                let full = msg.subject();
                 if full.len() > max_len {
                     format!("{}...", &full[..max_len])
                 } else {
@@ -553,14 +553,7 @@ impl ContentData {
     /// Get full content as string
     pub fn as_string(&self) -> String {
         match self {
-            Self::Commit(msg) => {
-                let emoji = msg.emoji.as_deref().unwrap_or("");
-                if emoji.is_empty() {
-                    format!("{}\n\n{}", msg.title, msg.message)
-                } else {
-                    format!("{} {}\n\n{}", emoji, msg.title, msg.message)
-                }
-            }
+            Self::Commit(msg) => format!("{}\n\n{}", msg.subject(), msg.message),
             Self::Markdown(content) => content.clone(),
         }
     }
