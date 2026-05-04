@@ -54,3 +54,22 @@ fn iris_preamble_prefers_git_evidence_before_repo_docs() {
         "- Use project_docs when repository conventions or product framing matter; do not front-load docs if the diff already answers the question"
     ));
 }
+
+#[test]
+fn iris_preamble_includes_anti_slop_tone_rules() {
+    let markers = [
+        "**Voice and Tone (applies to all output):**",
+        "No em dashes",
+        "No hedge phrases",
+        "No filler intros or outros",
+        "No hype vocabulary",
+        "No meta-commentary openers",
+        "No stacked emoji",
+    ];
+    for marker in markers {
+        assert!(
+            IRIS_SOURCE.contains(marker),
+            "iris preamble should contain anti-slop marker: {marker}"
+        );
+    }
+}
