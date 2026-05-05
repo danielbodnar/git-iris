@@ -20,7 +20,10 @@ pub use self::commit::{GeneratedMessage, format_commit_message};
 pub use pr::MarkdownPullRequest;
 
 // Review types
-pub use review::{MarkdownReview, render_markdown_for_terminal};
+pub use review::{
+    Category, EvidenceRef, Finding, FindingId, Review, ReviewStats, Severity,
+    render_markdown_for_terminal,
+};
 
 // Changelog types
 pub use changelog::{ChangeEntry, ChangeMetrics, ChangelogType, MarkdownChangelog};

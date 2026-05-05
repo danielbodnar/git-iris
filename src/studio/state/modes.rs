@@ -172,6 +172,8 @@ pub struct ReviewState {
     pub file_tree: FileTreeState,
     /// Diff view for selected file
     pub diff_view: DiffViewState,
+    /// Generated structured review
+    pub review: Option<crate::types::Review>,
     /// Generated review content (markdown)
     pub review_content: String,
     /// Review scroll offset
@@ -189,6 +191,7 @@ impl Default for ReviewState {
         Self {
             file_tree: FileTreeState::default(),
             diff_view: DiffViewState::default(),
+            review: None,
             review_content: String::new(),
             review_scroll: 0,
             generating: false,
@@ -202,6 +205,10 @@ impl std::fmt::Debug for ReviewState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ReviewState")
             .field("review_content_len", &self.review_content.len())
+            .field(
+                "findings_count",
+                &self.review.as_ref().map(|review| review.findings.len()),
+            )
             .field("review_scroll", &self.review_scroll)
             .field("generating", &self.generating)
             .finish_non_exhaustive()

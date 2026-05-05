@@ -11,7 +11,7 @@ use std::time::Instant;
 
 use crossterm::event::{KeyEvent, MouseEvent};
 
-use crate::types::GeneratedMessage;
+use crate::types::{GeneratedMessage, Review};
 
 use super::state::{Mode, PanelId};
 
@@ -296,8 +296,8 @@ pub enum AgentResult {
     /// Commit message(s) generated
     CommitMessages(Vec<GeneratedMessage>),
 
-    /// Review content generated
-    ReviewContent(String),
+    /// Review generated
+    ReviewContent(Review),
 
     /// PR description generated
     PRContent(String),

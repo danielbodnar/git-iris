@@ -165,8 +165,8 @@ pub enum StructuredResponse {
     PullRequest(crate::types::MarkdownPullRequest),
     Changelog(crate::types::MarkdownChangelog),
     ReleaseNotes(crate::types::MarkdownReleaseNotes),
-    /// Markdown-based review (LLM-driven structure)
-    MarkdownReview(crate::types::MarkdownReview),
+    /// Structured code review with parseable findings
+    Review(crate::types::Review),
     /// Semantic blame explanation (plain text)
     SemanticBlame(String),
     PlainText(String),
@@ -187,7 +187,7 @@ impl fmt::Display for StructuredResponse {
             StructuredResponse::ReleaseNotes(rn) => {
                 write!(f, "{}", rn.raw_content())
             }
-            StructuredResponse::MarkdownReview(review) => {
+            StructuredResponse::Review(review) => {
                 write!(f, "{}", review.format())
             }
             StructuredResponse::SemanticBlame(explanation) => {
@@ -1015,11 +1015,11 @@ Guidelines:
                     .await?;
                 Ok(StructuredResponse::ReleaseNotes(response))
             }
-            "MarkdownReview" => {
+            "Review" => {
                 let response = self
-                    .execute_with_agent::<crate::types::MarkdownReview>(&system_prompt, user_prompt)
+                    .execute_with_agent::<crate::types::Review>(&system_prompt, user_prompt)
                     .await?;
-                Ok(StructuredResponse::MarkdownReview(response))
+                Ok(StructuredResponse::Review(response))
             }
             "SemanticBlame" => {
                 // For semantic blame, we want plain text response
@@ -1170,9 +1170,6 @@ Guidelines:
     /// Convert raw text to the appropriate structured response type
     fn text_to_structured_response(output_type: &str, text: String) -> StructuredResponse {
         match output_type {
-            "MarkdownReview" => {
-                StructuredResponse::MarkdownReview(crate::types::MarkdownReview { content: text })
-            }
             "MarkdownPullRequest" => {
                 StructuredResponse::PullRequest(crate::types::MarkdownPullRequest { content: text })
             }

@@ -29,7 +29,7 @@ use crate::agents::{IrisAgentService, StatusContext};
 use crate::config::Config;
 use crate::git::GitRepo;
 use crate::services::GitCommitService;
-use crate::types::GeneratedMessage;
+use crate::types::{GeneratedMessage, Review};
 
 use super::components::{DiffHunk, DiffLine, FileDiff, FileGitStatus, parse_diff};
 use super::events::{
@@ -54,8 +54,8 @@ use super::theme;
 pub enum IrisTaskResult {
     /// Generated commit messages
     CommitMessages(Vec<GeneratedMessage>),
-    /// Generated code review (markdown)
-    ReviewContent(String),
+    /// Generated code review
+    ReviewContent(Review),
     /// Generated PR description (markdown)
     PRContent(String),
     /// Generated changelog (markdown)
@@ -1127,11 +1127,9 @@ impl StudioApp {
     fn iris_result_event(&mut self, result: IrisTaskResult) -> Option<StudioEvent> {
         match result {
             IrisTaskResult::CommitMessages(messages) => Some(self.commit_messages_event(messages)),
-            IrisTaskResult::ReviewContent(content) => Some(self.markdown_agent_event(
+            IrisTaskResult::ReviewContent(review) => Some(agent_complete_event(
                 TaskType::Review,
-                "review",
-                content,
-                AgentResult::ReviewContent,
+                AgentResult::ReviewContent(review),
             )),
             IrisTaskResult::PRContent(content) => {
                 Some(self.markdown_agent_event(TaskType::PR, "pr", content, AgentResult::PRContent))

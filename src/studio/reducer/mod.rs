@@ -167,6 +167,7 @@ pub fn reduce(
 
         StudioEvent::GenerateReview { from_ref, to_ref } => {
             state.modes.review.generating = true;
+            state.modes.review.review = None;
             state.set_iris_thinking("Reviewing code changes...");
             history.record_agent_start(TaskType::Review);
 

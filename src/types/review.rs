@@ -1,12 +1,10 @@
 //! Code review types and formatting
-//!
-//! This module provides markdown-based review output that lets the LLM drive
-//! the review structure while we beautify it for terminal display.
 
 use colored::Colorize;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::fmt::Write;
+use std::fmt::{self, Write};
+use std::path::PathBuf;
 
 /// Helper to get themed colors for terminal output
 mod colors {
@@ -49,18 +47,292 @@ mod colors {
     }
 }
 
-/// Simple markdown-based review that lets the LLM determine structure
+/// Structured code review with parseable findings.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
-pub struct MarkdownReview {
-    /// The full markdown content of the review
-    pub content: String,
+pub struct Review {
+    #[serde(default)]
+    pub summary: String,
+    #[serde(default)]
+    pub findings: Vec<Finding>,
+    #[serde(default)]
+    pub stats: ReviewStats,
 }
 
-impl MarkdownReview {
-    /// Render the markdown content with `SilkCircuit` terminal styling
+impl Review {
+    #[must_use]
+    pub fn raw_content(&self) -> String {
+        self.to_markdown()
+    }
+
+    #[must_use]
+    pub fn to_markdown(&self) -> String {
+        let mut output = String::new();
+        writeln!(output, "# Code Review").expect("write to string should not fail");
+
+        if !self.summary.trim().is_empty() {
+            writeln!(output, "\n## Summary\n\n{}", self.summary.trim())
+                .expect("write to string should not fail");
+        }
+
+        let stats = self.effective_stats();
+        writeln!(
+            output,
+            "\n## Findings\n\nReviewed {} file(s). Found {} issue(s): {} critical, {} high, {} medium, {} low.",
+            stats.files_reviewed,
+            stats.findings_count,
+            stats.critical_count,
+            stats.high_count,
+            stats.medium_count,
+            stats.low_count
+        )
+        .expect("write to string should not fail");
+
+        if self.findings.is_empty() {
+            output.push_str("\nNo blocking issues found.\n");
+            return output;
+        }
+
+        for severity in [
+            Severity::Critical,
+            Severity::High,
+            Severity::Medium,
+            Severity::Low,
+        ] {
+            let findings: Vec<&Finding> = self
+                .findings
+                .iter()
+                .filter(|finding| finding.severity == severity)
+                .collect();
+
+            if findings.is_empty() {
+                continue;
+            }
+
+            writeln!(output, "\n### {severity}").expect("write to string should not fail");
+            for finding in findings {
+                writeln!(
+                    output,
+                    "\n- [{severity}] **{} in `{}`**",
+                    finding.title,
+                    finding.location()
+                )
+                .expect("write to string should not fail");
+                writeln!(
+                    output,
+                    "  Category: {}. Confidence: {}%.",
+                    finding.category, finding.confidence
+                )
+                .expect("write to string should not fail");
+                writeln!(output, "  {}", finding.body.trim())
+                    .expect("write to string should not fail");
+
+                if let Some(fix) = finding
+                    .suggested_fix
+                    .as_deref()
+                    .filter(|fix| !fix.is_empty())
+                {
+                    writeln!(output, "  **Fix**: {}", fix.trim())
+                        .expect("write to string should not fail");
+                }
+
+                if !finding.evidence.is_empty() {
+                    let evidence = finding
+                        .evidence
+                        .iter()
+                        .map(EvidenceRef::label)
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    writeln!(output, "  Evidence: {evidence}")
+                        .expect("write to string should not fail");
+                }
+            }
+        }
+
+        output
+    }
+
     #[must_use]
     pub fn format(&self) -> String {
-        render_markdown_for_terminal(&self.content)
+        render_markdown_for_terminal(&self.to_markdown())
+    }
+
+    #[must_use]
+    pub fn effective_stats(&self) -> ReviewStats {
+        if self.stats.findings_count == self.findings.len() {
+            self.stats.clone()
+        } else {
+            ReviewStats::from_findings(self.stats.files_reviewed, &self.findings)
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
+pub struct Finding {
+    pub id: FindingId,
+    pub severity: Severity,
+    pub confidence: u8,
+    pub file: PathBuf,
+    pub start_line: u32,
+    pub end_line: u32,
+    pub category: Category,
+    pub title: String,
+    pub body: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub suggested_fix: Option<String>,
+    #[serde(default)]
+    pub evidence: Vec<EvidenceRef>,
+}
+
+impl Finding {
+    #[must_use]
+    pub fn location(&self) -> String {
+        let file = self.file.display();
+        if self.start_line == self.end_line {
+            format!("{file}:{}", self.start_line)
+        } else {
+            format!("{file}:{}-{}", self.start_line, self.end_line)
+        }
+    }
+
+    #[must_use]
+    pub fn raw_inline_body(&self) -> String {
+        let mut body = format!(
+            "[{}] **{}**\n\n{}\n\nConfidence: {}%",
+            self.severity,
+            self.title,
+            self.body.trim(),
+            self.confidence
+        );
+
+        if let Some(fix) = self.suggested_fix.as_deref().filter(|fix| !fix.is_empty()) {
+            write!(body, "\n\n**Fix**: {}", fix.trim()).expect("write to string should not fail");
+        }
+
+        body
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
+#[serde(transparent)]
+pub struct FindingId(pub String);
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
+pub struct EvidenceRef {
+    pub file: PathBuf,
+    pub line: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub end_line: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+}
+
+impl EvidenceRef {
+    #[must_use]
+    pub fn label(&self) -> String {
+        let file = self.file.display();
+        let line = match self.end_line {
+            Some(end_line) if end_line != self.line => format!("{}-{}", self.line, end_line),
+            _ => self.line.to_string(),
+        };
+
+        match self.note.as_deref().filter(|note| !note.is_empty()) {
+            Some(note) => format!("{file}:{line} ({note})"),
+            None => format!("{file}:{line}"),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Severity {
+    Critical,
+    High,
+    Medium,
+    Low,
+}
+
+impl fmt::Display for Severity {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Critical => write!(f, "CRITICAL"),
+            Self::High => write!(f, "HIGH"),
+            Self::Medium => write!(f, "MEDIUM"),
+            Self::Low => write!(f, "LOW"),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Category {
+    Security,
+    Performance,
+    ErrorHandling,
+    Complexity,
+    Abstraction,
+    Duplication,
+    Testing,
+    Style,
+    ApiContract,
+    Concurrency,
+    Documentation,
+    Other,
+}
+
+impl fmt::Display for Category {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Security => write!(f, "security"),
+            Self::Performance => write!(f, "performance"),
+            Self::ErrorHandling => write!(f, "error handling"),
+            Self::Complexity => write!(f, "complexity"),
+            Self::Abstraction => write!(f, "abstraction"),
+            Self::Duplication => write!(f, "duplication"),
+            Self::Testing => write!(f, "testing"),
+            Self::Style => write!(f, "style"),
+            Self::ApiContract => write!(f, "API contract"),
+            Self::Concurrency => write!(f, "concurrency"),
+            Self::Documentation => write!(f, "documentation"),
+            Self::Other => write!(f, "other"),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq, JsonSchema)]
+pub struct ReviewStats {
+    #[serde(default)]
+    pub files_reviewed: usize,
+    #[serde(default)]
+    pub findings_count: usize,
+    #[serde(default)]
+    pub critical_count: usize,
+    #[serde(default)]
+    pub high_count: usize,
+    #[serde(default)]
+    pub medium_count: usize,
+    #[serde(default)]
+    pub low_count: usize,
+}
+
+impl ReviewStats {
+    #[must_use]
+    pub fn from_findings(files_reviewed: usize, findings: &[Finding]) -> Self {
+        let mut stats = Self {
+            files_reviewed,
+            findings_count: findings.len(),
+            ..Self::default()
+        };
+
+        for finding in findings {
+            match finding.severity {
+                Severity::Critical => stats.critical_count += 1,
+                Severity::High => stats.high_count += 1,
+                Severity::Medium => stats.medium_count += 1,
+                Severity::Low => stats.low_count += 1,
+            }
+        }
+
+        stats
     }
 }
 

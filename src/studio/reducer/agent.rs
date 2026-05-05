@@ -65,7 +65,9 @@ pub fn agent_complete(
             }
         }
 
-        AgentResult::ReviewContent(content) => {
+        AgentResult::ReviewContent(review) => {
+            let content = review.raw_content();
+            state.modes.review.review = Some(review.clone());
             state.modes.review.review_content.clone_from(&content);
             state.modes.review.generating = false;
 

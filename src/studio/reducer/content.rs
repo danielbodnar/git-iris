@@ -55,6 +55,7 @@ pub fn update_content(
         }
 
         (ContentType::CodeReview, ContentPayload::Markdown(content)) => {
+            state.modes.review.review = None;
             state.modes.review.review_content.clone_from(&content);
 
             history.record_content(

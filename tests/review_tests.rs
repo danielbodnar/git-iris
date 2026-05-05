@@ -1,8 +1,63 @@
 //! Tests for review functionality
 //!
-//! Note: Legacy `GeneratedReview` tests removed. `MarkdownReview` is now the active code path.
+//! Note: Legacy `GeneratedReview` tests removed. `Review` is now the active code path.
 
 use git_iris::agents::TaskContext;
+use git_iris::{Category, EvidenceRef, Finding, FindingId, Review, ReviewStats, Severity};
+use std::path::PathBuf;
+
+fn sample_finding() -> Finding {
+    Finding {
+        id: FindingId("finding-1".to_string()),
+        severity: Severity::High,
+        confidence: 86,
+        file: PathBuf::from("src/auth.rs"),
+        start_line: 42,
+        end_line: 44,
+        category: Category::Security,
+        title: "Missing authorization check".to_string(),
+        body: "The changed handler accepts user input before checking access.".to_string(),
+        suggested_fix: Some("Check authorization before processing the request.".to_string()),
+        evidence: vec![EvidenceRef {
+            file: PathBuf::from("src/auth.rs"),
+            line: 42,
+            end_line: Some(44),
+            note: Some("changed handler".to_string()),
+        }],
+    }
+}
+
+#[test]
+fn structured_review_renders_markdown_from_findings() {
+    let finding = sample_finding();
+    let review = Review {
+        summary: "Adds an auth handler.".to_string(),
+        findings: vec![finding],
+        stats: ReviewStats::default(),
+    };
+
+    let markdown = review.raw_content();
+
+    assert!(markdown.contains("# Code Review"));
+    assert!(markdown.contains("Adds an auth handler."));
+    assert!(markdown.contains("[HIGH] **Missing authorization check in `src/auth.rs:42-44`**"));
+    assert!(markdown.contains("Category: security. Confidence: 86%."));
+    assert!(markdown.contains("Evidence: src/auth.rs:42-44 (changed handler)"));
+}
+
+#[test]
+fn review_stats_are_derived_when_model_counts_are_missing() {
+    let review = Review {
+        summary: String::new(),
+        findings: vec![sample_finding()],
+        stats: ReviewStats::default(),
+    };
+
+    let stats = review.effective_stats();
+
+    assert_eq!(stats.findings_count, 1);
+    assert_eq!(stats.high_count, 1);
+}
 
 #[test]
 fn test_branch_parameter_validation() {

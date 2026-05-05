@@ -8,10 +8,18 @@ use crate::studio::events::{
 use crate::studio::history::History;
 use crate::studio::reducer::reduce;
 use crate::studio::state::{Mode, PanelId, StudioState};
-use crate::types::GeneratedMessage;
+use crate::types::{GeneratedMessage, Review, ReviewStats};
 
 fn test_state() -> StudioState {
     StudioState::new(Config::default(), None)
+}
+
+fn test_review(summary: &str) -> Review {
+    Review {
+        summary: summary.to_string(),
+        findings: Vec::new(),
+        stats: ReviewStats::default(),
+    }
 }
 
 #[test]
@@ -112,18 +120,28 @@ fn test_agent_result_review_content() {
     state.active_mode = Mode::Review;
     state.modes.review.generating = true;
 
-    let content = "## Code Review\n\nLooks good!".to_string();
+    let review = test_review("Looks good!");
+    let expected = review.raw_content();
 
     let _ = reduce(
         &mut state,
         StudioEvent::AgentComplete {
             task_type: TaskType::Review,
-            result: AgentResult::ReviewContent(content.clone()),
+            result: AgentResult::ReviewContent(review.clone()),
         },
         &mut history,
     );
 
-    assert_eq!(state.modes.review.review_content, content);
+    assert_eq!(state.modes.review.review_content, expected);
+    assert_eq!(
+        state
+            .modes
+            .review
+            .review
+            .as_ref()
+            .map(|stored| &stored.summary),
+        Some(&review.summary)
+    );
     assert!(!state.modes.review.generating);
 }
 

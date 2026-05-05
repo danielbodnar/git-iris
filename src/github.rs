@@ -1,6 +1,7 @@
 use crate::git::GitRepo;
+use crate::types::{Finding, Review as CodeReview};
 use anyhow::{Context, Result, anyhow, bail};
-use octocrab::models::pulls::{PullRequest, Review, ReviewAction};
+use octocrab::models::pulls::{PullRequest, Review as GitHubReview, ReviewAction};
 use octocrab::{Octocrab, params};
 use regex::Regex;
 use serde_json::Value;
@@ -107,7 +108,29 @@ impl GitHubClient {
         pull_number: u64,
         body: &str,
         options: ReviewPublishOptions,
-    ) -> Result<Review> {
+    ) -> Result<GitHubReview> {
+        self.publish_review_with_comments(pull_number, body, None, options)
+            .await
+    }
+
+    pub async fn publish_structured_review(
+        &self,
+        pull_number: u64,
+        review: &CodeReview,
+        options: ReviewPublishOptions,
+    ) -> Result<GitHubReview> {
+        let body = review.raw_content();
+        self.publish_review_with_comments(pull_number, &body, Some(review), options)
+            .await
+    }
+
+    async fn publish_review_with_comments(
+        &self,
+        pull_number: u64,
+        body: &str,
+        review: Option<&CodeReview>,
+        options: ReviewPublishOptions,
+    ) -> Result<GitHubReview> {
         let pull = self
             .crab
             .pulls(&self.repo.owner, &self.repo.name)
@@ -115,7 +138,8 @@ impl GitHubClient {
             .await
             .with_context(|| format!("Failed to fetch PR #{pull_number}"))?;
         let comments = if options.inline_comments {
-            self.validated_inline_comments(pull_number, body).await?
+            self.validated_inline_comments(pull_number, body, review)
+                .await?
         } else {
             Vec::new()
         };
@@ -185,6 +209,7 @@ impl GitHubClient {
         &self,
         pull_number: u64,
         review: &str,
+        structured_review: Option<&CodeReview>,
     ) -> Result<Vec<Value>> {
         let diff = self
             .crab
@@ -193,8 +218,12 @@ impl GitHubClient {
             .await
             .with_context(|| format!("Failed to fetch PR #{pull_number} diff"))?;
         let reviewable_lines = parse_reviewable_lines(&diff);
+        let candidates = structured_review.map_or_else(
+            || extract_inline_comment_candidates(review),
+            extract_structured_inline_comment_candidates,
+        );
 
-        Ok(extract_inline_comment_candidates(review)
+        Ok(candidates
             .into_iter()
             .filter(|candidate| {
                 reviewable_lines
@@ -392,6 +421,24 @@ fn extract_inline_comment_candidates(review: &str) -> Vec<InlineCommentCandidate
     }
 
     candidates
+}
+
+fn extract_structured_inline_comment_candidates(
+    review: &CodeReview,
+) -> Vec<InlineCommentCandidate> {
+    review
+        .findings
+        .iter()
+        .map(inline_comment_candidate_from_finding)
+        .collect()
+}
+
+fn inline_comment_candidate_from_finding(finding: &Finding) -> InlineCommentCandidate {
+    InlineCommentCandidate {
+        path: finding.file.to_string_lossy().to_string(),
+        line: u64::from(finding.start_line),
+        body: finding.raw_inline_body(),
+    }
 }
 
 fn extract_location(line: &str) -> Option<(String, u64)> {

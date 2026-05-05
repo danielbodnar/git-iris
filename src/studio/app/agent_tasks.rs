@@ -346,12 +346,20 @@ Simply call the appropriate tool with the new content. Do NOT echo back the full
 
             match agent.execute_task("review", context).await {
                 Ok(response) => {
-                    let text = match response {
-                        StructuredResponse::MarkdownReview(r) => r.content,
-                        StructuredResponse::PlainText(t) => t,
-                        other => other.to_string(),
+                    let review = match response {
+                        StructuredResponse::Review(review) => review,
+                        StructuredResponse::PlainText(summary) => crate::types::Review {
+                            summary,
+                            findings: Vec::new(),
+                            stats: crate::types::ReviewStats::default(),
+                        },
+                        other => crate::types::Review {
+                            summary: other.to_string(),
+                            findings: Vec::new(),
+                            stats: crate::types::ReviewStats::default(),
+                        },
                     };
-                    IrisTaskResult::ReviewContent(text)
+                    IrisTaskResult::ReviewContent(review)
                 }
                 Err(e) => IrisTaskResult::Error {
                     task_type: TaskType::Review,

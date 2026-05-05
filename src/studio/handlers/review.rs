@@ -190,6 +190,7 @@ fn handle_output_key(state: &mut StudioState, key: KeyEvent) -> Vec<SideEffect> 
         }
         // Reset review
         KeyCode::Char('R') => {
+            state.modes.review.review = None;
             state.modes.review.review_content.clear();
             state.modes.review.review_scroll = 0;
             state.mark_dirty();

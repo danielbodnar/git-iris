@@ -905,7 +905,7 @@ async fn handle_review(
     }
 
     let review_content = match &response {
-        StructuredResponse::MarkdownReview(review) => review.content.clone(),
+        StructuredResponse::Review(review) => review.raw_content(),
         _ => response.to_string(),
     };
 
@@ -915,16 +915,22 @@ async fn handle_review(
             .ok_or_else(|| anyhow::anyhow!("GitHub publishing requires a git repository"))?;
         let github = GitHubClient::from_git_repo(git_repo)?;
         let number = github.resolve_pull_number(pull_number, git_repo).await?;
-        github
-            .publish_review(
-                number,
-                &review_content,
-                ReviewPublishOptions {
-                    event: output.github_review_event.into(),
-                    inline_comments: output.github_inline_comments,
-                },
-            )
-            .await?;
+        let publish_options = ReviewPublishOptions {
+            event: output.github_review_event.into(),
+            inline_comments: output.github_inline_comments,
+        };
+        match &response {
+            StructuredResponse::Review(review) => {
+                github
+                    .publish_structured_review(number, review, publish_options)
+                    .await?;
+            }
+            _ => {
+                github
+                    .publish_review(number, &review_content, publish_options)
+                    .await?;
+            }
+        }
         if output.mode != OutputMode::Raw {
             ui::print_success(&format!(
                 "Published review to {}/{} PR #{}",
