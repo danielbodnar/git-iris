@@ -10,7 +10,7 @@ This agent-first architecture means Git-Iris adapts to _your_ project—learning
 
 This guide gets you running with Git-Iris in minutes:
 
-- **[Installation](./installation.md)** — Install via Cargo, Docker, or manual build
+- **[Installation](./installation.md)** — Install via Homebrew, Cargo, Docker, or manual build
 - **[Quick Start](./quick-start.md)** — Generate your first AI commit in 60 seconds
 - **[Configuration](./configuration.md)** — Set up API keys and customize your workflow
 

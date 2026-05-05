@@ -12,13 +12,22 @@ Git-Iris requires Git 2.23.0+ and an API key for your chosen LLM provider.
 
 ## Installation Methods
 
-### Via Cargo (Recommended)
+### Via Homebrew (macOS / Linux)
+
+```bash
+brew tap hyperb1iss/tap
+brew install git-iris
+```
+
+Pulls pre-built binaries from the [hyperb1iss/homebrew-tap](https://github.com/hyperb1iss/homebrew-tap) and keeps them updated alongside other Homebrew packages.
+
+### Via Cargo
 
 ```bash
 cargo install git-iris
 ```
 
-This installs the latest stable release from [crates.io](https://crates.io/crates/git-iris). The binary will be available system-wide as `git-iris`.
+This installs the latest stable release from [crates.io](https://crates.io/crates/git-iris). Use this when you have a Rust toolchain installed and want to compile from source.
 
 **Verify installation:**
 

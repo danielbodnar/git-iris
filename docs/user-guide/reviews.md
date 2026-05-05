@@ -26,18 +26,18 @@ git-iris review [FLAGS] [OPTIONS]
 
 ### Key Flags
 
-| Flag                 | Description                                            |
-| -------------------- | ------------------------------------------------------ |
-| `-p, --print`        | Print review to stdout and exit                        |
-| `--raw`              | Output raw markdown without console formatting         |
-| `--include-unstaged` | Include unstaged changes in review                     |
-| `--commit <ref>`     | Review specific commit (hash, branch, or reference)    |
-| `--from <ref>`       | Starting reference for comparison (defaults to `main`) |
-| `--to <ref>`         | Target reference for comparison                        |
-| `--github-review`    | Publish the review as a GitHub PR review comment       |
-| `--pr <number>`      | GitHub PR number for publishing                        |
-| `--github-inline-comments` | Add validated inline comments for findings in the PR diff |
-| `--github-review-event <event>` | Review event: `comment`, `request-changes`, or `approve` |
+| Flag                            | Description                                               |
+| ------------------------------- | --------------------------------------------------------- |
+| `-p, --print`                   | Print review to stdout and exit                           |
+| `--raw`                         | Output raw markdown without console formatting            |
+| `--include-unstaged`            | Include unstaged changes in review                        |
+| `--commit <ref>`                | Review specific commit (hash, branch, or reference)       |
+| `--from <ref>`                  | Starting reference for comparison (defaults to `main`)    |
+| `--to <ref>`                    | Target reference for comparison                           |
+| `--github-review`               | Publish the review as a GitHub PR review comment          |
+| `--pr <number>`                 | GitHub PR number for publishing                           |
+| `--github-inline-comments`      | Add validated inline comments for findings in the PR diff |
+| `--github-review-event <event>` | Review event: `comment`, `request-changes`, or `approve`  |
 
 ### Global Options
 

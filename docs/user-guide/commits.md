@@ -26,14 +26,15 @@ git-iris gen [FLAGS] [OPTIONS]
 
 ### Key Flags
 
-| Flag                        | Description                                          |
-| --------------------------- | ---------------------------------------------------- |
-| `-a, --auto-commit`         | Automatically commit with generated message          |
-| `-p, --print`               | Print message to stdout and exit (for scripting)     |
-| `--no-gitmoji`              | Disable emoji prefixes for this commit               |
-| `--no-verify`               | Skip pre/post-commit hooks                           |
-| `-i, --instructions "text"` | Custom instructions for message style                |
-| `--preset <name>`           | Use instruction preset (e.g., `concise`, `detailed`) |
+| Flag                        | Description                                             |
+| --------------------------- | ------------------------------------------------------- |
+| `-a, --auto-commit`         | Automatically commit with generated message             |
+| `--amend`                   | Amend the previous commit with currently staged changes |
+| `-p, --print`               | Print message to stdout and exit (for scripting)        |
+| `--no-gitmoji`              | Disable emoji prefixes for this commit                  |
+| `--no-verify`               | Skip pre/post-commit hooks                              |
+| `-i, --instructions "text"` | Custom instructions for message style                   |
+| `--preset <name>`           | Use instruction preset (e.g., `concise`, `detailed`)    |
 
 ### Global Options
 
@@ -84,6 +85,17 @@ MSG=$(git-iris gen --print)
 git commit -m "$MSG"
 ```
 
+### Amend Mode
+
+Rewrite the most recent commit message using the currently staged changes:
+
+```bash
+git add <newly fixed files>
+git-iris gen --amend
+```
+
+Combine with `--auto-commit` to amend non-interactively, or with `--print` to preview the new message without rewriting history.
+
 ## Message Format
 
 Iris generates messages following this structure:
@@ -102,6 +114,8 @@ Iris generates messages following this structure:
 Implements secure token-based authentication using RS256 signing.
 Includes refresh token rotation and automatic expiry handling.
 ```
+
+Iris auto-detects whether a repository uses Conventional Commits by inspecting recent commit history; you can force a style with `--preset conventional` or `--preset gitmoji-lover` if detection picks the wrong one. When gitmoji is enabled and the title already starts with an emoji, Iris drops the duplicate so you get a single leading emoji rather than two stacked together.
 
 ## Customizing Style
 

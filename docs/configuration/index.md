@@ -38,6 +38,8 @@ git-iris config --gitmoji
 ~/.config/git-iris/config.toml
 ```
 
+If `$XDG_CONFIG_HOME` is set, Git-Iris uses `$XDG_CONFIG_HOME/git-iris/config.toml` instead. On macOS, an existing `~/Library/Application Support/git-iris/config.toml` from older releases is still honored, but new installs default to the XDG-style path.
+
 **Windows:**
 
 ```

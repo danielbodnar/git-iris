@@ -27,14 +27,14 @@ git-iris pr [FLAGS] [OPTIONS]
 
 ### Key Flags
 
-| Flag           | Description                                    |
-| -------------- | ---------------------------------------------- |
-| `-p, --print`  | Print PR description to stdout and exit        |
-| `--raw`        | Output raw markdown without console formatting |
-| `--from <ref>` | Starting reference (commit, branch, commitish) |
-| `--to <ref>`   | Target reference (commit, branch, commitish)   |
-| `--update` | Update the GitHub PR body with the generated description (`--github-update` still works) |
-| `--pr <number>` | GitHub PR number to update |
+| Flag            | Description                                                                              |
+| --------------- | ---------------------------------------------------------------------------------------- |
+| `-p, --print`   | Print PR description to stdout and exit                                                  |
+| `--raw`         | Output raw markdown without console formatting                                           |
+| `--from <ref>`  | Starting reference (commit, branch, commitish)                                           |
+| `--to <ref>`    | Target reference (commit, branch, commitish)                                             |
+| `--update`      | Update the GitHub PR body with the generated description (`--github-update` still works) |
+| `--pr <number>` | GitHub PR number to update                                                               |
 
 ### Global Options
 

@@ -29,16 +29,18 @@ Generate AI-powered commit messages for staged changes.
 
 **Options:**
 
-| Flag                    | Short | Description                                 |
-| ----------------------- | ----- | ------------------------------------------- |
-| `--auto-commit`         | `-a`  | Automatically commit with generated message |
-| `--no-gitmoji`          |       | Disable gitmoji for this commit             |
-| `--print`               | `-p`  | Print message to stdout and exit            |
-| `--no-verify`           |       | Skip pre/post commit hooks                  |
-| `--provider <NAME>`     |       | Override default provider                   |
-| `--instructions <TEXT>` | `-i`  | Custom instructions                         |
-| `--preset <NAME>`       |       | Instruction preset name                     |
-| `--gitmoji`             |       | Enable gitmoji for this invocation          |
+| Flag                    | Short | Description                                   |
+| ----------------------- | ----- | --------------------------------------------- |
+| `--auto-commit`         | `-a`  | Automatically commit with generated message   |
+| `--amend`               |       | Amend the previous commit with staged changes |
+| `--no-gitmoji`          |       | Disable gitmoji for this commit               |
+| `--print`               | `-p`  | Print message to stdout and exit              |
+| `--no-verify`           |       | Skip pre/post commit hooks                    |
+| `--provider <NAME>`     |       | Override default provider                     |
+| `--model <NAME>`        |       | Override model for this operation             |
+| `--instructions <TEXT>` | `-i`  | Custom instructions                           |
+| `--preset <NAME>`       |       | Instruction preset name                       |
+| `--gitmoji`             |       | Enable gitmoji for this invocation            |
 
 **Examples:**
 
@@ -105,14 +107,18 @@ Generate multi-dimensional code reviews with AI.
 
 **Options:**
 
-| Flag                 | Short | Description                                                |
-| -------------------- | ----- | ---------------------------------------------------------- |
-| `--print`            | `-p`  | Print review to stdout                                     |
-| `--raw`              |       | Output raw markdown without formatting                     |
-| `--include-unstaged` |       | Include unstaged changes                                   |
-| `--commit <HASH>`    |       | Review specific commit                                     |
-| `--from <REF>`       |       | Starting branch for comparison                             |
-| `--to <REF>`         |       | Target branch for comparison (alone, compares from `main`) |
+| Flag                            | Short | Description                                                |
+| ------------------------------- | ----- | ---------------------------------------------------------- |
+| `--print`                       | `-p`  | Print review to stdout                                     |
+| `--raw`                         |       | Output raw markdown without formatting                     |
+| `--include-unstaged`            |       | Include unstaged changes                                   |
+| `--commit <HASH>`               |       | Review specific commit                                     |
+| `--from <REF>`                  |       | Starting branch for comparison                             |
+| `--to <REF>`                    |       | Target branch for comparison (alone, compares from `main`) |
+| `--github-review`               |       | Publish review as a GitHub PR review comment               |
+| `--pr <NUMBER>`                 |       | Target a specific GitHub pull request number               |
+| `--github-inline-comments`      |       | Add validated inline comments for findings in the PR diff  |
+| `--github-review-event <EVENT>` |       | `comment` (default), `request-changes`, or `approve`       |
 
 **Examples:**
 
@@ -131,6 +137,14 @@ git-iris review --to feature-branch
 
 # Include unstaged changes
 git-iris review --include-unstaged --print
+
+# Publish review to the open GitHub PR for the current branch
+git-iris review --github-review
+
+# Target a specific PR with inline comments and request-changes
+git-iris review --github-review --pr 123 \
+  --github-inline-comments \
+  --github-review-event request-changes
 ```
 
 ---
@@ -145,13 +159,15 @@ Generate pull request descriptions.
 
 **Options:**
 
-| Flag           | Short | Description                    |
-| -------------- | ----- | ------------------------------ |
-| `--print`      | `-p`  | Print to stdout                |
-| `--raw`        |       | Output raw markdown            |
-| `--copy`       | `-c`  | Copy raw markdown to clipboard |
-| `--from <REF>` |       | Starting ref (default: `main`) |
-| `--to <REF>`   |       | Target ref (default: `HEAD`)   |
+| Flag            | Short | Description                                                                                         |
+| --------------- | ----- | --------------------------------------------------------------------------------------------------- |
+| `--print`       | `-p`  | Print to stdout                                                                                     |
+| `--raw`         |       | Output raw markdown                                                                                 |
+| `--copy`        | `-c`  | Copy raw markdown to clipboard                                                                      |
+| `--from <REF>`  |       | Starting ref (default: `main`)                                                                      |
+| `--to <REF>`    |       | Target ref (default: `HEAD`)                                                                        |
+| `--update`      |       | Update the GitHub PR body (revises existing text, adapts to PR templates). Alias: `--github-update` |
+| `--pr <NUMBER>` |       | Target a specific GitHub pull request number when updating                                          |
 
 **Examples:**
 
@@ -170,6 +186,12 @@ git-iris pr --copy
 
 # Print only
 git-iris pr --print
+
+# Update the GitHub PR body for the current branch
+git-iris pr --update
+
+# Update a specific PR number with explicit refs
+git-iris pr --from main --to feature-branch --update --pr 123
 ```
 
 ---
