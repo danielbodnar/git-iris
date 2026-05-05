@@ -998,12 +998,9 @@ impl StudioApp {
             // Poll for events with timeout for animations
             if event::poll(Duration::from_millis(50))? {
                 match event::read()? {
-                    Event::Key(key) => {
-                        // Only handle key press events
-                        if key.kind == KeyEventKind::Press {
-                            // Push to event queue - reducer will handle via existing handlers
-                            self.push_event(StudioEvent::KeyPressed(key));
-                        }
+                    Event::Key(key) if key.kind == KeyEventKind::Press => {
+                        // Push to event queue - reducer will handle via existing handlers
+                        self.push_event(StudioEvent::KeyPressed(key));
                     }
                     Event::Mouse(mouse) => {
                         match mouse.kind {

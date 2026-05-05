@@ -153,13 +153,11 @@ pub fn apply_scroll(state: &mut StudioState, direction: ScrollDirection, amount:
             PanelId::Left => {
                 // Commits list navigation
                 match direction {
-                    ScrollDirection::Up => {
-                        if state.modes.pr.selected_commit > 0 {
-                            state.modes.pr.selected_commit =
-                                state.modes.pr.selected_commit.saturating_sub(amount);
-                            if state.modes.pr.selected_commit < state.modes.pr.commit_scroll {
-                                state.modes.pr.commit_scroll = state.modes.pr.selected_commit;
-                            }
+                    ScrollDirection::Up if state.modes.pr.selected_commit > 0 => {
+                        state.modes.pr.selected_commit =
+                            state.modes.pr.selected_commit.saturating_sub(amount);
+                        if state.modes.pr.selected_commit < state.modes.pr.commit_scroll {
+                            state.modes.pr.commit_scroll = state.modes.pr.selected_commit;
                         }
                     }
                     ScrollDirection::Down => {
@@ -201,16 +199,14 @@ pub fn apply_scroll(state: &mut StudioState, direction: ScrollDirection, amount:
             PanelId::Left => {
                 // Commits list navigation
                 match direction {
-                    ScrollDirection::Up => {
-                        if state.modes.changelog.selected_commit > 0 {
-                            state.modes.changelog.selected_commit =
-                                state.modes.changelog.selected_commit.saturating_sub(amount);
-                            if state.modes.changelog.selected_commit
-                                < state.modes.changelog.commit_scroll
-                            {
-                                state.modes.changelog.commit_scroll =
-                                    state.modes.changelog.selected_commit;
-                            }
+                    ScrollDirection::Up if state.modes.changelog.selected_commit > 0 => {
+                        state.modes.changelog.selected_commit =
+                            state.modes.changelog.selected_commit.saturating_sub(amount);
+                        if state.modes.changelog.selected_commit
+                            < state.modes.changelog.commit_scroll
+                        {
+                            state.modes.changelog.commit_scroll =
+                                state.modes.changelog.selected_commit;
                         }
                     }
                     ScrollDirection::Down => {
@@ -262,19 +258,17 @@ pub fn apply_scroll(state: &mut StudioState, direction: ScrollDirection, amount:
             PanelId::Left => {
                 // Commits list navigation
                 match direction {
-                    ScrollDirection::Up => {
-                        if state.modes.release_notes.selected_commit > 0 {
-                            state.modes.release_notes.selected_commit = state
-                                .modes
-                                .release_notes
-                                .selected_commit
-                                .saturating_sub(amount);
-                            if state.modes.release_notes.selected_commit
-                                < state.modes.release_notes.commit_scroll
-                            {
-                                state.modes.release_notes.commit_scroll =
-                                    state.modes.release_notes.selected_commit;
-                            }
+                    ScrollDirection::Up if state.modes.release_notes.selected_commit > 0 => {
+                        state.modes.release_notes.selected_commit = state
+                            .modes
+                            .release_notes
+                            .selected_commit
+                            .saturating_sub(amount);
+                        if state.modes.release_notes.selected_commit
+                            < state.modes.release_notes.commit_scroll
+                        {
+                            state.modes.release_notes.commit_scroll =
+                                state.modes.release_notes.selected_commit;
                         }
                     }
                     ScrollDirection::Down => {

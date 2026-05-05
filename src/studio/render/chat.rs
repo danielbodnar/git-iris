@@ -401,18 +401,15 @@ pub fn format_markdown(content: &str, max_width: usize, base_style: Style) -> Ve
                     flush_line(&mut lines, &mut current_spans, list_depth);
                     lines.push(Line::from("")); // Space after table
                 }
-                TagEnd::TableHead | TagEnd::TableRow => {
-                    // Render the row
-                    if !table_row.is_empty() {
-                        let row_text = table_row.join(" │ ");
-                        flush_line(&mut lines, &mut current_spans, list_depth);
-                        current_spans.push(Span::styled(
-                            format!("  │ {} │", row_text),
-                            Style::default().fg(theme::text_secondary_color()),
-                        ));
-                        flush_line(&mut lines, &mut current_spans, list_depth);
-                        table_row.clear();
-                    }
+                TagEnd::TableHead | TagEnd::TableRow if !table_row.is_empty() => {
+                    let row_text = table_row.join(" │ ");
+                    flush_line(&mut lines, &mut current_spans, list_depth);
+                    current_spans.push(Span::styled(
+                        format!("  │ {} │", row_text),
+                        Style::default().fg(theme::text_secondary_color()),
+                    ));
+                    flush_line(&mut lines, &mut current_spans, list_depth);
+                    table_row.clear();
                 }
                 TagEnd::TableCell => {
                     // Cell completed - handled in text

@@ -754,20 +754,16 @@ impl SettingsState {
 
         let field = self.current_field();
         match field {
-            SettingsField::Model => {
-                if !self.input_buffer.is_empty() {
-                    self.model = self.input_buffer.clone();
-                    self.modified = true;
-                }
+            SettingsField::Model if !self.input_buffer.is_empty() => {
+                self.model = self.input_buffer.clone();
+                self.modified = true;
             }
-            SettingsField::ApiKey => {
-                if !self.input_buffer.is_empty() {
-                    // Store actual key, update display
-                    let key = self.input_buffer.clone();
-                    self.api_key_display = Self::mask_api_key(&key);
-                    self.api_key_actual = Some(key);
-                    self.modified = true;
-                }
+            SettingsField::ApiKey if !self.input_buffer.is_empty() => {
+                // Store actual key, update display
+                let key = self.input_buffer.clone();
+                self.api_key_display = Self::mask_api_key(&key);
+                self.api_key_actual = Some(key);
+                self.modified = true;
             }
             SettingsField::CustomInstructions => {
                 // Allow empty (clears instructions)
