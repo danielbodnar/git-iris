@@ -161,11 +161,7 @@ impl Review {
 
     #[must_use]
     pub fn effective_stats(&self) -> ReviewStats {
-        if self.stats.findings_count == self.findings.len() {
-            self.stats.clone()
-        } else {
-            ReviewStats::from_findings(self.stats.files_reviewed, &self.findings)
-        }
+        ReviewStats::from_findings(self.stats.files_reviewed, &self.findings)
     }
 
     #[must_use]
@@ -229,9 +225,10 @@ impl Finding {
     #[must_use]
     pub fn raw_inline_body(&self) -> String {
         let mut body = format!(
-            "[{}] **{}**\n\n{}\n\nConfidence: {}%",
+            "[{}] **{}**\n\nLocation: `{}`\n\n{}\n\nConfidence: {}%",
             self.severity,
             self.title,
+            self.location(),
             self.body.trim(),
             self.confidence
         );

@@ -228,18 +228,21 @@ impl GitHubClient {
 
         Ok(candidates
             .into_iter()
-            .filter(|candidate| {
-                reviewable_lines
-                    .get(&candidate.path)
-                    .is_some_and(|lines| lines.contains(&candidate.line))
-            })
+            .filter(|candidate| candidate.is_reviewable(&reviewable_lines))
             .map(|candidate| {
-                serde_json::json!({
+                let mut comment = serde_json::json!({
                     "path": candidate.path,
                     "line": candidate.line,
                     "side": "RIGHT",
                     "body": candidate.body,
-                })
+                });
+                if let Some(start_line) = candidate.start_line
+                    && let Some(object) = comment.as_object_mut()
+                {
+                    object.insert("start_line".to_string(), serde_json::json!(start_line));
+                    object.insert("start_side".to_string(), serde_json::json!("RIGHT"));
+                }
+                comment
             })
             .collect())
     }
@@ -399,8 +402,20 @@ fn single_pull_number(pulls: &[PullRequest]) -> Option<u64> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct InlineCommentCandidate {
     path: String,
+    start_line: Option<u64>,
     line: u64,
     body: String,
+}
+
+impl InlineCommentCandidate {
+    fn is_reviewable(&self, reviewable_lines: &HashMap<String, HashSet<u64>>) -> bool {
+        reviewable_lines.get(&self.path).is_some_and(|lines| {
+            lines.contains(&self.line)
+                && self
+                    .start_line
+                    .is_none_or(|start_line| lines.contains(&start_line))
+        })
+    }
 }
 
 fn extract_inline_comment_candidates(review: &str) -> Vec<InlineCommentCandidate> {
@@ -416,6 +431,7 @@ fn extract_inline_comment_candidates(review: &str) -> Vec<InlineCommentCandidate
             let body = finding_body(&lines, index);
             candidates.push(InlineCommentCandidate {
                 path,
+                start_line: None,
                 line: line_number,
                 body,
             });
@@ -437,9 +453,13 @@ fn extract_structured_inline_comment_candidates(
 }
 
 fn inline_comment_candidate_from_finding(finding: &Finding) -> InlineCommentCandidate {
+    let start_line =
+        (finding.end_line != finding.start_line).then_some(u64::from(finding.start_line));
+
     InlineCommentCandidate {
-        path: finding.file.to_string_lossy().to_string(),
-        line: u64::from(finding.start_line),
+        path: normalize_github_path(&finding.file),
+        start_line,
+        line: u64::from(finding.end_line),
         body: finding.raw_inline_body(),
     }
 }
@@ -464,7 +484,7 @@ fn review_body_with_permalinks(repo: &GitHubRepository, review: &CodeReview, sha
 }
 
 fn permalink_for_finding(repo: &GitHubRepository, finding: &Finding, sha: &str) -> String {
-    let path = finding.file.to_string_lossy();
+    let path = percent_encode_github_path(&normalize_github_path(&finding.file));
     let line = if finding.start_line == finding.end_line {
         format!("L{}", finding.start_line)
     } else {
@@ -477,12 +497,42 @@ fn permalink_for_finding(repo: &GitHubRepository, finding: &Finding, sha: &str) 
     )
 }
 
+fn normalize_github_path(path: &Path) -> String {
+    normalize_github_path_str(&path.to_string_lossy())
+}
+
+fn normalize_github_path_str(path: &str) -> String {
+    path.replace('\\', "/")
+        .trim_start_matches("./")
+        .trim_start_matches('/')
+        .to_string()
+}
+
+fn percent_encode_github_path(path: &str) -> String {
+    path.split('/')
+        .map(percent_encode_path_segment)
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+fn percent_encode_path_segment(segment: &str) -> String {
+    let mut encoded = String::new();
+    for byte in segment.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b'~') {
+            encoded.push(char::from(byte));
+        } else {
+            encoded.push_str(&format!("%{byte:02X}"));
+        }
+    }
+    encoded
+}
+
 fn extract_location(line: &str) -> Option<(String, u64)> {
     BACKTICK_LOCATION_RE
         .captures(line)
         .or_else(|| PLAIN_LOCATION_RE.captures(line))
         .and_then(|captures| {
-            let path = captures.get(1)?.as_str().to_string();
+            let path = normalize_github_path_str(captures.get(1)?.as_str());
             let line = captures.get(2)?.as_str().parse().ok()?;
             Some((path, line))
         })

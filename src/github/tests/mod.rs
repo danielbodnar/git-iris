@@ -51,6 +51,7 @@ fn extracts_review_findings_with_locations() {
 
     assert_eq!(candidates.len(), 2);
     assert_eq!(candidates[0].path, "src/github.rs");
+    assert_eq!(candidates[0].start_line, None);
     assert_eq!(candidates[0].line, 42);
     assert!(candidates[0].body.contains("Missing error handling"));
     assert_eq!(candidates[1].path, "docs/user-guide/reviews.md");
@@ -81,6 +82,7 @@ fn extracts_structured_review_findings() {
 
     assert_eq!(candidates.len(), 1);
     assert_eq!(candidates[0].path, "src/github.rs");
+    assert_eq!(candidates[0].start_line, None);
     assert_eq!(candidates[0].line, 42);
     assert!(
         candidates[0]
@@ -88,6 +90,38 @@ fn extracts_structured_review_findings() {
             .contains("[HIGH] **Missing error context**")
     );
     assert!(candidates[0].body.contains("Confidence: 91%"));
+}
+
+#[test]
+fn extracts_multiline_structured_review_findings() {
+    let review = Review {
+        summary: "Review summary".to_string(),
+        findings: vec![Finding {
+            id: FindingId("finding-1".to_string()),
+            severity: Severity::High,
+            confidence: 91,
+            file: PathBuf::from("src/github.rs"),
+            start_line: 42,
+            end_line: 44,
+            category: Category::ErrorHandling,
+            title: "Missing error context".to_string(),
+            body: "The changed path drops useful context.".to_string(),
+            suggested_fix: None,
+            evidence: Vec::new(),
+        }],
+        stats: ReviewStats::default(),
+    };
+
+    let candidates = extract_structured_inline_comment_candidates(&review);
+
+    assert_eq!(candidates[0].path, "src/github.rs");
+    assert_eq!(candidates[0].start_line, Some(42));
+    assert_eq!(candidates[0].line, 44);
+    assert!(
+        candidates[0]
+            .body
+            .contains("Location: `src/github.rs:42-44`")
+    );
 }
 
 #[test]
@@ -144,6 +178,34 @@ fn renders_permalinks_for_structured_review_findings() {
     assert!(body.contains("## GitHub Permalinks"));
     assert!(
         body.contains("https://github.com/hyperb1iss/git-iris/blob/abc123/src/github.rs#L42-L44")
+    );
+}
+
+#[test]
+fn permalink_paths_are_normalized_and_encoded() {
+    let repo = GitHubRepository {
+        owner: "hyperb1iss".to_string(),
+        name: "git-iris".to_string(),
+    };
+    let finding = Finding {
+        id: FindingId("finding-1".to_string()),
+        severity: Severity::High,
+        confidence: 91,
+        file: PathBuf::from(r".\src\path with spaces\file#name.rs"),
+        start_line: 7,
+        end_line: 7,
+        category: Category::Other,
+        title: "Path edge case".to_string(),
+        body: "Path should be safe in a URL.".to_string(),
+        suggested_fix: None,
+        evidence: Vec::new(),
+    };
+
+    let permalink = super::permalink_for_finding(&repo, &finding, "abc123");
+
+    assert_eq!(
+        permalink,
+        "https://github.com/hyperb1iss/git-iris/blob/abc123/src/path%20with%20spaces/file%23name.rs#L7"
     );
 }
 
