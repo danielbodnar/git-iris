@@ -28,6 +28,7 @@ use crate::providers::Provider;
 
 /// Default timeout for individual subagent tasks (2 minutes)
 const DEFAULT_SUBAGENT_TIMEOUT_SECS: u64 = 120;
+const SUBAGENT_MAX_TURNS: usize = 20;
 
 /// Arguments for parallel analysis
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -206,7 +207,7 @@ impl SubagentRunner {
                     CompletionProfile::Subagent,
                 );
                 let agent = crate::attach_core_tools!(builder).build();
-                agent.prompt(task).await
+                agent.prompt(task).max_turns(SUBAGENT_MAX_TURNS).await
             }
             Self::Anthropic {
                 client,
@@ -223,7 +224,7 @@ impl SubagentRunner {
                     CompletionProfile::Subagent,
                 );
                 let agent = crate::attach_core_tools!(builder).build();
-                agent.prompt(task).await
+                agent.prompt(task).max_turns(SUBAGENT_MAX_TURNS).await
             }
             Self::Gemini {
                 client,
@@ -240,7 +241,7 @@ impl SubagentRunner {
                     CompletionProfile::Subagent,
                 );
                 let agent = crate::attach_core_tools!(builder).build();
-                agent.prompt(task).await
+                agent.prompt(task).max_turns(SUBAGENT_MAX_TURNS).await
             }
         };
 
@@ -253,7 +254,7 @@ impl SubagentRunner {
             },
             Err(e) => SubagentResult {
                 task: task.to_string(),
-                result: String::new(),
+                result: format!("Subagent failed: {e}"),
                 success: false,
                 error: Some(e.to_string()),
             },
@@ -397,7 +398,7 @@ impl Tool for ParallelAnalyze {
                     Ok(result) => result,
                     Err(_) => SubagentResult {
                         task: task.clone(),
-                        result: String::new(),
+                        result: format!("Subagent timed out after {timeout_secs} seconds"),
                         success: false,
                         error: Some(format!("Task timed out after {} seconds", timeout_secs)),
                     },
@@ -430,7 +431,7 @@ impl Tool for ParallelAnalyze {
             .map(|(i, opt)| {
                 opt.unwrap_or_else(|| SubagentResult {
                     task: format!("Task {}", i),
-                    result: String::new(),
+                    result: "Subagent task did not complete".to_string(),
                     success: false,
                     error: Some("Task did not complete".to_string()),
                 })
