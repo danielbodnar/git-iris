@@ -43,6 +43,29 @@ fn low_confidence_finding() -> Finding {
     }
 }
 
+fn overconfident_finding() -> Finding {
+    Finding {
+        confidence: 200,
+        ..sample_finding()
+    }
+}
+
+fn finding_from_confidence(confidence: impl Into<serde_json::Value>) -> Finding {
+    let confidence = confidence.into();
+    serde_json::from_value(serde_json::json!({
+        "id": "finding-1",
+        "severity": "high",
+        "confidence": confidence,
+        "file": "src/auth.rs",
+        "start_line": 42,
+        "end_line": 42,
+        "category": "security",
+        "title": "Missing authorization check",
+        "body": "The changed handler accepts user input before checking access."
+    }))
+    .expect("finding should deserialize")
+}
+
 #[test]
 fn structured_review_renders_markdown_from_findings() {
     let finding = sample_finding();
@@ -50,6 +73,7 @@ fn structured_review_renders_markdown_from_findings() {
         summary: "Adds an auth handler.".to_string(),
         findings: vec![finding],
         stats: ReviewStats::default(),
+        parse_failed: false,
     };
 
     let markdown = review.raw_content();
@@ -67,6 +91,7 @@ fn review_stats_are_derived_when_model_counts_are_missing() {
         summary: String::new(),
         findings: vec![sample_finding()],
         stats: ReviewStats::default(),
+        parse_failed: false,
     };
 
     let stats = review.effective_stats();
@@ -81,6 +106,7 @@ fn low_confidence_findings_do_not_render() {
         summary: String::new(),
         findings: vec![low_confidence_finding()],
         stats: ReviewStats::default(),
+        parse_failed: false,
     };
 
     let markdown = review.raw_content();
@@ -88,6 +114,84 @@ fn low_confidence_findings_do_not_render() {
     assert!(markdown.contains("Found 0 issue(s)"));
     assert!(markdown.contains("No blocking issues found."));
     assert!(!markdown.contains("Possible missing test"));
+}
+
+#[test]
+fn confidence_scores_are_clamped_for_rendering_and_gates() {
+    let review = Review {
+        summary: String::new(),
+        findings: vec![overconfident_finding()],
+        stats: ReviewStats::default(),
+        parse_failed: false,
+    };
+
+    let markdown = review.raw_content();
+
+    assert!(markdown.contains("Confidence: 100%."));
+    assert_eq!(review.visible_findings_at(101).len(), 0);
+}
+
+#[test]
+fn category_accepts_common_aliases() {
+    for (raw, expected) in [
+        ("\"error-handling\"", Category::ErrorHandling),
+        ("\"errorHandling\"", Category::ErrorHandling),
+        ("\"ERROR HANDLING\"", Category::ErrorHandling),
+        ("\"Security\"", Category::Security),
+        ("\"performance \"", Category::Performance),
+        ("\"api contract\"", Category::ApiContract),
+        ("\"surprise\"", Category::Other),
+    ] {
+        let category: Category = serde_json::from_str(raw).expect("category should deserialize");
+        assert_eq!(category, expected);
+    }
+}
+
+#[test]
+fn unstructured_review_fallback_does_not_claim_success() {
+    let review = Review::from_unstructured("{bad json}\n```nested```");
+
+    let markdown = review.raw_content();
+
+    assert!(markdown.contains("Review parsing failed"));
+    assert!(markdown.contains("{bad json}"));
+    assert!(markdown.contains("```text"));
+    assert!(markdown.contains("`\\`\\`nested`\\`\\`"));
+    assert!(!markdown.contains("No blocking issues found."));
+    assert!(!markdown.contains("Found 0 issue(s)"));
+}
+
+#[test]
+fn parse_failed_reviews_round_trip() {
+    let review = Review::from_unstructured("{bad json}");
+
+    let encoded = serde_json::to_string(&review).expect("review should serialize");
+    let decoded: Review = serde_json::from_str(&encoded).expect("review should deserialize");
+
+    assert!(decoded.parse_failed);
+    assert!(!decoded.raw_content().contains("No blocking issues found."));
+}
+
+#[test]
+fn confidence_accepts_common_model_shapes() {
+    assert_eq!(
+        finding_from_confidence(serde_json::json!(0.85)).confidence,
+        85
+    );
+    assert_eq!(
+        finding_from_confidence(serde_json::json!("95.0")).confidence,
+        95
+    );
+    assert_eq!(
+        finding_from_confidence(serde_json::json!("72%")).confidence,
+        72
+    );
+    assert_eq!(finding_from_confidence(serde_json::json!(1)).confidence, 1);
+    assert_eq!(
+        finding_from_confidence(serde_json::json!(250)).confidence,
+        100
+    );
+    assert_eq!(finding_from_confidence(serde_json::json!(-5)).confidence, 0);
 }
 
 #[test]

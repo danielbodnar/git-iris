@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::types::{Category, Finding, FindingId, Review, ReviewStats, Severity};
+use crate::types::{Category, EvidenceRef, Finding, FindingId, Review, ReviewStats, Severity};
 
 use super::{
     GitHubRepository, extract_inline_comment_candidates,
@@ -45,17 +45,27 @@ fn extracts_review_findings_with_locations() {
 
 - [LOW] **Docs typo in docs/user-guide/reviews.md:12**
   Minor polish.
+
+- [LOW] **Legacy prefix in `./src/prefix.rs:7`**
+  Prefix should normalize.
+
+- [LOW] **Absolute-ish prefix in `/src/absolute.rs:8`**
+  Prefix should normalize too.
 ";
 
     let candidates = extract_inline_comment_candidates(review);
 
-    assert_eq!(candidates.len(), 2);
+    assert_eq!(candidates.len(), 4);
     assert_eq!(candidates[0].path, "src/github.rs");
     assert_eq!(candidates[0].start_line, None);
     assert_eq!(candidates[0].line, 42);
     assert!(candidates[0].body.contains("Missing error handling"));
     assert_eq!(candidates[1].path, "docs/user-guide/reviews.md");
     assert_eq!(candidates[1].line, 12);
+    assert_eq!(candidates[2].path, "src/prefix.rs");
+    assert_eq!(candidates[2].line, 7);
+    assert_eq!(candidates[3].path, "src/absolute.rs");
+    assert_eq!(candidates[3].line, 8);
 }
 
 #[test]
@@ -73,9 +83,15 @@ fn extracts_structured_review_findings() {
             title: "Missing error context".to_string(),
             body: "The changed path drops useful context.".to_string(),
             suggested_fix: Some("Add context before returning.".to_string()),
-            evidence: Vec::new(),
+            evidence: vec![EvidenceRef {
+                file: PathBuf::from("src/github.rs"),
+                line: 40,
+                end_line: Some(42),
+                note: Some("changed publisher".to_string()),
+            }],
         }],
         stats: ReviewStats::default(),
+        parse_failed: false,
     };
 
     let candidates = extract_structured_inline_comment_candidates(&review);
@@ -88,6 +104,12 @@ fn extracts_structured_review_findings() {
         candidates[0]
             .body
             .contains("[HIGH] **Missing error context**")
+    );
+    assert!(candidates[0].body.contains("Category: error handling"));
+    assert!(
+        candidates[0]
+            .body
+            .contains("Evidence: src/github.rs:40-42 (changed publisher)")
     );
     assert!(candidates[0].body.contains("Confidence: 91%"));
 }
@@ -110,6 +132,7 @@ fn extracts_multiline_structured_review_findings() {
             evidence: Vec::new(),
         }],
         stats: ReviewStats::default(),
+        parse_failed: false,
     };
 
     let candidates = extract_structured_inline_comment_candidates(&review);
@@ -122,6 +145,52 @@ fn extracts_multiline_structured_review_findings() {
             .body
             .contains("Location: `src/github.rs:42-44`")
     );
+}
+
+#[test]
+fn normalizes_inverted_structured_review_ranges() {
+    let review = Review {
+        summary: "Review summary".to_string(),
+        findings: vec![Finding {
+            id: FindingId("finding-1".to_string()),
+            severity: Severity::High,
+            confidence: 91,
+            file: PathBuf::from("src/github.rs"),
+            start_line: 44,
+            end_line: 42,
+            category: Category::ErrorHandling,
+            title: "Missing error context".to_string(),
+            body: "The changed path drops useful context.".to_string(),
+            suggested_fix: None,
+            evidence: Vec::new(),
+        }],
+        stats: ReviewStats::default(),
+        parse_failed: false,
+    };
+
+    let candidates = extract_structured_inline_comment_candidates(&review);
+
+    assert_eq!(candidates[0].start_line, Some(42));
+    assert_eq!(candidates[0].line, 44);
+    assert!(
+        candidates[0]
+            .body
+            .contains("Location: `src/github.rs:42-44`")
+    );
+}
+
+#[test]
+fn multiline_candidates_require_the_full_range_to_be_reviewable() {
+    let mut reviewable_lines = std::collections::HashMap::new();
+    reviewable_lines.insert("src/github.rs".to_string(), [42, 44].into_iter().collect());
+    let candidate = super::InlineCommentCandidate {
+        path: "src/github.rs".to_string(),
+        start_line: Some(42),
+        line: 44,
+        body: "body".to_string(),
+    };
+
+    assert!(!candidate.is_reviewable(&reviewable_lines));
 }
 
 #[test]
@@ -142,6 +211,7 @@ fn skips_low_confidence_structured_review_findings() {
             evidence: Vec::new(),
         }],
         stats: ReviewStats::default(),
+        parse_failed: false,
     };
 
     let candidates = extract_structured_inline_comment_candidates(&review);
@@ -171,6 +241,7 @@ fn renders_permalinks_for_structured_review_findings() {
             evidence: Vec::new(),
         }],
         stats: ReviewStats::default(),
+        parse_failed: false,
     };
 
     let body = review_body_with_permalinks(&repo, &review, "abc123");

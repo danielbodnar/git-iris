@@ -109,7 +109,7 @@ impl GitHubClient {
         body: &str,
         options: ReviewPublishOptions,
     ) -> Result<GitHubReview> {
-        self.publish_review_with_comments(pull_number, body, None, options)
+        self.publish_review_with_comments(pull_number, ReviewSource::Markdown(body), options)
             .await
     }
 
@@ -119,15 +119,14 @@ impl GitHubClient {
         review: &CodeReview,
         options: ReviewPublishOptions,
     ) -> Result<GitHubReview> {
-        self.publish_review_with_comments(pull_number, "", Some(review), options)
+        self.publish_review_with_comments(pull_number, ReviewSource::Structured(review), options)
             .await
     }
 
     async fn publish_review_with_comments(
         &self,
         pull_number: u64,
-        body: &str,
-        review: Option<&CodeReview>,
+        review: ReviewSource<'_>,
         options: ReviewPublishOptions,
     ) -> Result<GitHubReview> {
         let pull = self
@@ -136,13 +135,9 @@ impl GitHubClient {
             .get(pull_number)
             .await
             .with_context(|| format!("Failed to fetch PR #{pull_number}"))?;
-        let review_body = review.map_or_else(
-            || body.to_string(),
-            |review| review_body_with_permalinks(&self.repo, review, &pull.head.sha),
-        );
+        let review_body = review.body(&self.repo, &pull.head.sha);
         let comments = if options.inline_comments {
-            self.validated_inline_comments(pull_number, body, review)
-                .await?
+            self.validated_inline_comments(pull_number, review).await?
         } else {
             Vec::new()
         };
@@ -211,8 +206,7 @@ impl GitHubClient {
     async fn validated_inline_comments(
         &self,
         pull_number: u64,
-        review: &str,
-        structured_review: Option<&CodeReview>,
+        review: ReviewSource<'_>,
     ) -> Result<Vec<Value>> {
         let diff = self
             .crab
@@ -221,10 +215,7 @@ impl GitHubClient {
             .await
             .with_context(|| format!("Failed to fetch PR #{pull_number} diff"))?;
         let reviewable_lines = parse_reviewable_lines(&diff);
-        let candidates = structured_review.map_or_else(
-            || extract_inline_comment_candidates(review),
-            extract_structured_inline_comment_candidates,
-        );
+        let candidates = review.inline_comment_candidates();
 
         Ok(candidates
             .into_iter()
@@ -245,6 +236,28 @@ impl GitHubClient {
                 comment
             })
             .collect())
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ReviewSource<'a> {
+    Markdown(&'a str),
+    Structured(&'a CodeReview),
+}
+
+impl ReviewSource<'_> {
+    fn body(self, repo: &GitHubRepository, sha: &str) -> String {
+        match self {
+            Self::Markdown(body) => body.to_string(),
+            Self::Structured(review) => review_body_with_permalinks(repo, review, sha),
+        }
+    }
+
+    fn inline_comment_candidates(self) -> Vec<InlineCommentCandidate> {
+        match self {
+            Self::Markdown(body) => extract_inline_comment_candidates(body),
+            Self::Structured(review) => extract_structured_inline_comment_candidates(review),
+        }
     }
 }
 
@@ -410,10 +423,9 @@ struct InlineCommentCandidate {
 impl InlineCommentCandidate {
     fn is_reviewable(&self, reviewable_lines: &HashMap<String, HashSet<u64>>) -> bool {
         reviewable_lines.get(&self.path).is_some_and(|lines| {
-            lines.contains(&self.line)
-                && self
-                    .start_line
-                    .is_none_or(|start_line| lines.contains(&start_line))
+            let start = self.start_line.unwrap_or(self.line).min(self.line);
+            let end = self.start_line.unwrap_or(self.line).max(self.line);
+            (start..=end).all(|line| lines.contains(&line))
         })
     }
 }
@@ -453,13 +465,14 @@ fn extract_structured_inline_comment_candidates(
 }
 
 fn inline_comment_candidate_from_finding(finding: &Finding) -> InlineCommentCandidate {
-    let start_line =
-        (finding.end_line != finding.start_line).then_some(u64::from(finding.start_line));
+    let start = finding.start_line.min(finding.end_line);
+    let end = finding.start_line.max(finding.end_line);
+    let start_line = (start != end).then_some(u64::from(start));
 
     InlineCommentCandidate {
         path: normalize_github_path(&finding.file),
         start_line,
-        line: u64::from(finding.end_line),
+        line: u64::from(end),
         body: finding.raw_inline_body(),
     }
 }
@@ -485,10 +498,12 @@ fn review_body_with_permalinks(repo: &GitHubRepository, review: &CodeReview, sha
 
 fn permalink_for_finding(repo: &GitHubRepository, finding: &Finding, sha: &str) -> String {
     let path = percent_encode_github_path(&normalize_github_path(&finding.file));
-    let line = if finding.start_line == finding.end_line {
-        format!("L{}", finding.start_line)
+    let start = finding.start_line.min(finding.end_line);
+    let end = finding.start_line.max(finding.end_line);
+    let line = if start == end {
+        format!("L{start}")
     } else {
-        format!("L{}-L{}", finding.start_line, finding.end_line)
+        format!("L{start}-L{end}")
     };
 
     format!(

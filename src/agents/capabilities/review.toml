@@ -124,6 +124,7 @@ Return a JSON object matching the `Review` schema. Do not return markdown.
 ```
 
 Use category values from the schema. Use `other` only when no specific category fits.
+Accepted category values are: `security`, `performance`, `error_handling`, `complexity`, `abstraction`, `duplication`, `testing`, `style`, `api_contract`, `concurrency`, `documentation`, `other`.
 If there are no actionable issues, return an empty `findings` array and set every severity count to 0.
 Every finding must cite a changed file and a concrete changed line whenever possible.
 

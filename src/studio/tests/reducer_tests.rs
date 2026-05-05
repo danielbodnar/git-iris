@@ -19,6 +19,7 @@ fn test_review(summary: &str) -> Review {
         summary: summary.to_string(),
         findings: Vec::new(),
         stats: ReviewStats::default(),
+        parse_failed: false,
     }
 }
 

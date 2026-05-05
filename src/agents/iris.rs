@@ -1170,11 +1170,7 @@ Guidelines:
     /// Convert raw text to the appropriate structured response type
     fn text_to_structured_response(output_type: &str, text: String) -> StructuredResponse {
         match output_type {
-            "Review" => StructuredResponse::Review(crate::types::Review {
-                summary: text,
-                findings: Vec::new(),
-                stats: crate::types::ReviewStats::default(),
-            }),
+            "Review" => StructuredResponse::Review(crate::types::Review::from_unstructured(&text)),
             "MarkdownPullRequest" => {
                 StructuredResponse::PullRequest(crate::types::MarkdownPullRequest { content: text })
             }

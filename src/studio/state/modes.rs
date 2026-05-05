@@ -201,6 +201,14 @@ impl Default for ReviewState {
     }
 }
 
+impl ReviewState {
+    pub fn reset_review(&mut self) {
+        self.review = None;
+        self.review_content.clear();
+        self.review_scroll = 0;
+    }
+}
+
 impl std::fmt::Debug for ReviewState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ReviewState")

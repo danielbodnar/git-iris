@@ -2,7 +2,8 @@
 
 use colored::Colorize;
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::de::{self, Visitor};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt::{self, Write};
 use std::path::PathBuf;
 
@@ -58,9 +59,25 @@ pub struct Review {
     pub findings: Vec<Finding>,
     #[serde(default)]
     pub stats: ReviewStats,
+    #[serde(default, skip_serializing_if = "is_false")]
+    #[schemars(skip)]
+    pub parse_failed: bool,
 }
 
 impl Review {
+    #[must_use]
+    pub fn from_unstructured(text: &str) -> Self {
+        Self {
+            summary: format!(
+                "**Review parsing failed; raw model output below.**\n\n```text\n{}\n```",
+                escape_fenced_code(text)
+            ),
+            findings: Vec::new(),
+            stats: ReviewStats::default(),
+            parse_failed: true,
+        }
+    }
+
     #[must_use]
     pub fn raw_content(&self) -> String {
         self.to_markdown()
@@ -74,6 +91,10 @@ impl Review {
         if !self.summary.trim().is_empty() {
             writeln!(output, "\n## Summary\n\n{}", self.summary.trim())
                 .expect("write to string should not fail");
+        }
+
+        if self.parse_failed {
+            return output;
         }
 
         let visible_findings = self.visible_findings();
@@ -123,7 +144,8 @@ impl Review {
                 writeln!(
                     output,
                     "  Category: {}. Confidence: {}%.",
-                    finding.category, finding.confidence
+                    finding.category,
+                    finding.confidence_score()
                 )
                 .expect("write to string should not fail");
                 writeln!(output, "  {}", finding.body.trim())
@@ -166,17 +188,27 @@ impl Review {
 
     #[must_use]
     pub fn visible_findings(&self) -> Vec<&Finding> {
+        self.visible_findings_at(DEFAULT_MIN_FINDING_CONFIDENCE)
+    }
+
+    #[must_use]
+    pub fn visible_findings_at(&self, min_confidence: u8) -> Vec<&Finding> {
         self.findings
             .iter()
-            .filter(|finding| finding.confidence >= DEFAULT_MIN_FINDING_CONFIDENCE)
+            .filter(|finding| finding.confidence_score() >= min_confidence)
             .collect()
     }
 
     #[must_use]
     pub fn visible_stats(&self) -> ReviewStats {
-        let visible_findings = self.visible_findings();
+        self.visible_stats_at(DEFAULT_MIN_FINDING_CONFIDENCE)
+    }
+
+    #[must_use]
+    pub fn visible_stats_at(&self, min_confidence: u8) -> ReviewStats {
+        let visible_findings = self.visible_findings_at(min_confidence);
         let mut stats = ReviewStats {
-            files_reviewed: self.effective_stats().files_reviewed,
+            files_reviewed: self.stats.files_reviewed,
             findings_count: visible_findings.len(),
             ..ReviewStats::default()
         };
@@ -198,6 +230,7 @@ impl Review {
 pub struct Finding {
     pub id: FindingId,
     pub severity: Severity,
+    #[serde(deserialize_with = "deserialize_confidence")]
     pub confidence: u8,
     pub file: PathBuf,
     pub start_line: u32,
@@ -211,34 +244,126 @@ pub struct Finding {
     pub evidence: Vec<EvidenceRef>,
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref)]
+const fn is_false(value: &bool) -> bool {
+    !*value
+}
+
+fn escape_fenced_code(text: &str) -> String {
+    text.replace("```", "`\\`\\`")
+}
+
 impl Finding {
     #[must_use]
     pub fn location(&self) -> String {
         let file = self.file.display();
-        if self.start_line == self.end_line {
-            format!("{file}:{}", self.start_line)
+        let start = self.start_line.min(self.end_line);
+        let end = self.start_line.max(self.end_line);
+        if start == end {
+            format!("{file}:{start}")
         } else {
-            format!("{file}:{}-{}", self.start_line, self.end_line)
+            format!("{file}:{start}-{end}")
         }
     }
 
     #[must_use]
     pub fn raw_inline_body(&self) -> String {
         let mut body = format!(
-            "[{}] **{}**\n\nLocation: `{}`\n\n{}\n\nConfidence: {}%",
+            "[{}] **{}**\n\nLocation: `{}`\n\nCategory: {}\n\n{}\n\nConfidence: {}%",
             self.severity,
             self.title,
             self.location(),
+            self.category,
             self.body.trim(),
-            self.confidence
+            self.confidence_score()
         );
 
         if let Some(fix) = self.suggested_fix.as_deref().filter(|fix| !fix.is_empty()) {
             write!(body, "\n\n**Fix**: {}", fix.trim()).expect("write to string should not fail");
         }
 
+        if !self.evidence.is_empty() {
+            let evidence = self
+                .evidence
+                .iter()
+                .map(EvidenceRef::label)
+                .collect::<Vec<_>>()
+                .join(", ");
+            write!(body, "\n\nEvidence: {evidence}").expect("write to string should not fail");
+        }
+
         body
     }
+
+    #[must_use]
+    pub fn confidence_score(&self) -> u8 {
+        self.confidence.min(100)
+    }
+}
+
+fn deserialize_confidence<'de, D>(deserializer: D) -> Result<u8, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct ConfidenceVisitor;
+
+    impl Visitor<'_> for ConfidenceVisitor {
+        type Value = u8;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+            formatter.write_str("a confidence value as a number, fraction, or numeric string")
+        }
+
+        fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(u8::try_from(value.min(100)).unwrap_or(100))
+        }
+
+        fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(u8::try_from(value.clamp(0, 100)).unwrap_or_default())
+        }
+
+        fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            confidence_from_float(value).ok_or_else(|| E::custom("confidence must be finite"))
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            let value = value.trim().trim_end_matches('%');
+            value
+                .parse::<f64>()
+                .ok()
+                .and_then(confidence_from_float)
+                .ok_or_else(|| E::custom("confidence string must be numeric"))
+        }
+    }
+
+    deserializer.deserialize_any(ConfidenceVisitor)
+}
+
+fn confidence_from_float(value: f64) -> Option<u8> {
+    if !value.is_finite() {
+        return None;
+    }
+
+    let value = if value > 0.0 && value < 1.0 {
+        value * 100.0
+    } else {
+        value
+    };
+
+    let rounded = value.round().clamp(0.0, 100.0);
+    (0..=100).find(|candidate| (f64::from(*candidate) - rounded).abs() < f64::EPSILON)
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
@@ -291,7 +416,7 @@ impl fmt::Display for Severity {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema)]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Category {
     Security,
@@ -306,6 +431,43 @@ pub enum Category {
     Concurrency,
     Documentation,
     Other,
+}
+
+impl Category {
+    #[must_use]
+    pub fn from_model_value(value: &str) -> Self {
+        let normalized: String = value
+            .trim()
+            .chars()
+            .filter(|character| !matches!(*character, '_' | '-' | ' '))
+            .flat_map(char::to_lowercase)
+            .collect();
+
+        match normalized.as_str() {
+            "security" => Self::Security,
+            "performance" => Self::Performance,
+            "errorhandling" => Self::ErrorHandling,
+            "complexity" => Self::Complexity,
+            "abstraction" => Self::Abstraction,
+            "duplication" => Self::Duplication,
+            "testing" => Self::Testing,
+            "style" => Self::Style,
+            "apicontract" => Self::ApiContract,
+            "concurrency" => Self::Concurrency,
+            "documentation" => Self::Documentation,
+            _ => Self::Other,
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for Category {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+        Ok(Self::from_model_value(&value))
+    }
 }
 
 impl fmt::Display for Category {

@@ -348,16 +348,10 @@ Simply call the appropriate tool with the new content. Do NOT echo back the full
                 Ok(response) => {
                     let review = match response {
                         StructuredResponse::Review(review) => review,
-                        StructuredResponse::PlainText(summary) => crate::types::Review {
-                            summary,
-                            findings: Vec::new(),
-                            stats: crate::types::ReviewStats::default(),
-                        },
-                        other => crate::types::Review {
-                            summary: other.to_string(),
-                            findings: Vec::new(),
-                            stats: crate::types::ReviewStats::default(),
-                        },
+                        StructuredResponse::PlainText(summary) => {
+                            crate::types::Review::from_unstructured(&summary)
+                        }
+                        other => crate::types::Review::from_unstructured(&other.to_string()),
                     };
                     IrisTaskResult::ReviewContent(review)
                 }
