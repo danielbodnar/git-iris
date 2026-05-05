@@ -27,6 +27,22 @@ fn sample_finding() -> Finding {
     }
 }
 
+fn low_confidence_finding() -> Finding {
+    Finding {
+        confidence: 42,
+        severity: Severity::Medium,
+        id: FindingId("finding-2".to_string()),
+        file: PathBuf::from("src/auth.rs"),
+        start_line: 50,
+        end_line: 50,
+        category: Category::Testing,
+        title: "Possible missing test".to_string(),
+        body: "This is too speculative to publish.".to_string(),
+        suggested_fix: None,
+        evidence: Vec::new(),
+    }
+}
+
 #[test]
 fn structured_review_renders_markdown_from_findings() {
     let finding = sample_finding();
@@ -57,6 +73,21 @@ fn review_stats_are_derived_when_model_counts_are_missing() {
 
     assert_eq!(stats.findings_count, 1);
     assert_eq!(stats.high_count, 1);
+}
+
+#[test]
+fn low_confidence_findings_do_not_render() {
+    let review = Review {
+        summary: String::new(),
+        findings: vec![low_confidence_finding()],
+        stats: ReviewStats::default(),
+    };
+
+    let markdown = review.raw_content();
+
+    assert!(markdown.contains("Found 0 issue(s)"));
+    assert!(markdown.contains("No blocking issues found."));
+    assert!(!markdown.contains("Possible missing test"));
 }
 
 #[test]

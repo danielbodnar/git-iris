@@ -119,8 +119,7 @@ impl GitHubClient {
         review: &CodeReview,
         options: ReviewPublishOptions,
     ) -> Result<GitHubReview> {
-        let body = review.raw_content();
-        self.publish_review_with_comments(pull_number, &body, Some(review), options)
+        self.publish_review_with_comments(pull_number, "", Some(review), options)
             .await
     }
 
@@ -137,6 +136,10 @@ impl GitHubClient {
             .get(pull_number)
             .await
             .with_context(|| format!("Failed to fetch PR #{pull_number}"))?;
+        let review_body = review.map_or_else(
+            || body.to_string(),
+            |review| review_body_with_permalinks(&self.repo, review, &pull.head.sha),
+        );
         let comments = if options.inline_comments {
             self.validated_inline_comments(pull_number, body, review)
                 .await?
@@ -150,7 +153,7 @@ impl GitHubClient {
             repo = self.repo.name,
         );
         let payload = serde_json::json!({
-            "body": body,
+            "body": review_body,
             "event": options.event,
             "commit_id": pull.head.sha,
             "comments": comments,
@@ -427,8 +430,8 @@ fn extract_structured_inline_comment_candidates(
     review: &CodeReview,
 ) -> Vec<InlineCommentCandidate> {
     review
-        .findings
-        .iter()
+        .visible_findings()
+        .into_iter()
         .map(inline_comment_candidate_from_finding)
         .collect()
 }
@@ -439,6 +442,39 @@ fn inline_comment_candidate_from_finding(finding: &Finding) -> InlineCommentCand
         line: u64::from(finding.start_line),
         body: finding.raw_inline_body(),
     }
+}
+
+fn review_body_with_permalinks(repo: &GitHubRepository, review: &CodeReview, sha: &str) -> String {
+    let mut body = review.raw_content();
+    let findings = review.visible_findings();
+    if findings.is_empty() {
+        return body;
+    }
+
+    body.push_str("\n## GitHub Permalinks\n");
+    for finding in findings {
+        body.push_str(&format!(
+            "\n- {}: {}\n",
+            finding.id.0,
+            permalink_for_finding(repo, finding, sha)
+        ));
+    }
+
+    body
+}
+
+fn permalink_for_finding(repo: &GitHubRepository, finding: &Finding, sha: &str) -> String {
+    let path = finding.file.to_string_lossy();
+    let line = if finding.start_line == finding.end_line {
+        format!("L{}", finding.start_line)
+    } else {
+        format!("L{}-L{}", finding.start_line, finding.end_line)
+    };
+
+    format!(
+        "https://github.com/{}/{}/blob/{}/{}#{}",
+        repo.owner, repo.name, sha, path, line
+    )
 }
 
 fn extract_location(line: &str) -> Option<(String, u64)> {

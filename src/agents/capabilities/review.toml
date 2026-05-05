@@ -41,6 +41,14 @@ Evaluate code quality across relevant dimensions—use your judgment about which
 - **Style**: inconsistencies, naming, formatting
 - **Best Practices**: anti-patterns, deprecated APIs, ignored warnings
 
+## Finding Gates
+
+Only report findings with confidence 70 or higher. Do not report:
+- Pre-existing issues not introduced or materially worsened by this changeset
+- Findings a configured linter, formatter, or type checker would already catch
+- Pedantic style preferences without clear correctness or maintenance impact
+- Files or lines explicitly ignored by lint/tooling configuration
+
 ## Agentic Review Strategy
 
 Treat the review as a staged investigation, not a single sweep:

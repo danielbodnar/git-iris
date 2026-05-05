@@ -5,6 +5,7 @@ use crate::types::{Category, Finding, FindingId, Review, ReviewStats, Severity};
 use super::{
     GitHubRepository, extract_inline_comment_candidates,
     extract_structured_inline_comment_candidates, parse_reviewable_lines,
+    review_body_with_permalinks,
 };
 
 #[test]
@@ -87,6 +88,63 @@ fn extracts_structured_review_findings() {
             .contains("[HIGH] **Missing error context**")
     );
     assert!(candidates[0].body.contains("Confidence: 91%"));
+}
+
+#[test]
+fn skips_low_confidence_structured_review_findings() {
+    let review = Review {
+        summary: "Review summary".to_string(),
+        findings: vec![Finding {
+            id: FindingId("finding-1".to_string()),
+            severity: Severity::Medium,
+            confidence: 42,
+            file: PathBuf::from("src/github.rs"),
+            start_line: 42,
+            end_line: 42,
+            category: Category::Testing,
+            title: "Speculative coverage gap".to_string(),
+            body: "This should not be published.".to_string(),
+            suggested_fix: None,
+            evidence: Vec::new(),
+        }],
+        stats: ReviewStats::default(),
+    };
+
+    let candidates = extract_structured_inline_comment_candidates(&review);
+
+    assert!(candidates.is_empty());
+}
+
+#[test]
+fn renders_permalinks_for_structured_review_findings() {
+    let repo = GitHubRepository {
+        owner: "hyperb1iss".to_string(),
+        name: "git-iris".to_string(),
+    };
+    let review = Review {
+        summary: "Review summary".to_string(),
+        findings: vec![Finding {
+            id: FindingId("finding-1".to_string()),
+            severity: Severity::High,
+            confidence: 91,
+            file: PathBuf::from("src/github.rs"),
+            start_line: 42,
+            end_line: 44,
+            category: Category::ErrorHandling,
+            title: "Missing error context".to_string(),
+            body: "The changed path drops useful context.".to_string(),
+            suggested_fix: None,
+            evidence: Vec::new(),
+        }],
+        stats: ReviewStats::default(),
+    };
+
+    let body = review_body_with_permalinks(&repo, &review, "abc123");
+
+    assert!(body.contains("## GitHub Permalinks"));
+    assert!(
+        body.contains("https://github.com/hyperb1iss/git-iris/blob/abc123/src/github.rs#L42-L44")
+    );
 }
 
 #[test]

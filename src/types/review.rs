@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{self, Write};
 use std::path::PathBuf;
 
+pub const DEFAULT_MIN_FINDING_CONFIDENCE: u8 = 70;
+
 /// Helper to get themed colors for terminal output
 mod colors {
     use crate::theme;
@@ -74,7 +76,8 @@ impl Review {
                 .expect("write to string should not fail");
         }
 
-        let stats = self.effective_stats();
+        let visible_findings = self.visible_findings();
+        let stats = self.visible_stats();
         writeln!(
             output,
             "\n## Findings\n\nReviewed {} file(s). Found {} issue(s): {} critical, {} high, {} medium, {} low.",
@@ -87,7 +90,7 @@ impl Review {
         )
         .expect("write to string should not fail");
 
-        if self.findings.is_empty() {
+        if visible_findings.is_empty() {
             output.push_str("\nNo blocking issues found.\n");
             return output;
         }
@@ -98,9 +101,9 @@ impl Review {
             Severity::Medium,
             Severity::Low,
         ] {
-            let findings: Vec<&Finding> = self
-                .findings
+            let findings: Vec<&Finding> = visible_findings
                 .iter()
+                .copied()
                 .filter(|finding| finding.severity == severity)
                 .collect();
 
@@ -163,6 +166,35 @@ impl Review {
         } else {
             ReviewStats::from_findings(self.stats.files_reviewed, &self.findings)
         }
+    }
+
+    #[must_use]
+    pub fn visible_findings(&self) -> Vec<&Finding> {
+        self.findings
+            .iter()
+            .filter(|finding| finding.confidence >= DEFAULT_MIN_FINDING_CONFIDENCE)
+            .collect()
+    }
+
+    #[must_use]
+    pub fn visible_stats(&self) -> ReviewStats {
+        let visible_findings = self.visible_findings();
+        let mut stats = ReviewStats {
+            files_reviewed: self.effective_stats().files_reviewed,
+            findings_count: visible_findings.len(),
+            ..ReviewStats::default()
+        };
+
+        for finding in visible_findings {
+            match finding.severity {
+                Severity::Critical => stats.critical_count += 1,
+                Severity::High => stats.high_count += 1,
+                Severity::Medium => stats.medium_count += 1,
+                Severity::Low => stats.low_count += 1,
+            }
+        }
+
+        stats
     }
 }
 
