@@ -1,3 +1,41 @@
+## [2.0.9] - 2026-05-05
+
+This release adds **GitHub integration** for publishing PR descriptions and code reviews directly from the CLI, along with support for repository PR templates and tighter clippy lint coverage.
+
+### Added
+
+- ✨ Add `--update` flag to `git-iris pr` for pushing descriptions to GitHub PRs (2f4661c)
+- ✨ Add `--github-review` flag to `git-iris review` for publishing reviews as PR comments (2f4661c)
+- ✨ Add `--github-inline-comments` flag to post findings at specific diff lines when publishing reviews
+- ✨ Add `--github-review-event` flag with `comment`, `request-changes`, and `approve` actions
+- ✨ Detect and adapt generated PR descriptions to repository PR templates (791020c)
+- ✨ Revise existing PR descriptions instead of replacing them when `--update` is used (505d827c)
+- ✨ Add Claude Code skill file (`skills/git-iris/SKILL.md`) for teaching agents to delegate Git tasks (f0255c13)
+- 🔒 Add `src/crypto.rs` to pin `rustls` with `aws-lc-rs` as the process crypto provider (f2d9c87)
+
+### Changed
+
+- ⬆️ Bump `rig-core` from 0.33 to 0.36 with fallible `from_env` client handling (8a52396f)
+- ⬆️ Bump `octocrab` to 0.49.9 for GitHub API support
+- ⬆️ Bump `tokio` to 1.52.1, `lru` to 0.18.0, `uuid` to 1.23.1, and other dependencies
+- ♻️ Extract `perform_local_change` helper in `git_commit` service to reduce duplication (c2a663c6)
+- ♻️ Collapse nested `if`s into `match` arm guards for clippy 1.95 compatibility (d741bc99)
+- 🧹 Bake anti-slop tone rules into Iris default preamble (e5c24d01)
+- 🧹 Avoid duplicating emoji when commit title already includes one (fd4f5671)
+
+### Fixed
+
+- 🐛 Add `clippy.toml` to relax restriction lints (`unwrap`, `panic`, `dbg!`) in test code (97b82512)
+- 🐛 Tighten clippy restriction lints (`panic`, `unimplemented`, `let_underscore_future`) for production code
+
+### Metrics
+
+- Total Commits: 11
+- Files Changed: 41
+- Insertions: +2,256
+- Deletions: -865
+<!-- -------------------------------------------------------------- -->
+
 ## [2.0.8] - 2026-04-10
 
 This release introduces **automatic commit style detection**, expands XDG-style configuration path support to macOS, and hardens security with API key redaction and restricted file permissions. Logging has been unified under tracing, documentation is aligned to actual tool capabilities, and default models are updated to GPT-5.4 and Claude Opus 4.6.
