@@ -19,6 +19,7 @@ macro_rules! attach_core_tools {
         use $crate::agents::debug_tool::DebugTool;
         use $crate::agents::tools::{
             CodeSearch, FileRead, GitChangedFiles, GitDiff, GitLog, GitStatus, ProjectDocs,
+            RepoMapTool,
         };
 
         $builder
@@ -28,6 +29,7 @@ macro_rules! attach_core_tools {
             .tool(DebugTool::new(GitChangedFiles))
             .tool(DebugTool::new(FileRead))
             .tool(DebugTool::new(CodeSearch))
+            .tool(DebugTool::new(RepoMapTool))
             .tool(DebugTool::new(ProjectDocs))
     }};
 }
@@ -40,6 +42,7 @@ pub const CORE_TOOLS: &[&str] = &[
     "git_changed_files",
     "file_read",
     "code_search",
+    "repo_map",
     "project_docs",
 ];
 
@@ -52,6 +55,6 @@ mod tests {
 
     #[test]
     fn core_tools_count() {
-        assert_eq!(CORE_TOOLS.len(), 7);
+        assert_eq!(CORE_TOOLS.len(), 8);
     }
 }

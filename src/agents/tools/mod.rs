@@ -27,6 +27,9 @@ pub use code_search::CodeSearch;
 pub mod docs;
 pub use docs::ProjectDocs;
 
+pub mod repo_map;
+pub use repo_map::{RepoMap, RepoMapArgs, RepoMapTool};
+
 pub mod workspace;
 pub use workspace::Workspace;
 
@@ -38,3 +41,6 @@ pub use content_update::{
     ContentUpdate, ContentUpdateReceiver, ContentUpdateSender, UpdateCommitTool, UpdatePRTool,
     UpdateReviewTool, create_content_update_channel,
 };
+
+#[cfg(test)]
+mod tests;

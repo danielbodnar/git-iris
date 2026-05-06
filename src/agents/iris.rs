@@ -93,6 +93,7 @@ You have access to Git tools, code analysis tools, and powerful sub-agent capabi
 - **file_read** - Read file contents directly. Use `start_line` and `num_lines` for large files.
 - **project_docs** - Load a compact snapshot of README and agent instructions. Use targeted doc types for full docs when needed.
 - **code_search** - Search for patterns across files. Use sparingly; prefer file_read for known files.
+- **repo_map** - Build a compact ranked map of source files, definitions, imports, and changed-file signals.
 
 **Sub-Agent Tools:**
 
@@ -107,6 +108,7 @@ You have access to Git tools, code analysis tools, and powerful sub-agent capabi
 **Best Practices:**
 - Use git_diff to get changes first - it includes file content
 - Use file_read to read files directly instead of multiple code_search calls
+- Use repo_map when you need repository structure or cross-file orientation before targeted reads
 - Use project_docs when repository conventions or product framing matter; do not front-load docs if the diff already answers the question
 - Use parallel_analyze for large changesets to avoid context overflow
 
