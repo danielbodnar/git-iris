@@ -34,4 +34,4 @@ pub use setup::{AgentSetupService, IrisAgentService, handle_with_agent};
 pub use status_messages::{
     StatusContext, StatusMessage, StatusMessageBatch, StatusMessageGenerator,
 };
-pub use tools::{GitChangedFiles, GitDiff, GitLog, GitRepoInfo, GitStatus};
+pub use tools::{GitBlame, GitChangedFiles, GitDiff, GitLog, GitRepoInfo, GitStatus};

@@ -7,7 +7,7 @@ use git_iris::{
         iris::IrisAgentBuilder,
         setup::{AgentSetupService, create_agent_with_defaults},
         tools::{
-            GitChangedFiles, GitDiff, GitLog, GitRepoInfo, GitStatus, ProjectDocs,
+            GitBlame, GitChangedFiles, GitDiff, GitLog, GitRepoInfo, GitStatus, ProjectDocs,
             current_repo_root, get_current_repo, with_active_repo_root,
         },
     },
@@ -191,6 +191,7 @@ fn test_git_tools_exist() {
     let _git_status = GitStatus;
     let _git_diff = GitDiff;
     let _git_log = GitLog;
+    let _git_blame = GitBlame;
     let _git_repo_info = GitRepoInfo;
     let _git_changed_files = GitChangedFiles;
 

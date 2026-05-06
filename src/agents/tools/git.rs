@@ -7,6 +7,8 @@ use rig::completion::ToolDefinition;
 use rig::tool::Tool;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use crate::context::{ChangeType, RecentCommit};
 use crate::define_tool_error;
@@ -709,4 +711,328 @@ impl Tool for GitChangedFiles {
 
         Ok(output)
     }
+}
+
+// Git blame tool
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitBlame;
+
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct GitBlameArgs {
+    /// Repository-relative file path to inspect.
+    pub file: PathBuf,
+    /// First line to blame, 1-based.
+    #[serde(default = "default_start_line")]
+    pub start_line: u32,
+    /// Last line to blame. Defaults to `start_line`.
+    #[serde(default)]
+    pub end_line: Option<u32>,
+    /// Number of recent commits touching this file to include. Defaults to 3, max 10.
+    #[serde(default = "default_recent_commits")]
+    pub recent_commits: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct BlameCommit {
+    hash: String,
+    author: String,
+    date: String,
+    summary: String,
+}
+
+fn default_start_line() -> u32 {
+    1
+}
+
+fn default_recent_commits() -> usize {
+    3
+}
+
+impl Tool for GitBlame {
+    const NAME: &'static str = "git_blame";
+    type Error = GitError;
+    type Args = GitBlameArgs;
+    type Output = String;
+
+    async fn definition(&self, _: String) -> ToolDefinition {
+        ToolDefinition {
+            name: "git_blame".to_string(),
+            description: "Get git blame context for a repository-relative file line range, plus recent commits that touched the file. Use this for history, ownership, and style context before commit messages, PR descriptions, or semantic explanations.".to_string(),
+            parameters: parameters_schema::<GitBlameArgs>(),
+        }
+    }
+
+    async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
+        let repo = get_current_repo().map_err(GitError::from)?;
+        let repo_root = repo.repo_path();
+        let file = normalize_repo_relative_path(repo_root, &args.file).map_err(GitError::from)?;
+        let start_line = args.start_line.max(1);
+        let end_line = args.end_line.unwrap_or(start_line).max(start_line);
+        let recent_commits = args.recent_commits.clamp(1, 10);
+
+        let code =
+            read_line_range(repo_root, &file, start_line, end_line).map_err(GitError::from)?;
+        let blame = if code.in_range {
+            run_git_blame(repo_root, &file, start_line, end_line).map_err(GitError::from)?
+        } else {
+            Vec::new()
+        };
+        let history =
+            recent_file_commits(repo_root, &file, recent_commits).map_err(GitError::from)?;
+
+        Ok(format_blame_output(
+            &file,
+            start_line,
+            end_line,
+            &code.content,
+            &blame,
+            &history,
+        ))
+    }
+}
+
+fn normalize_repo_relative_path(repo_root: &Path, path: &Path) -> Result<PathBuf> {
+    if path.is_absolute() {
+        anyhow::bail!("file must be a repository-relative path");
+    }
+
+    let normalized = PathBuf::from(
+        path.to_string_lossy()
+            .replace('\\', "/")
+            .trim_start_matches("./"),
+    );
+
+    if normalized.components().any(|component| {
+        matches!(
+            component,
+            std::path::Component::ParentDir | std::path::Component::Prefix(_)
+        )
+    }) {
+        anyhow::bail!("file must be a repository-relative path");
+    }
+
+    let full_path = repo_root.join(&normalized);
+    if !full_path.is_file() {
+        anyhow::bail!("file does not exist: {}", normalized.display());
+    }
+
+    Ok(normalized)
+}
+
+struct LineRangeContent {
+    content: String,
+    in_range: bool,
+}
+
+fn read_line_range(
+    repo_root: &Path,
+    file: &Path,
+    start_line: u32,
+    end_line: u32,
+) -> Result<LineRangeContent> {
+    let content = std::fs::read_to_string(repo_root.join(file))?;
+    let start_index = usize::try_from(start_line.saturating_sub(1))?;
+    let take_count = usize::try_from(end_line.saturating_sub(start_line) + 1)?;
+
+    let lines = content
+        .lines()
+        .enumerate()
+        .skip(start_index)
+        .take(take_count)
+        .map(|(index, line)| format!("{:>4} | {}", index + 1, line))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    if lines.is_empty() {
+        return Ok(LineRangeContent {
+            content: format!("<line range outside file: {}>", file.display()),
+            in_range: false,
+        });
+    }
+
+    Ok(LineRangeContent {
+        content: lines,
+        in_range: true,
+    })
+}
+
+fn run_git_blame(
+    repo_root: &Path,
+    file: &Path,
+    start_line: u32,
+    end_line: u32,
+) -> Result<Vec<BlameCommit>> {
+    let output = Command::new("git")
+        .args([
+            "blame",
+            "-L",
+            &format!("{start_line},{end_line}"),
+            "--porcelain",
+            "--",
+            &file.to_string_lossy(),
+        ])
+        .current_dir(repo_root)
+        .output()?;
+
+    if !output.status.success() {
+        anyhow::bail!(
+            "git blame failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+
+    Ok(parse_blame_porcelain(&String::from_utf8_lossy(
+        &output.stdout,
+    )))
+}
+
+fn parse_blame_porcelain(output: &str) -> Vec<BlameCommit> {
+    let mut commits = Vec::new();
+    let mut current_index = None;
+
+    for line in output.lines() {
+        if let Some(hash) = line
+            .split_whitespace()
+            .next()
+            .filter(|hash| hash.len() >= 40 && hash.chars().all(|ch| ch.is_ascii_hexdigit()))
+        {
+            let index = commits
+                .iter()
+                .position(|commit: &BlameCommit| commit.hash == hash)
+                .unwrap_or_else(|| {
+                    commits.push(BlameCommit {
+                        hash: hash.to_string(),
+                        author: String::new(),
+                        date: String::new(),
+                        summary: String::new(),
+                    });
+                    commits.len() - 1
+                });
+            current_index = Some(index);
+            continue;
+        }
+
+        let Some(index) = current_index else {
+            continue;
+        };
+        let Some(commit) = commits.get_mut(index) else {
+            continue;
+        };
+
+        if let Some(author) = line.strip_prefix("author ") {
+            if commit.author.is_empty() {
+                commit.author = author.to_string();
+            }
+        } else if let Some(timestamp) = line.strip_prefix("author-time ") {
+            if commit.date.is_empty() {
+                commit.date = timestamp
+                    .parse::<i64>()
+                    .ok()
+                    .and_then(|timestamp| chrono::DateTime::from_timestamp(timestamp, 0))
+                    .map_or_else(
+                        || "unknown date".to_string(),
+                        |datetime| datetime.format("%Y-%m-%d").to_string(),
+                    );
+            }
+        } else if let Some(summary) = line.strip_prefix("summary ")
+            && commit.summary.is_empty()
+        {
+            commit.summary = summary.to_string();
+        }
+    }
+
+    commits
+}
+
+fn recent_file_commits(repo_root: &Path, file: &Path, count: usize) -> Result<Vec<BlameCommit>> {
+    let output = Command::new("git")
+        .args([
+            "log",
+            "-n",
+            &count.to_string(),
+            "--format=%H%x1f%an%x1f%ad%x1f%s",
+            "--date=short",
+            "--",
+            &file.to_string_lossy(),
+        ])
+        .current_dir(repo_root)
+        .output()?;
+
+    if !output.status.success() {
+        anyhow::bail!(
+            "git log failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter_map(parse_log_commit)
+        .collect())
+}
+
+fn parse_log_commit(line: &str) -> Option<BlameCommit> {
+    let mut parts = line.split('\x1f');
+    Some(BlameCommit {
+        hash: parts.next()?.to_string(),
+        author: parts.next()?.to_string(),
+        date: parts.next()?.to_string(),
+        summary: parts.next()?.to_string(),
+    })
+}
+
+fn format_blame_output(
+    file: &Path,
+    start_line: u32,
+    end_line: u32,
+    code: &str,
+    blame: &[BlameCommit],
+    history: &[BlameCommit],
+) -> String {
+    let mut output = format!(
+        "Git blame for {}:{start_line}-{end_line}\n\n",
+        file.display()
+    );
+    output.push_str("Code:\n");
+    output.push_str(code);
+    output.push_str("\n\nBlame commits:\n");
+
+    if blame.is_empty() {
+        output.push_str("- No blame data found\n");
+    } else {
+        for commit in blame {
+            output.push_str(&format!(
+                "- {}: {} ({}, {})\n",
+                short_hash(&commit.hash),
+                commit.summary,
+                commit.author,
+                commit.date
+            ));
+        }
+    }
+
+    output.push_str("\nRecent commits touching this file:\n");
+    if history.is_empty() {
+        output.push_str("- No recent file history found\n");
+    } else {
+        for commit in history {
+            output.push_str(&format!(
+                "- {}: {} ({}, {})\n",
+                short_hash(&commit.hash),
+                commit.summary,
+                commit.author,
+                commit.date
+            ));
+        }
+    }
+
+    output
+}
+
+fn short_hash(hash: &str) -> &str {
+    let end = hash
+        .char_indices()
+        .nth(8)
+        .map_or(hash.len(), |(index, _)| index);
+    &hash[..end]
 }
