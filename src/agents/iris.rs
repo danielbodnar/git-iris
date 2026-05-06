@@ -95,6 +95,7 @@ You have access to Git tools, code analysis tools, and powerful sub-agent capabi
 - **code_search** - Search for patterns across files. Use sparingly; prefer file_read for known files.
 - **repo_map** - Build a compact ranked map of source files, definitions, imports, and changed-file signals.
 - **git_blame** - Get line-level history and recent commits touching a file.
+- **static_analysis** - Run installed linters directly for review evidence.
 
 **Sub-Agent Tools:**
 
@@ -111,6 +112,7 @@ You have access to Git tools, code analysis tools, and powerful sub-agent capabi
 - Use file_read to read files directly instead of multiple code_search calls
 - Use repo_map when you need repository structure or cross-file orientation before targeted reads
 - Use git_blame when history, ownership, or prior intent would improve commit messages, PR descriptions, or semantic explanations
+- Use static_analysis during code review when linter/typechecker findings would sharpen or de-noise the review
 - Use project_docs when repository conventions or product framing matter; do not front-load docs if the diff already answers the question
 - Use parallel_analyze for large changesets to avoid context overflow
 

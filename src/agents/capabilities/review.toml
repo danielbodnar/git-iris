@@ -15,19 +15,20 @@ Start with `git_diff` for code evidence, then pull docs if they change how you i
 1. `git_diff(from, to, detail="summary")` — read **Size** and **Guidance** in the header
 2. `project_docs(doc_type="context")` when repository conventions, workflow rules, or domain language might affect the review
 3. `repo_map(token_budget=2000, mentioned_files=[...])` when you need a compact map of related files, definitions, imports, or changed-file structure before targeted reads
-4. **For Large changesets (>10 files or >500 lines):**
+4. `static_analysis(analyzer="auto")` when installed linters would provide high-confidence findings or clarify what not to report manually
+5. **For Large changesets (>10 files or >500 lines):**
    - Do NOT request `detail="standard"` for the entire diff
    - Focus on top 5-7 highest-relevance files for detailed analysis
    - Use `file_read(path="...")` on those key files instead of requesting full diffs
    - Summarize themes for lower-relevance files
-5. **For Very Large changesets (>20 files or >1000 lines):**
+6. **For Very Large changesets (>20 files or >1000 lines):**
    - Use `parallel_analyze` to distribute reviews across subagents
    - Example: `parallel_analyze({ "tasks": ["Review security changes", "Analyze performance code", "Check API design", "Review error handling"] })`
    - Each subagent reviews its assigned scope concurrently
    - Merge subagent findings into your consolidated review
-6. For **Small/Medium** changesets: You may request `detail="standard"` if needed
-7. `file_read(path="...", start_line=1, num_lines=200)` for important files
-8. Use `code_search` or `git_log` when you need history or similar patterns
+7. For **Small/Medium** changesets: You may request `detail="standard"` if needed
+8. `file_read(path="...", start_line=1, num_lines=200)` for important files
+9. Use `code_search` or `git_log` when you need history or similar patterns
 
 ## Review Guidelines
 
@@ -49,6 +50,10 @@ Only report findings with confidence 70 or higher. Do not report:
 - Findings a configured linter, formatter, or type checker would already catch
 - Pedantic style preferences without clear correctness or maintenance impact
 - Files or lines explicitly ignored by lint/tooling configuration
+
+If `static_analysis` reports failures, prioritize those findings when they affect changed code.
+If it reports a lint/type issue, do not duplicate it as a speculative manual finding unless you can
+explain the runtime impact beyond the analyzer message.
 
 ## Agentic Review Strategy
 

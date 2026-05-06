@@ -30,6 +30,9 @@ pub use docs::ProjectDocs;
 pub mod repo_map;
 pub use repo_map::{RepoMap, RepoMapArgs, RepoMapTool};
 
+pub mod static_analysis;
+pub use static_analysis::{StaticAnalysis, StaticAnalysisArgs, StaticAnalyzer};
+
 pub mod workspace;
 pub use workspace::Workspace;
 
