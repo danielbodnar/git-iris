@@ -91,6 +91,17 @@ Return a JSON object matching the `Review` schema. Do not return markdown.
 ```json
 {
   "summary": "Brief overview of what changed and the review verdict.",
+  "metadata": {
+    "risk_level": "high",
+    "strategy": "Focused on auth boundary changes first, then checked persistence and tests.",
+    "specialist_passes": [
+      "Security/auth validation",
+      "Storage API compatibility"
+    ],
+    "coverage_notes": [
+      "Reviewed changed files, nearby callers, and new tests."
+    ]
+  },
   "findings": [
     {
       "id": "finding-1",
@@ -122,6 +133,12 @@ Return a JSON object matching the `Review` schema. Do not return markdown.
   }
 }
 ```
+
+Use `metadata` to make your agentic review strategy visible. Keep it concise:
+- `risk_level`: `low`, `medium`, `high`, or `critical`
+- `strategy`: one sentence naming the review plan you actually used
+- `specialist_passes`: focused passes you ran yourself or delegated through `parallel_analyze`
+- `coverage_notes`: important evidence checked or evidence still missing
 
 Use category values from the schema. Use `other` only when no specific category fits.
 Accepted category values are: `security`, `performance`, `error_handling`, `complexity`, `abstraction`, `duplication`, `testing`, `style`, `api_contract`, `concurrency`, `documentation`, `other`.

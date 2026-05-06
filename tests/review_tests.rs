@@ -3,7 +3,10 @@
 //! Note: Legacy `GeneratedReview` tests removed. `Review` is now the active code path.
 
 use git_iris::agents::TaskContext;
-use git_iris::{Category, EvidenceRef, Finding, FindingId, Review, ReviewStats, Severity};
+use git_iris::{
+    Category, EvidenceRef, Finding, FindingId, Review, ReviewMetadata, ReviewStats, RiskLevel,
+    Severity,
+};
 use std::path::PathBuf;
 
 fn sample_finding() -> Finding {
@@ -71,6 +74,7 @@ fn structured_review_renders_markdown_from_findings() {
     let finding = sample_finding();
     let review = Review {
         summary: "Adds an auth handler.".to_string(),
+        metadata: ReviewMetadata::default(),
         findings: vec![finding],
         stats: ReviewStats::default(),
         parse_failed: false,
@@ -86,9 +90,81 @@ fn structured_review_renders_markdown_from_findings() {
 }
 
 #[test]
+fn structured_review_renders_agentic_metadata() {
+    let review = Review {
+        summary: "Review summary".to_string(),
+        metadata: ReviewMetadata {
+            risk_level: Some(RiskLevel::High),
+            strategy: "Split auth and storage into separate specialist passes.".to_string(),
+            specialist_passes: vec![
+                "Security/auth validation".to_string(),
+                "Storage API compatibility".to_string(),
+            ],
+            coverage_notes: vec!["Verified changed tests and public call sites.".to_string()],
+        },
+        findings: Vec::new(),
+        stats: ReviewStats::default(),
+        parse_failed: false,
+    };
+
+    let markdown = review.raw_content();
+
+    assert!(markdown.contains("## Review Coverage"));
+    assert!(markdown.contains("Risk: high"));
+    assert!(markdown.contains("Strategy: Split auth and storage"));
+    assert!(markdown.contains("- Security/auth validation"));
+    assert!(markdown.contains("- Verified changed tests and public call sites."));
+}
+
+#[test]
+fn review_metadata_risk_level_accepts_normalized_values() {
+    let metadata: ReviewMetadata = serde_json::from_value(serde_json::json!({
+        "risk_level": "HIGH ",
+        "strategy": "Checked changed APIs."
+    }))
+    .expect("metadata should deserialize");
+
+    assert_eq!(metadata.risk_level, Some(RiskLevel::High));
+}
+
+#[test]
+fn review_metadata_skips_blank_values() {
+    let metadata = ReviewMetadata {
+        risk_level: None,
+        strategy: " ".to_string(),
+        specialist_passes: vec![" ".to_string()],
+        coverage_notes: vec![String::new()],
+    };
+
+    let encoded = serde_json::to_value(&metadata).expect("metadata should serialize");
+
+    assert_eq!(encoded, serde_json::json!({}));
+    assert!(metadata.is_empty());
+}
+
+#[test]
+fn parse_failed_reviews_do_not_render_metadata() {
+    let review = Review {
+        metadata: ReviewMetadata {
+            risk_level: Some(RiskLevel::Critical),
+            strategy: "Should not appear in failure output.".to_string(),
+            specialist_passes: Vec::new(),
+            coverage_notes: Vec::new(),
+        },
+        ..Review::from_unstructured("{bad json}")
+    };
+
+    let markdown = review.raw_content();
+
+    assert!(!markdown.contains("## Review Coverage"));
+    assert!(!markdown.contains("Should not appear"));
+}
+
+#[test]
 fn review_stats_are_derived_when_model_counts_are_missing() {
     let review = Review {
         summary: String::new(),
+        metadata: ReviewMetadata::default(),
         findings: vec![sample_finding()],
         stats: ReviewStats::default(),
         parse_failed: false,
@@ -104,6 +180,7 @@ fn review_stats_are_derived_when_model_counts_are_missing() {
 fn low_confidence_findings_do_not_render() {
     let review = Review {
         summary: String::new(),
+        metadata: ReviewMetadata::default(),
         findings: vec![low_confidence_finding()],
         stats: ReviewStats::default(),
         parse_failed: false,
@@ -120,6 +197,7 @@ fn low_confidence_findings_do_not_render() {
 fn confidence_scores_are_clamped_for_rendering_and_gates() {
     let review = Review {
         summary: String::new(),
+        metadata: ReviewMetadata::default(),
         findings: vec![overconfident_finding()],
         stats: ReviewStats::default(),
         parse_failed: false,

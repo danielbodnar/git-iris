@@ -56,6 +56,8 @@ pub struct Review {
     #[serde(default)]
     pub summary: String,
     #[serde(default)]
+    pub metadata: ReviewMetadata,
+    #[serde(default)]
     pub findings: Vec<Finding>,
     #[serde(default)]
     pub stats: ReviewStats,
@@ -72,6 +74,7 @@ impl Review {
                 "**Review parsing failed; raw model output below.**\n\n```text\n{}\n```",
                 escape_fenced_code(text)
             ),
+            metadata: ReviewMetadata::default(),
             findings: Vec::new(),
             stats: ReviewStats::default(),
             parse_failed: true,
@@ -96,6 +99,8 @@ impl Review {
         if self.parse_failed {
             return output;
         }
+
+        self.render_metadata(&mut output);
 
         let visible_findings = self.visible_findings();
         let stats = self.visible_stats();
@@ -224,6 +229,122 @@ impl Review {
 
         stats
     }
+
+    fn render_metadata(&self, output: &mut String) {
+        if self.metadata.is_empty() {
+            return;
+        }
+
+        writeln!(output, "\n## Review Coverage").expect("write to string should not fail");
+        if let Some(risk_level) = self.metadata.risk_level {
+            writeln!(output, "\nRisk: {risk_level}").expect("write to string should not fail");
+        }
+        if let Some(strategy) = trimmed_non_empty(&self.metadata.strategy) {
+            writeln!(output, "\nStrategy: {strategy}").expect("write to string should not fail");
+        }
+        let specialist_passes = self
+            .metadata
+            .specialist_passes
+            .iter()
+            .filter_map(|pass| trimmed_non_empty(pass))
+            .collect::<Vec<_>>();
+        if !specialist_passes.is_empty() {
+            writeln!(output, "\nSpecialist passes:").expect("write to string should not fail");
+            for pass in specialist_passes {
+                writeln!(output, "- {pass}").expect("write to string should not fail");
+            }
+        }
+        let coverage_notes = self
+            .metadata
+            .coverage_notes
+            .iter()
+            .filter_map(|note| trimmed_non_empty(note))
+            .collect::<Vec<_>>();
+        if !coverage_notes.is_empty() {
+            writeln!(output, "\nCoverage notes:").expect("write to string should not fail");
+            for note in coverage_notes {
+                writeln!(output, "- {note}").expect("write to string should not fail");
+            }
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq, JsonSchema)]
+pub struct ReviewMetadata {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub risk_level: Option<RiskLevel>,
+    #[serde(default, skip_serializing_if = "str_is_blank")]
+    pub strategy: String,
+    #[serde(default, skip_serializing_if = "string_vec_is_blank")]
+    pub specialist_passes: Vec<String>,
+    #[serde(default, skip_serializing_if = "string_vec_is_blank")]
+    pub coverage_notes: Vec<String>,
+}
+
+/// Deserialization accepts model-style casing and whitespace; the schema advertises canonical lowercase values.
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RiskLevel {
+    Critical,
+    High,
+    Medium,
+    Low,
+}
+
+impl RiskLevel {
+    fn from_model_value(value: &str) -> Option<Self> {
+        match value.trim().to_lowercase().as_str() {
+            "critical" => Some(Self::Critical),
+            "high" => Some(Self::High),
+            "medium" => Some(Self::Medium),
+            "low" => Some(Self::Low),
+            _ => None,
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for RiskLevel {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+        Self::from_model_value(&value).ok_or_else(|| de::Error::custom("invalid risk level"))
+    }
+}
+
+impl fmt::Display for RiskLevel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Critical => write!(f, "critical"),
+            Self::High => write!(f, "high"),
+            Self::Medium => write!(f, "medium"),
+            Self::Low => write!(f, "low"),
+        }
+    }
+}
+
+impl ReviewMetadata {
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.risk_level.is_none()
+            && str_is_blank(&self.strategy)
+            && string_vec_is_blank(&self.specialist_passes)
+            && string_vec_is_blank(&self.coverage_notes)
+    }
+}
+
+fn trimmed_non_empty(value: &str) -> Option<&str> {
+    let value = value.trim();
+    (!value.is_empty()).then_some(value)
+}
+
+fn str_is_blank(value: &str) -> bool {
+    value.trim().is_empty()
+}
+
+fn string_vec_is_blank(values: &[String]) -> bool {
+    values.iter().all(|value| str_is_blank(value))
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]

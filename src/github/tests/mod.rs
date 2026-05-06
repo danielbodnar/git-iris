@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
-use crate::types::{Category, EvidenceRef, Finding, FindingId, Review, ReviewStats, Severity};
+use crate::types::{
+    Category, EvidenceRef, Finding, FindingId, Review, ReviewMetadata, ReviewStats, Severity,
+};
 
 use super::{
     GitHubRepository, extract_inline_comment_candidates,
@@ -72,6 +74,7 @@ fn extracts_review_findings_with_locations() {
 fn extracts_structured_review_findings() {
     let review = Review {
         summary: "Review summary".to_string(),
+        metadata: ReviewMetadata::default(),
         findings: vec![Finding {
             id: FindingId("finding-1".to_string()),
             severity: Severity::High,
@@ -118,6 +121,7 @@ fn extracts_structured_review_findings() {
 fn extracts_multiline_structured_review_findings() {
     let review = Review {
         summary: "Review summary".to_string(),
+        metadata: ReviewMetadata::default(),
         findings: vec![Finding {
             id: FindingId("finding-1".to_string()),
             severity: Severity::High,
@@ -151,6 +155,7 @@ fn extracts_multiline_structured_review_findings() {
 fn normalizes_inverted_structured_review_ranges() {
     let review = Review {
         summary: "Review summary".to_string(),
+        metadata: ReviewMetadata::default(),
         findings: vec![Finding {
             id: FindingId("finding-1".to_string()),
             severity: Severity::High,
@@ -197,6 +202,7 @@ fn multiline_candidates_require_the_full_range_to_be_reviewable() {
 fn skips_low_confidence_structured_review_findings() {
     let review = Review {
         summary: "Review summary".to_string(),
+        metadata: ReviewMetadata::default(),
         findings: vec![Finding {
             id: FindingId("finding-1".to_string()),
             severity: Severity::Medium,
@@ -227,6 +233,7 @@ fn renders_permalinks_for_structured_review_findings() {
     };
     let review = Review {
         summary: "Review summary".to_string(),
+        metadata: ReviewMetadata::default(),
         findings: vec![Finding {
             id: FindingId("finding-1".to_string()),
             severity: Severity::High,

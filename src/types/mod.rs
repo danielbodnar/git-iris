@@ -21,8 +21,8 @@ pub use pr::MarkdownPullRequest;
 
 // Review types
 pub use review::{
-    Category, EvidenceRef, Finding, FindingId, Review, ReviewStats, Severity,
-    render_markdown_for_terminal,
+    Category, EvidenceRef, Finding, FindingId, Review, ReviewMetadata, ReviewStats, RiskLevel,
+    Severity, render_markdown_for_terminal,
 };
 
 // Changelog types

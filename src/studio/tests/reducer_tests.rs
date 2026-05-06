@@ -8,7 +8,7 @@ use crate::studio::events::{
 use crate::studio::history::History;
 use crate::studio::reducer::reduce;
 use crate::studio::state::{Mode, PanelId, StudioState};
-use crate::types::{GeneratedMessage, Review, ReviewStats};
+use crate::types::{GeneratedMessage, Review, ReviewMetadata, ReviewStats};
 
 fn test_state() -> StudioState {
     StudioState::new(Config::default(), None)
@@ -17,6 +17,7 @@ fn test_state() -> StudioState {
 fn test_review(summary: &str) -> Review {
     Review {
         summary: summary.to_string(),
+        metadata: ReviewMetadata::default(),
         findings: Vec::new(),
         stats: ReviewStats::default(),
         parse_failed: false,
