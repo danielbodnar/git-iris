@@ -20,6 +20,9 @@ If the repo has `git-iris` on PATH and the user asks for any of:
 | Code review of staged changes    | `git-iris review`        |
 
 Check first: `command -v git-iris`. If it's missing, fall through to writing the message yourself.
+If the installed `git-iris` is stale for the current branch, use the branch binary instead:
+`cargo run --quiet -- -q gen -p -i "<why>"` or `target/debug/git-iris -q gen -p -i "<why>"`.
+The `-q` flag still belongs to `git-iris`, after Cargo's `--`.
 
 ## The core pattern
 
