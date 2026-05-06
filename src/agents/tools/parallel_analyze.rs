@@ -415,9 +415,19 @@ impl Tool for ParallelAnalyze {
             ),
         );
 
-        // Pre-allocate results vector to preserve task ordering
+        let initial_results = tasks
+            .iter()
+            .map(|task| {
+                Some(SubagentResult {
+                    task: task.clone(),
+                    result: "Subagent task did not complete".to_string(),
+                    success: false,
+                    error: Some("Task did not complete".to_string()),
+                })
+            })
+            .collect();
         let results: Arc<Mutex<Vec<Option<SubagentResult>>>> =
-            Arc::new(Mutex::new(vec![None; num_tasks]));
+            Arc::new(Mutex::new(initial_results));
 
         // Spawn all tasks as parallel tokio tasks, tracking index for ordering
         let mut handles = Vec::new();
