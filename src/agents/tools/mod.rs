@@ -15,7 +15,7 @@ pub use registry::CORE_TOOLS;
 pub mod git;
 
 // Re-export the tool structs (not functions) for Rig agents
-pub use git::{GitBlame, GitChangedFiles, GitDiff, GitLog, GitRepoInfo, GitStatus};
+pub use git::{GitBlame, GitChangedFiles, GitDiff, GitLog, GitRepoInfo, GitShow, GitStatus};
 
 // Migrated Rig tools
 pub mod file_read;

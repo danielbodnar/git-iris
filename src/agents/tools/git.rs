@@ -597,6 +597,147 @@ fn is_bot_author(author: &str) -> bool {
         || normalized == "bot"
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitShow;
+
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct GitShowArgs {
+    /// Commit, tag, or branch to inspect.
+    pub commit: String,
+    /// Optional repository-relative paths to filter the patch.
+    #[serde(default)]
+    pub files: Option<Vec<PathBuf>>,
+    /// Maximum characters to return. Defaults to 20000, clamped to 1000..=50000.
+    #[serde(default = "default_git_show_max_output_chars")]
+    #[schemars(description = "Maximum characters to return. Values are clamped to 1000..=50000.")]
+    pub max_output_chars: usize,
+}
+
+fn default_git_show_max_output_chars() -> usize {
+    20_000
+}
+
+impl Tool for GitShow {
+    const NAME: &'static str = "git_show";
+    type Error = GitError;
+    type Args = GitShowArgs;
+    type Output = String;
+
+    async fn definition(&self, _: String) -> ToolDefinition {
+        ToolDefinition {
+            name: "git_show".to_string(),
+            description: "Show a commit message, metadata, stat, and patch for a commit, tag, or branch. Use this after git_log or git_blame when a historical commit's exact changes clarify intent, prior behavior, or regression risk.".to_string(),
+            parameters: parameters_schema::<GitShowArgs>(),
+        }
+    }
+
+    async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
+        let repo = get_current_repo().map_err(GitError::from)?;
+        let repo_root = repo.repo_path();
+        let requested = args.commit.trim();
+        let commit = resolve_commit(repo_root, requested).map_err(GitError::from)?;
+        let files = args
+            .files
+            .unwrap_or_default()
+            .into_iter()
+            .map(|file| normalize_repo_relative_filter_path(&file))
+            .collect::<Result<Vec<_>>>()
+            .map_err(GitError::from)?;
+        let max_output_chars = args.max_output_chars.clamp(1_000, 50_000);
+
+        run_git_show(repo_root, requested, &commit, &files, max_output_chars)
+            .map_err(GitError::from)
+    }
+}
+
+fn resolve_commit(repo_root: &Path, commit: &str) -> Result<String> {
+    if commit.is_empty() {
+        anyhow::bail!("commit must not be empty");
+    }
+    if commit.starts_with('-') || commit.chars().any(char::is_whitespace) {
+        anyhow::bail!("commit must be a commit, tag, or branch name");
+    }
+
+    let rev = format!("{commit}^{{commit}}");
+    let output = Command::new("git")
+        .args(["rev-parse", "--verify", "--quiet", &rev])
+        .current_dir(repo_root)
+        .output()?;
+
+    if !output.status.success() {
+        anyhow::bail!("commit not found: {commit}");
+    }
+
+    let hash = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if hash.len() != 40 || !hash.chars().all(|ch| ch.is_ascii_hexdigit()) {
+        anyhow::bail!("git returned an invalid commit hash for {commit}");
+    }
+
+    Ok(hash)
+}
+
+fn run_git_show(
+    repo_root: &Path,
+    requested: &str,
+    commit: &str,
+    files: &[PathBuf],
+    max_output_chars: usize,
+) -> Result<String> {
+    let mut command = Command::new("git");
+    command.args([
+        "show",
+        "--no-ext-diff",
+        "--no-color",
+        "--stat",
+        "--format=fuller",
+        "--patch",
+        commit,
+    ]);
+
+    if !files.is_empty() {
+        command.arg("--");
+        command.args(files);
+    }
+
+    let output = command.current_dir(repo_root).output()?;
+    if !output.status.success() {
+        anyhow::bail!(
+            "git show failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+
+    let mut rendered = format!("Git show for {requested} ({commit})\n");
+    if !files.is_empty() {
+        let file_list = files
+            .iter()
+            .map(|file| file.display().to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        rendered.push_str(&format!("Filtered paths: {file_list}\n"));
+    }
+    rendered.push('\n');
+    rendered.push_str(String::from_utf8_lossy(&output.stdout).trim_end());
+
+    Ok(truncate_git_show_output(&rendered, max_output_chars))
+}
+
+fn truncate_git_show_output(text: &str, max_chars: usize) -> String {
+    const SUFFIX: &str = "\n[git_show output truncated]";
+
+    let mut chars = text.chars();
+    let mut truncated = chars.by_ref().take(max_chars).collect::<String>();
+    if chars.next().is_none() {
+        return truncated;
+    }
+
+    let suffix_chars = SUFFIX.chars().count();
+    let reserved = max_chars.saturating_sub(suffix_chars);
+    truncated = text.chars().take(reserved).collect::<String>();
+    truncated.push_str(SUFFIX);
+    truncated
+}
+
 // Git repository info tool
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GitRepoInfo;
@@ -792,6 +933,16 @@ impl Tool for GitBlame {
 }
 
 fn normalize_repo_relative_path(repo_root: &Path, path: &Path) -> Result<PathBuf> {
+    let normalized = normalize_repo_relative_filter_path(path)?;
+    let full_path = repo_root.join(&normalized);
+    if !full_path.is_file() {
+        anyhow::bail!("file does not exist: {}", normalized.display());
+    }
+
+    Ok(normalized)
+}
+
+fn normalize_repo_relative_filter_path(path: &Path) -> Result<PathBuf> {
     if path.is_absolute() {
         anyhow::bail!("file must be a repository-relative path");
     }
@@ -809,11 +960,6 @@ fn normalize_repo_relative_path(repo_root: &Path, path: &Path) -> Result<PathBuf
         )
     }) {
         anyhow::bail!("file must be a repository-relative path");
-    }
-
-    let full_path = repo_root.join(&normalized);
-    if !full_path.is_file() {
-        anyhow::bail!("file does not exist: {}", normalized.display());
     }
 
     Ok(normalized)

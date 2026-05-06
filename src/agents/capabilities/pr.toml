@@ -16,14 +16,15 @@ Start with the change evidence first, then pull docs when they sharpen the narra
 2. `git_log` and `git_changed_files` to examine commits
 3. `project_docs(doc_type="context")` when repository conventions or product language affect the write-up
 4. `git_blame(file="path", start_line=1, end_line=20)` for central files when commit history clarifies reviewer context, ownership, or prior intent
-5. **For Large changesets (>10 files or >500 lines):**
+5. `git_show(commit="...")` when a commit from `git_log` or `git_blame` needs exact patch context
+6. **For Large changesets (>10 files or >500 lines):**
    - Do NOT request `detail="standard"` for the entire diff
    - Focus on top 5-7 highest-relevance files
    - Use `file_read(path="...")` on key files instead of full diffs
-6. **For Very Large changesets (>20 files or >1000 lines):**
+7. **For Very Large changesets (>20 files or >1000 lines):**
    - Use `parallel_analyze` to distribute work across subagents
    - Example: `parallel_analyze({ "tasks": ["Analyze security changes", "Review API changes", "Summarize UI modifications", "Check database migrations"] })`
-7. For Small/Medium: You may request `detail="standard"` if needed
+8. For Small/Medium: You may request `detail="standard"` if needed
 
 ## Output Format
 
