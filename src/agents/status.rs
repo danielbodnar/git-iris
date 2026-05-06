@@ -22,7 +22,6 @@ pub enum IrisPhase {
     Initializing,
     Planning,
     ToolExecution { tool_name: String, reason: String },
-    PlanExpansion,
     Synthesis,
     Analysis,
     Generation,
@@ -73,7 +72,7 @@ impl IrisStatus {
     #[must_use]
     pub fn dynamic(phase: IrisPhase, message: String, step: usize, total: Option<usize>) -> Self {
         let token = match phase {
-            IrisPhase::Initializing | IrisPhase::PlanExpansion => tokens::ACCENT_SECONDARY,
+            IrisPhase::Initializing => tokens::ACCENT_SECONDARY,
             IrisPhase::Planning => tokens::ACCENT_DEEP,
             IrisPhase::ToolExecution { .. } | IrisPhase::Completed => tokens::SUCCESS,
             IrisPhase::Synthesis => tokens::ACCENT_TERTIARY,

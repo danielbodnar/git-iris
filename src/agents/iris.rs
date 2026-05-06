@@ -1174,6 +1174,11 @@ Guidelines:
     /// Convert raw text to the appropriate structured response type
     fn text_to_structured_response(output_type: &str, text: String) -> StructuredResponse {
         match output_type {
+            "GeneratedMessage" => Self::parse_text_as_json::<crate::types::GeneratedMessage>(&text)
+                .map_or_else(
+                    || StructuredResponse::PlainText(text),
+                    StructuredResponse::CommitMessage,
+                ),
             "Review" => StructuredResponse::Review(crate::types::Review::from_unstructured(&text)),
             "MarkdownPullRequest" => {
                 StructuredResponse::PullRequest(crate::types::MarkdownPullRequest { content: text })
@@ -1189,6 +1194,15 @@ Guidelines:
             "SemanticBlame" => StructuredResponse::SemanticBlame(text),
             _ => StructuredResponse::PlainText(text),
         }
+    }
+
+    fn parse_text_as_json<T>(text: &str) -> Option<T>
+    where
+        T: JsonSchema + DeserializeOwned,
+    {
+        let json = extract_json_from_response(text).ok()?;
+        let sanitized_json = sanitize_json_response(&json);
+        parse_with_recovery(sanitized_json.as_ref()).ok()
     }
 
     /// Shared streaming agent configuration
@@ -1476,6 +1490,37 @@ Line2\"}";
         let response = r##"{"content": "# Heading\n\nBody text."}"##;
         let extracted = extract_json_from_response(response).expect("pure JSON passes through");
         assert_eq!(extracted, response);
+    }
+
+    #[test]
+    fn streamed_generated_message_text_becomes_commit_response() {
+        let response = r#"```json
+{"emoji":"🔧","title":"Wire streaming commit output","message":"Parse streamed JSON into the commit response type."}
+```"#;
+
+        let structured =
+            IrisAgent::text_to_structured_response("GeneratedMessage", response.to_string());
+
+        let super::StructuredResponse::CommitMessage(message) = structured else {
+            panic!("expected commit message response");
+        };
+        assert_eq!(message.emoji.as_deref(), Some("🔧"));
+        assert_eq!(message.title, "Wire streaming commit output");
+        assert_eq!(
+            message.message,
+            "Parse streamed JSON into the commit response type."
+        );
+    }
+
+    #[test]
+    fn invalid_streamed_generated_message_stays_plain_text() {
+        let structured =
+            IrisAgent::text_to_structured_response("GeneratedMessage", "not json".to_string());
+
+        let super::StructuredResponse::PlainText(text) = structured else {
+            panic!("expected plain text fallback");
+        };
+        assert_eq!(text, "not json");
     }
 
     #[test]
