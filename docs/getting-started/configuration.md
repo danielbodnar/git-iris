@@ -95,6 +95,27 @@ git-iris config --gitmoji     # Enable
 git-iris config --no-gitmoji  # Disable
 ```
 
+### Critic Verification
+
+Git-Iris runs a critic pass after generated artifacts by default. The critic checks
+whether the draft is supported by repository evidence and allows one regeneration
+when it finds material overclaims.
+
+The critic applies to commit messages, reviews, PR descriptions, changelogs, and
+release notes. It adds one extra model call, and a second extra call only when the
+critic asks Iris to revise the draft.
+
+To opt out globally, run `git-iris config --no-critic` or set
+`critic_enabled = false` in your config file.
+
+```bash
+git-iris config --critic     # Enable
+git-iris config --no-critic  # Disable
+
+# Or disable it for one invocation
+git-iris review --no-critic --print
+```
+
 ### Instruction Presets
 
 Set a default style preset:
@@ -305,6 +326,7 @@ The global config file (`~/.config/git-iris/config.toml`) looks like this:
 ```toml
 default_provider = "openai"
 use_gitmoji = true
+critic_enabled = true
 instruction_preset = "conventional"
 instructions = "Always include ticket numbers"
 theme = "silkcircuit-neon"

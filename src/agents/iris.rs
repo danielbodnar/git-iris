@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
+use std::sync::OnceLock;
 
 /// Macro to build a streaming agent for any provider.
 ///
@@ -79,6 +80,8 @@ const CAPABILITY_CHANGELOG: &str = include_str!("capabilities/changelog.toml");
 const CAPABILITY_RELEASE_NOTES: &str = include_str!("capabilities/release_notes.toml");
 const CAPABILITY_CHAT: &str = include_str!("capabilities/chat.toml");
 const CAPABILITY_SEMANTIC_BLAME: &str = include_str!("capabilities/semantic_blame.toml");
+const CAPABILITY_VERIFY: &str = include_str!("capabilities/verify.toml");
+static VERIFY_CAPABILITY_CONFIG: OnceLock<(String, String)> = OnceLock::new();
 
 /// Default preamble for Iris agent
 const DEFAULT_PREAMBLE: &str = "\
@@ -171,6 +174,66 @@ pub enum StructuredResponse {
     /// Semantic blame explanation (plain text)
     SemanticBlame(String),
     PlainText(String),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
+struct Critique {
+    #[serde(default)]
+    requires_revision: bool,
+    #[serde(default)]
+    issues: Vec<CritiqueIssue>,
+    #[serde(default)]
+    revision_prompt: String,
+    #[serde(default)]
+    confidence: u8,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+struct CritiqueIssue {
+    title: String,
+    body: String,
+    severity: CritiqueSeverity,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+enum CritiqueSeverity {
+    Critical,
+    High,
+    Medium,
+    Low,
+}
+
+impl CritiqueSeverity {
+    fn from_model_value(value: &str) -> Self {
+        match value.trim().to_lowercase().as_str() {
+            "critical" => Self::Critical,
+            "high" => Self::High,
+            "low" => Self::Low,
+            _ => Self::Medium,
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for CritiqueSeverity {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+        Ok(Self::from_model_value(&value))
+    }
+}
+
+impl fmt::Display for CritiqueSeverity {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Critical => write!(f, "critical"),
+            Self::High => write!(f, "high"),
+            Self::Medium => write!(f, "medium"),
+            Self::Low => write!(f, "low"),
+        }
+    }
 }
 
 impl fmt::Display for StructuredResponse {
@@ -980,13 +1043,31 @@ Guidelines:
             4
         );
 
-        // Use agent with tools for all structured outputs
-        // The agent will use tools as needed and respond with JSON
-        match output_type.as_str() {
+        let response = self
+            .execute_output_type(&output_type, &system_prompt, user_prompt)
+            .await?;
+
+        self.verify_response_if_enabled(
+            capability,
+            &output_type,
+            &system_prompt,
+            user_prompt,
+            response,
+        )
+        .await
+    }
+
+    async fn execute_output_type(
+        &self,
+        output_type: &str,
+        system_prompt: &str,
+        user_prompt: &str,
+    ) -> Result<StructuredResponse> {
+        match output_type {
             "GeneratedMessage" => {
                 let response = self
                     .execute_with_agent::<crate::types::GeneratedMessage>(
-                        &system_prompt,
+                        system_prompt,
                         user_prompt,
                     )
                     .await?;
@@ -995,7 +1076,7 @@ Guidelines:
             "MarkdownPullRequest" => {
                 let response = self
                     .execute_with_agent::<crate::types::MarkdownPullRequest>(
-                        &system_prompt,
+                        system_prompt,
                         user_prompt,
                     )
                     .await?;
@@ -1004,7 +1085,7 @@ Guidelines:
             "MarkdownChangelog" => {
                 let response = self
                     .execute_with_agent::<crate::types::MarkdownChangelog>(
-                        &system_prompt,
+                        system_prompt,
                         user_prompt,
                     )
                     .await?;
@@ -1013,7 +1094,7 @@ Guidelines:
             "MarkdownReleaseNotes" => {
                 let response = self
                     .execute_with_agent::<crate::types::MarkdownReleaseNotes>(
-                        &system_prompt,
+                        system_prompt,
                         user_prompt,
                     )
                     .await?;
@@ -1021,26 +1102,148 @@ Guidelines:
             }
             "Review" => {
                 let response = self
-                    .execute_with_agent::<crate::types::Review>(&system_prompt, user_prompt)
+                    .execute_with_agent::<crate::types::Review>(system_prompt, user_prompt)
                     .await?;
                 Ok(StructuredResponse::Review(response))
             }
             "SemanticBlame" => {
-                // For semantic blame, we want plain text response
                 let agent = self.build_agent()?;
                 let full_prompt = format!("{system_prompt}\n\n{user_prompt}");
                 let response = agent.prompt_multi_turn(&full_prompt, 10).await?;
                 Ok(StructuredResponse::SemanticBlame(response))
             }
             _ => {
-                // Fallback to regular agent for unknown types
                 let agent = self.build_agent()?;
                 let full_prompt = format!("{system_prompt}\n\n{user_prompt}");
-                // Use multi_turn to allow tool calls even for unknown capability types
                 let response = agent.prompt_multi_turn(&full_prompt, 50).await?;
                 Ok(StructuredResponse::PlainText(response))
             }
         }
+    }
+
+    async fn verify_response_if_enabled(
+        &self,
+        capability: &str,
+        output_type: &str,
+        system_prompt: &str,
+        user_prompt: &str,
+        response: StructuredResponse,
+    ) -> Result<StructuredResponse> {
+        if !self.should_run_critic(capability, output_type) {
+            return Ok(response);
+        }
+
+        let (critic_prompt, critic_output_type) = match self.load_capability_config("verify") {
+            Ok(config) => config,
+            Err(error) => {
+                crate::agents::debug::debug_warning(&format!(
+                    "Critic pass skipped: failed to load verify capability: {error}"
+                ));
+                return Ok(response);
+            }
+        };
+        if critic_output_type != "Critique" {
+            crate::agents::debug::debug_warning(&format!(
+                "Critic pass skipped: verify capability returned unexpected output_type {critic_output_type}"
+            ));
+            return Ok(response);
+        }
+
+        let critic_task = Self::build_critic_task(capability, user_prompt, &response);
+        let critique = match self
+            .execute_with_agent::<Critique>(&critic_prompt, &critic_task)
+            .await
+        {
+            Ok(critique) => critique,
+            Err(error) => {
+                crate::agents::debug::debug_warning(&format!(
+                    "Critic pass skipped after generation succeeded: {error}"
+                ));
+                return Ok(response);
+            }
+        };
+
+        if !critique.requires_revision {
+            return Ok(response);
+        }
+
+        if critique.revision_prompt.trim().is_empty() && critique.issues.is_empty() {
+            crate::agents::debug::debug_warning(
+                "Critic requested a revision without issues or revision_prompt; keeping original artifact",
+            );
+            return Ok(response);
+        }
+
+        let revised_prompt = Self::build_revision_prompt(user_prompt, &critique);
+        self.execute_output_type(output_type, system_prompt, &revised_prompt)
+            .await
+    }
+
+    fn should_run_critic(&self, capability: &str, output_type: &str) -> bool {
+        let critic_enabled = self
+            .config
+            .as_ref()
+            .is_none_or(|config| config.critic_enabled);
+
+        critic_enabled
+            && matches!(
+                (capability, output_type),
+                ("commit", "GeneratedMessage")
+                    | ("review", "Review")
+                    | ("pr", "MarkdownPullRequest")
+                    | ("changelog", "MarkdownChangelog")
+                    | ("release_notes", "MarkdownReleaseNotes")
+            )
+    }
+
+    fn build_critic_task(
+        capability: &str,
+        user_prompt: &str,
+        response: &StructuredResponse,
+    ) -> String {
+        let artifact = Self::serialize_artifact_for_critic(response);
+        format!(
+            "## Capability\n{capability}\n\n## Original Task\n{user_prompt}\n\n## Generated Artifact\n```json\n{artifact}\n```"
+        )
+    }
+
+    fn serialize_artifact_for_critic(response: &StructuredResponse) -> String {
+        match response {
+            StructuredResponse::CommitMessage(message) => serde_json::to_string_pretty(message),
+            StructuredResponse::PullRequest(pr) => serde_json::to_string_pretty(pr),
+            StructuredResponse::Changelog(changelog) => serde_json::to_string_pretty(changelog),
+            StructuredResponse::ReleaseNotes(notes) => serde_json::to_string_pretty(notes),
+            StructuredResponse::Review(review) => serde_json::to_string_pretty(review),
+            StructuredResponse::SemanticBlame(text) | StructuredResponse::PlainText(text) => {
+                serde_json::to_string_pretty(text)
+            }
+        }
+        .unwrap_or_else(|_| response.to_string())
+    }
+
+    fn build_revision_prompt(user_prompt: &str, critique: &Critique) -> String {
+        let issues = if critique.issues.is_empty() {
+            String::new()
+        } else {
+            format!(
+                "\n\nIssues:\n{}",
+                critique
+                    .issues
+                    .iter()
+                    .map(|issue| format!("- [{}] {}: {}", issue.severity, issue.title, issue.body))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            )
+        };
+        let revision_prompt = if critique.revision_prompt.trim().is_empty() {
+            "Address the material issues listed above."
+        } else {
+            critique.revision_prompt.trim()
+        };
+        format!(
+            "{user_prompt}\n\n## Critic Feedback\nThe first draft contained unsupported or misleading claims. Regenerate the artifact once, preserving the original task and fixing these issues.{issues}\n\nRevision instruction:\n{}",
+            revision_prompt
+        )
     }
 
     /// Execute a task with streaming, calling the callback with each text chunk
@@ -1271,6 +1474,10 @@ Guidelines:
     /// Load capability configuration from embedded TOML, returning both prompt and output type
     fn load_capability_config(&self, capability: &str) -> Result<(String, String)> {
         let _ = self; // Keep &self for method syntax consistency
+        if capability == "verify" {
+            return Self::load_verify_capability_config();
+        }
+
         // Use embedded capability strings - always available regardless of working directory
         let content = match capability {
             "commit" => CAPABILITY_COMMIT,
@@ -1291,7 +1498,20 @@ Guidelines:
             }
         };
 
-        // Parse TOML to extract both task_prompt and output_type
+        Self::parse_capability_config(content)
+    }
+
+    fn load_verify_capability_config() -> Result<(String, String)> {
+        if let Some(config) = VERIFY_CAPABILITY_CONFIG.get() {
+            return Ok(config.clone());
+        }
+
+        let config = Self::parse_capability_config(CAPABILITY_VERIFY)?;
+        let _ = VERIFY_CAPABILITY_CONFIG.set(config.clone());
+        Ok(config)
+    }
+
+    fn parse_capability_config(content: &str) -> Result<(String, String)> {
         let parsed: toml::Value = toml::from_str(content)?;
 
         let task_prompt = parsed
@@ -1419,8 +1639,8 @@ impl Default for IrisAgentBuilder {
 #[cfg(test)]
 mod tests {
     use super::{
-        IrisAgent, extract_json_from_response, find_balanced_braces, sanitize_json_response,
-        streaming_response_instructions,
+        Critique, CritiqueIssue, CritiqueSeverity, IrisAgent, extract_json_from_response,
+        find_balanced_braces, sanitize_json_response, streaming_response_instructions,
     };
     use serde_json::Value;
     use std::borrow::Cow;
@@ -1521,6 +1741,105 @@ Line2\"}";
             panic!("expected plain text fallback");
         };
         assert_eq!(text, "not json");
+    }
+
+    #[test]
+    fn critic_runs_for_configured_structured_artifacts() {
+        let mut agent = IrisAgent::new("openai", "gpt-5.4").expect("agent should build");
+        agent.set_config(crate::config::Config::default());
+
+        assert!(agent.should_run_critic("review", "Review"));
+        assert!(agent.should_run_critic("commit", "GeneratedMessage"));
+        assert!(!agent.should_run_critic("chat", "PlainText"));
+        assert!(!agent.should_run_critic("semantic_blame", "SemanticBlame"));
+    }
+
+    #[test]
+    fn critic_can_be_disabled_by_config() {
+        let config = crate::config::Config {
+            critic_enabled: false,
+            ..crate::config::Config::default()
+        };
+        let mut agent = IrisAgent::new("openai", "gpt-5.4").expect("agent should build");
+        agent.set_config(config);
+
+        assert!(!agent.should_run_critic("review", "Review"));
+    }
+
+    #[test]
+    fn critic_revision_prompt_includes_material_issues() {
+        let critique = Critique {
+            requires_revision: true,
+            issues: vec![CritiqueIssue {
+                title: "Unsupported auth claim".to_string(),
+                body: "The diff only updates docs.".to_string(),
+                severity: CritiqueSeverity::High,
+            }],
+            revision_prompt: "Remove the auth-hardening claim.".to_string(),
+            confidence: 91,
+        };
+
+        let prompt = IrisAgent::build_revision_prompt("Original task", &critique);
+
+        assert!(prompt.contains("Original task"));
+        assert!(prompt.contains("[high] Unsupported auth claim"));
+        assert!(prompt.contains("Remove the auth-hardening claim."));
+    }
+
+    #[test]
+    fn critic_revision_prompt_falls_back_to_issues() {
+        let critique = Critique {
+            requires_revision: true,
+            issues: vec![CritiqueIssue {
+                title: "Unsupported auth claim".to_string(),
+                body: "The diff only updates docs.".to_string(),
+                severity: CritiqueSeverity::High,
+            }],
+            revision_prompt: String::new(),
+            confidence: 91,
+        };
+
+        let prompt = IrisAgent::build_revision_prompt("Original task", &critique);
+
+        assert!(prompt.contains("Address the material issues listed above."));
+    }
+
+    #[test]
+    fn critic_revision_prompt_omits_empty_issues_section() {
+        let critique = Critique {
+            requires_revision: true,
+            issues: Vec::new(),
+            revision_prompt: "Remove the unsupported claim.".to_string(),
+            confidence: 91,
+        };
+
+        let prompt = IrisAgent::build_revision_prompt("Original task", &critique);
+
+        assert!(!prompt.contains("Issues:"));
+        assert!(prompt.contains("Remove the unsupported claim."));
+    }
+
+    #[test]
+    fn critic_artifact_serialization_strips_response_variant_wrapper() {
+        let response = super::StructuredResponse::CommitMessage(crate::types::GeneratedMessage {
+            emoji: None,
+            title: "Add critic pass".to_string(),
+            message: "Check generated artifacts before returning them.".to_string(),
+            completion_message: None,
+        });
+
+        let artifact = IrisAgent::serialize_artifact_for_critic(&response);
+
+        assert!(artifact.contains("\"title\": \"Add critic pass\""));
+        assert!(!artifact.contains("CommitMessage"));
+    }
+
+    #[test]
+    fn critic_severity_normalizes_unknown_values_to_medium() {
+        let severity: CritiqueSeverity =
+            serde_json::from_str("\"totally-fine\"").expect("severity should deserialize");
+
+        assert_eq!(severity, CritiqueSeverity::Medium);
     }
 
     #[test]

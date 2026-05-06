@@ -33,6 +33,9 @@ async fn test_cli_with_remote_repository() -> Result<()> {
         gitmoji_flag: false,
         no_gitmoji: false,
         gitmoji: Some(false),
+        critic_flag: false,
+        no_critic: false,
+        critic: None,
         repository_url: Some(repo_url.to_string()),
     };
 

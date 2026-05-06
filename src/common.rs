@@ -4,6 +4,7 @@ use crate::providers::{Provider, ProviderConfig};
 use anyhow::Result;
 use clap::Args;
 
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Args, Clone, Default, Debug)]
 pub struct CommonParams {
     /// Override default LLM provider
@@ -38,9 +39,26 @@ pub struct CommonParams {
     #[arg(long = "no-gitmoji", help = "Disable Gitmoji", action = clap::ArgAction::SetTrue)]
     pub no_gitmoji: bool,
 
+    /// Enable critic verification pass
+    #[arg(
+        long = "critic",
+        help = "Enable critic verification pass",
+        conflicts_with = "no_critic",
+        action = clap::ArgAction::SetTrue
+    )]
+    pub critic_flag: bool,
+
+    /// Disable critic verification pass
+    #[arg(long = "no-critic", help = "Disable critic verification pass", action = clap::ArgAction::SetTrue)]
+    pub no_critic: bool,
+
     /// Internal: resolved gitmoji value (Some(true), Some(false), or None)
     #[arg(skip)]
     pub gitmoji: Option<bool>,
+
+    /// Internal: resolved critic value (Some(true), Some(false), or None)
+    #[arg(skip)]
+    pub critic: Option<bool>,
 
     /// Repository URL to use instead of local repository
     #[arg(
@@ -62,6 +80,19 @@ impl CommonParams {
             Some(false)
         } else {
             self.gitmoji // fallback to any programmatically set value
+        }
+    }
+
+    /// Get the resolved critic value from CLI flags
+    /// Returns Some(true) for --critic, Some(false) for --no-critic, None if neither specified
+    #[must_use]
+    pub fn resolved_critic(&self) -> Option<bool> {
+        if self.critic_flag {
+            Some(true)
+        } else if self.no_critic {
+            Some(false)
+        } else {
+            self.critic
         }
     }
 
@@ -116,6 +147,13 @@ impl CommonParams {
                 config.use_gitmoji = use_gitmoji;
                 changes_made = true;
             }
+        }
+
+        if let Some(critic_enabled) = self.resolved_critic()
+            && config.critic_enabled != critic_enabled
+        {
+            config.critic_enabled = critic_enabled;
+            changes_made = true;
         }
 
         Ok(changes_made)

@@ -51,6 +51,9 @@ pub struct Config {
         skip_serializing_if = "is_default_subagent_max_turns"
     )]
     pub subagent_max_turns: usize,
+    /// Run a critic verification pass after generated artifacts (default: true)
+    #[serde(default = "default_true", skip_serializing_if = "is_true")]
+    pub critic_enabled: bool,
     /// Runtime-only: temporary instructions override
     #[serde(skip)]
     pub temp_instructions: Option<String>,
@@ -119,6 +122,7 @@ impl Default for Config {
             theme: String::new(),
             subagent_timeout_secs: default_subagent_timeout(),
             subagent_max_turns: default_subagent_max_turns(),
+            critic_enabled: true,
             temp_instructions: None,
             temp_preset: None,
             is_project_config: false,
@@ -282,6 +286,9 @@ impl Config {
         }
         if Self::project_config_has_key(project_source, "subagent_max_turns") {
             self.subagent_max_turns = project_config.subagent_max_turns;
+        }
+        if Self::project_config_has_key(project_source, "critic_enabled") {
+            self.critic_enabled = project_config.critic_enabled;
         }
     }
 

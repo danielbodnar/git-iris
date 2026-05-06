@@ -41,6 +41,7 @@ Generate AI-powered commit messages for staged changes.
 | `--instructions <TEXT>` | `-i`  | Custom instructions                           |
 | `--preset <NAME>`       |       | Instruction preset name                       |
 | `--gitmoji`             |       | Enable gitmoji for this invocation            |
+| `--no-critic`           |       | Disable critic verification for this run      |
 
 **Examples:**
 
@@ -119,6 +120,7 @@ Generate multi-dimensional code reviews with AI.
 | `--pr <NUMBER>`                 |       | Target a specific GitHub pull request number               |
 | `--github-inline-comments`      |       | Add validated inline comments for findings in the PR diff  |
 | `--github-review-event <EVENT>` |       | `comment` (default), `request-changes`, or `approve`       |
+| `--no-critic`                   |       | Disable critic verification for this run                   |
 
 **Examples:**
 
@@ -168,6 +170,7 @@ Generate pull request descriptions.
 | `--to <REF>`    |       | Target ref (default: `HEAD`)                                                                        |
 | `--update`      |       | Update the GitHub PR body (revises existing text, adapts to PR templates). Alias: `--github-update` |
 | `--pr <NUMBER>` |       | Target a specific GitHub pull request number when updating                                          |
+| `--no-critic`   |       | Disable critic verification for this run                                                           |
 
 **Examples:**
 
@@ -214,6 +217,7 @@ Generate changelog between Git references.
 | `--update`              | No       | Update CHANGELOG.md file                      |
 | `--file <PATH>`         | No       | Changelog file path (default: `CHANGELOG.md`) |
 | `--version-name <NAME>` | No       | Explicit version name                         |
+| `--no-critic`           | No       | Disable critic verification for this run      |
 
 **Examples:**
 
@@ -251,6 +255,7 @@ Generate detailed release notes.
 | `--update`              | No       | Update the release notes file      |
 | `--file <PATH>`         | No       | Release notes file path            |
 | `--version-name <NAME>` | No       | Explicit version name              |
+| `--no-critic`           | No       | Disable critic verification for this run |
 
 **Examples:**
 
@@ -286,6 +291,8 @@ Configure global Git-Iris settings.
 | `--preset <NAME>`              | Set default preset            |
 | `--gitmoji`                    | Enable gitmoji                |
 | `--no-gitmoji`                 | Disable gitmoji               |
+| `--critic`                     | Enable critic verification    |
+| `--no-critic`                  | Disable critic verification   |
 | `--provider <NAME>`            | Set default provider          |
 | `--api-key <KEY>`              | Set API key                   |
 | `--model <NAME>`               | Set primary model             |
@@ -293,6 +300,7 @@ Configure global Git-Iris settings.
 | `--token-limit <NUM>`          | Set token limit               |
 | `--param <KEY=VALUE>`          | Set additional parameters     |
 | `--subagent-timeout <SECONDS>` | Set parallel subagent timeout |
+| `--subagent-max-turns <NUM>`   | Set subagent turn budget      |
 
 **Examples:**
 
@@ -333,11 +341,14 @@ Manage project-specific `.irisconfig` file.
 | `--preset <NAME>`              |       | Set project preset            |
 | `--gitmoji`                    |       | Enable gitmoji                |
 | `--no-gitmoji`                 |       | Disable gitmoji               |
+| `--critic`                     |       | Enable critic verification    |
+| `--no-critic`                  |       | Disable critic verification   |
 | `--model <NAME>`               |       | Set project model             |
 | `--fast-model <NAME>`          |       | Set project fast model        |
 | `--token-limit <NUM>`          |       | Set project token limit       |
 | `--param <KEY=VALUE>`          |       | Set project parameters        |
 | `--subagent-timeout <SECONDS>` |       | Set parallel subagent timeout |
+| `--subagent-max-turns <NUM>`   |       | Set subagent turn budget      |
 | `--print`                      | `-p`  | Print current project config  |
 
 **Examples:**

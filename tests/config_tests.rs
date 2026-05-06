@@ -134,6 +134,9 @@ fn test_project_config_security() {
         gitmoji: Some(true),
         gitmoji_flag: false,
         no_gitmoji: false,
+        critic_flag: false,
+        no_critic: false,
+        critic: None,
         repository_url: None,
     };
 
@@ -181,6 +184,7 @@ fn test_project_config_only_serializes_changed_values() {
         theme: String::new(),
         subagent_timeout_secs: 120,
         subagent_max_turns: 20,
+        critic_enabled: true,
         temp_instructions: None,
         temp_preset: None,
         is_project_config: true,
@@ -251,6 +255,7 @@ fn test_project_config_with_provider_only_serializes_set_fields() {
         theme: String::new(),
         subagent_timeout_secs: 120,
         subagent_max_turns: 20,
+        critic_enabled: true,
         temp_instructions: None,
         temp_preset: None,
         is_project_config: true,
@@ -313,6 +318,36 @@ fn test_subagent_max_turns_serializes_when_changed() {
         content.contains("subagent_max_turns = 35"),
         "subagent_max_turns should serialize when non-default. Got:\n{content}"
     );
+}
+
+#[test]
+fn test_critic_enabled_serializes_when_disabled() {
+    let config = Config {
+        critic_enabled: false,
+        ..Config::default()
+    };
+
+    let content = toml::to_string_pretty(&config).expect("Failed to serialize config");
+
+    assert!(
+        content.contains("critic_enabled = false"),
+        "critic_enabled should serialize when disabled. Got:\n{content}"
+    );
+}
+
+#[test]
+fn test_common_params_can_disable_critic() {
+    let common = CommonParams {
+        no_critic: true,
+        ..CommonParams::default()
+    };
+    let mut config = Config::default();
+
+    common
+        .apply_to_config(&mut config)
+        .expect("Failed to apply common params");
+
+    assert!(!config.critic_enabled);
 }
 
 #[test]

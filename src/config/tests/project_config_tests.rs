@@ -21,6 +21,7 @@ instruction_preset = "default"
 theme = ""
 subagent_timeout_secs = 120
 subagent_max_turns = 20
+critic_enabled = true
 "#;
     let mut project_config: Config = toml::from_str(project_toml).expect("valid project config");
     project_config.is_project_config = true;
@@ -36,6 +37,7 @@ subagent_max_turns = 20
     assert_eq!(personal_config.theme, "");
     assert_eq!(personal_config.subagent_timeout_secs, 120);
     assert_eq!(personal_config.subagent_max_turns, 20);
+    assert!(personal_config.critic_enabled);
 }
 
 #[test]
@@ -54,6 +56,24 @@ fn explicit_project_subagent_max_turns_overrides_personal_config() {
     personal_config.merge_loaded_project_config(project_config, &project_source);
 
     assert_eq!(personal_config.subagent_max_turns, 12);
+}
+
+#[test]
+fn explicit_project_critic_setting_overrides_personal_config() {
+    let mut personal_config = Config {
+        critic_enabled: true,
+        ..Config::default()
+    };
+
+    let project_toml = "critic_enabled = false";
+    let mut project_config: Config = toml::from_str(project_toml).expect("valid project config");
+    project_config.is_project_config = true;
+    let project_source: toml::Value =
+        toml::from_str(project_toml).expect("valid project config source");
+
+    personal_config.merge_loaded_project_config(project_config, &project_source);
+
+    assert!(!personal_config.critic_enabled);
 }
 
 #[test]

@@ -153,6 +153,13 @@ fn apply_config_changes(
         changes_made = true;
     }
 
+    if let Some(critic_enabled) = common.resolved_critic()
+        && config.critic_enabled != critic_enabled
+    {
+        config.critic_enabled = critic_enabled;
+        changes_made = true;
+    }
+
     // Apply instructions
     if let Some(instr) = &common.instructions
         && config.instructions != *instr
@@ -340,6 +347,7 @@ pub fn handle_project_config_command(
         theme: String::new(),
         subagent_timeout_secs: 120,
         subagent_max_turns: 20,
+        critic_enabled: true,
         temp_instructions: None,
         temp_preset: None,
         is_project_config: true,
@@ -475,6 +483,13 @@ fn apply_common_settings(
         *changes_made = true;
     }
 
+    if let Some(critic_enabled) = common.resolved_critic()
+        && config.critic_enabled != critic_enabled
+    {
+        config.critic_enabled = critic_enabled;
+        *changes_made = true;
+    }
+
     if let Some(instr) = &common.instructions
         && config.instructions != *instr
     {
@@ -588,6 +603,16 @@ fn print_configuration(config: &Config) {
         false,
     );
     print_config_row("Preset", &config.instruction_preset, dim, false);
+    print_config_row(
+        "Critic",
+        if config.critic_enabled {
+            "enabled"
+        } else {
+            "disabled"
+        },
+        if config.critic_enabled { green } else { dim },
+        false,
+    );
     print_config_row(
         "Timeout",
         &format!("{}s", config.subagent_timeout_secs),
