@@ -19,7 +19,7 @@ use std::fmt;
 /// subagent creation, tool attachment, optional content update tools — differing
 /// only in the provider builder function. This macro eliminates that duplication.
 macro_rules! build_streaming_agent {
-    ($self:expr, $builder_fn:path, $fast_model:expr, $api_key:expr, $subagent_timeout:expr) => {{
+    ($self:expr, $builder_fn:path, $fast_model:expr, $api_key:expr, $subagent_timeout:expr, $subagent_max_turns:expr) => {{
         use crate::agents::debug_tool::DebugTool;
 
         // Build subagent
@@ -47,10 +47,11 @@ macro_rules! build_streaming_agent {
         let builder = crate::attach_core_tools!(builder)
             .tool(DebugTool::new(GitRepoInfo))
             .tool(DebugTool::new($self.workspace.clone()))
-            .tool(DebugTool::new(ParallelAnalyze::with_timeout(
+            .tool(DebugTool::new(ParallelAnalyze::with_limits(
                 &$self.provider,
                 $fast_model,
                 $subagent_timeout,
+                $subagent_max_turns,
                 $api_key,
                 $self.current_provider_additional_params().cloned(),
             )?))
@@ -542,6 +543,7 @@ impl IrisAgent {
     /// Uses provider-specific builders (rig-core 0.27+) with enum dispatch for runtime
     /// provider selection. Each provider arm builds both the subagent and main agent
     /// with proper typing.
+    #[allow(clippy::too_many_lines)]
     fn build_agent(&self) -> Result<DynAgent> {
         use crate::agents::debug_tool::DebugTool;
 
@@ -552,6 +554,7 @@ impl IrisAgent {
             .config
             .as_ref()
             .map_or(120, |c| c.subagent_timeout_secs);
+        let subagent_max_turns = self.config.as_ref().map_or(20, |c| c.subagent_max_turns);
 
         // Macro to build and configure subagent with core tools
         macro_rules! build_subagent {
@@ -584,10 +587,11 @@ Guidelines:
                 crate::attach_core_tools!($builder)
                     .tool(DebugTool::new(GitRepoInfo))
                     .tool(DebugTool::new(self.workspace.clone()))
-                    .tool(DebugTool::new(ParallelAnalyze::with_timeout(
+                    .tool(DebugTool::new(ParallelAnalyze::with_limits(
                         &self.provider,
                         fast_model,
                         subagent_timeout,
+                        subagent_max_turns,
                         api_key,
                         self.current_provider_additional_params().cloned(),
                     )?))
@@ -1188,14 +1192,15 @@ Guidelines:
     }
 
     /// Shared streaming agent configuration
-    fn streaming_agent_config(&self) -> (&str, Option<&str>, u64) {
+    fn streaming_agent_config(&self) -> (&str, Option<&str>, u64, usize) {
         let fast_model = self.effective_fast_model();
         let api_key = self.get_api_key();
         let subagent_timeout = self
             .config
             .as_ref()
             .map_or(120, |c| c.subagent_timeout_secs);
-        (fast_model, api_key, subagent_timeout)
+        let subagent_max_turns = self.config.as_ref().map_or(20, |c| c.subagent_max_turns);
+        (fast_model, api_key, subagent_timeout, subagent_max_turns)
     }
 
     /// Build `OpenAI` agent for streaming (with tools attached)
@@ -1203,13 +1208,15 @@ Guidelines:
         &self,
         _prompt: &str,
     ) -> Result<rig::agent::Agent<provider::OpenAIModel>> {
-        let (fast_model, api_key, subagent_timeout) = self.streaming_agent_config();
+        let (fast_model, api_key, subagent_timeout, subagent_max_turns) =
+            self.streaming_agent_config();
         build_streaming_agent!(
             self,
             provider::openai_builder,
             fast_model,
             api_key,
-            subagent_timeout
+            subagent_timeout,
+            subagent_max_turns
         )
     }
 
@@ -1218,13 +1225,15 @@ Guidelines:
         &self,
         _prompt: &str,
     ) -> Result<rig::agent::Agent<provider::AnthropicModel>> {
-        let (fast_model, api_key, subagent_timeout) = self.streaming_agent_config();
+        let (fast_model, api_key, subagent_timeout, subagent_max_turns) =
+            self.streaming_agent_config();
         build_streaming_agent!(
             self,
             provider::anthropic_builder,
             fast_model,
             api_key,
-            subagent_timeout
+            subagent_timeout,
+            subagent_max_turns
         )
     }
 
@@ -1233,13 +1242,15 @@ Guidelines:
         &self,
         _prompt: &str,
     ) -> Result<rig::agent::Agent<provider::GeminiModel>> {
-        let (fast_model, api_key, subagent_timeout) = self.streaming_agent_config();
+        let (fast_model, api_key, subagent_timeout, subagent_max_turns) =
+            self.streaming_agent_config();
         build_streaming_agent!(
             self,
             provider::gemini_builder,
             fast_model,
             api_key,
-            subagent_timeout
+            subagent_timeout,
+            subagent_max_turns
         )
     }
 

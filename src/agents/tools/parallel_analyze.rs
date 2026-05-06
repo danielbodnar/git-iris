@@ -28,7 +28,7 @@ use crate::providers::Provider;
 
 /// Default timeout for individual subagent tasks (2 minutes)
 const DEFAULT_SUBAGENT_TIMEOUT_SECS: u64 = 120;
-const SUBAGENT_MAX_TURNS: usize = 20;
+const DEFAULT_SUBAGENT_MAX_TURNS: usize = 20;
 
 /// Arguments for parallel analysis
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -37,6 +37,9 @@ pub struct ParallelAnalyzeArgs {
     /// Each task should be a focused prompt describing what to analyze.
     /// Example: `["Analyze security changes in auth/", "Review performance in db/"]`
     pub tasks: Vec<String>,
+    /// Optional turn budget for each subagent. Defaults to the configured value.
+    #[serde(default)]
+    pub max_turns: Option<usize>,
 }
 
 /// Result from a single subagent analysis
@@ -181,7 +184,7 @@ impl SubagentRunner {
         }
     }
 
-    async fn run_task(&self, task: &str) -> SubagentResult {
+    async fn run_task(&self, task: &str, max_turns: usize) -> SubagentResult {
         let preamble = "You are a specialized analysis sub-agent. Complete the assigned \
             task thoroughly and return a focused summary.\n\n\
             Guidelines:\n\
@@ -207,7 +210,7 @@ impl SubagentRunner {
                     CompletionProfile::Subagent,
                 );
                 let agent = crate::attach_core_tools!(builder).build();
-                agent.prompt(task).max_turns(SUBAGENT_MAX_TURNS).await
+                agent.prompt(task).max_turns(max_turns).await
             }
             Self::Anthropic {
                 client,
@@ -224,7 +227,7 @@ impl SubagentRunner {
                     CompletionProfile::Subagent,
                 );
                 let agent = crate::attach_core_tools!(builder).build();
-                agent.prompt(task).max_turns(SUBAGENT_MAX_TURNS).await
+                agent.prompt(task).max_turns(max_turns).await
             }
             Self::Gemini {
                 client,
@@ -241,7 +244,7 @@ impl SubagentRunner {
                     CompletionProfile::Subagent,
                 );
                 let agent = crate::attach_core_tools!(builder).build();
-                agent.prompt(task).max_turns(SUBAGENT_MAX_TURNS).await
+                agent.prompt(task).max_turns(max_turns).await
             }
         };
 
@@ -269,6 +272,8 @@ pub struct ParallelAnalyze {
     model: String,
     /// Timeout in seconds for each subagent task
     timeout_secs: u64,
+    /// Default turn budget for each subagent task
+    max_turns: usize,
 }
 
 impl ParallelAnalyze {
@@ -299,6 +304,30 @@ impl ParallelAnalyze {
         api_key: Option<&str>,
         additional_params: Option<HashMap<String, String>>,
     ) -> Result<Self> {
+        Self::with_limits(
+            provider,
+            model,
+            timeout_secs,
+            DEFAULT_SUBAGENT_MAX_TURNS,
+            api_key,
+            additional_params,
+        )
+    }
+
+    /// Create a new parallel analyzer with custom timeout and turn budget.
+    /// The turn budget is clamped to 1..=100.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the requested provider runner cannot be created.
+    pub fn with_limits(
+        provider: &str,
+        model: &str,
+        timeout_secs: u64,
+        max_turns: usize,
+        api_key: Option<&str>,
+        additional_params: Option<HashMap<String, String>>,
+    ) -> Result<Self> {
         let provider_name = provider_from_name(provider)?;
         // Create runner for the requested provider - no silent fallback
         // If the user configures Anthropic, they should get Anthropic or a clear error
@@ -320,6 +349,7 @@ impl ParallelAnalyze {
             runner,
             model: model.to_string(),
             timeout_secs,
+            max_turns: max_turns.clamp(1, 100),
         })
     }
 }
@@ -355,6 +385,12 @@ impl Tool for ParallelAnalyze {
                         "description": "List of analysis task prompts to run in parallel. Each task runs in its own subagent with independent context.",
                         "minItems": 1,
                         "maxItems": 10
+                    },
+                    "max_turns": {
+                        "type": "integer",
+                        "description": "Optional per-subagent turn budget. Increase for broad repository searches; lower it to cap cost or runaway tool loops.",
+                        "minimum": 1,
+                        "maximum": 100
                     }
                 },
                 "required": ["tasks"]
@@ -367,14 +403,15 @@ impl Tool for ParallelAnalyze {
         use std::time::Instant;
 
         let start = Instant::now();
+        let max_turns = args.max_turns.unwrap_or(self.max_turns).clamp(1, 100);
         let tasks = args.tasks;
         let num_tasks = tasks.len();
 
         agent_debug::debug_context_management(
             "ParallelAnalyze",
             &format!(
-                "Spawning {} subagents (fast model: {})",
-                num_tasks, self.model
+                "Spawning {} subagents (fast model: {}, max turns: {})",
+                num_tasks, self.model, max_turns
             ),
         );
 
@@ -390,10 +427,15 @@ impl Tool for ParallelAnalyze {
             let results = Arc::clone(&results);
             let task_timeout = timeout;
             let timeout_secs = self.timeout_secs;
+            let task_max_turns = max_turns;
 
             let handle = tokio::spawn(async move {
                 // Wrap task execution in timeout to prevent hanging
-                let result = match tokio::time::timeout(task_timeout, runner.run_task(&task)).await
+                let result = match tokio::time::timeout(
+                    task_timeout,
+                    runner.run_task(&task, task_max_turns),
+                )
+                .await
                 {
                     Ok(result) => result,
                     Err(_) => SubagentResult {
@@ -467,5 +509,6 @@ mod tests {
         let schema = schemars::schema_for!(ParallelAnalyzeArgs);
         let json = serde_json::to_string_pretty(&schema).expect("schema should serialize");
         assert!(json.contains("tasks"));
+        assert!(json.contains("max_turns"));
     }
 }

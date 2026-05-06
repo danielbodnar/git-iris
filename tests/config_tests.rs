@@ -180,6 +180,7 @@ fn test_project_config_only_serializes_changed_values() {
         instruction_preset: "conventional".to_string(), // Explicitly changed from default
         theme: String::new(),
         subagent_timeout_secs: 120,
+        subagent_max_turns: 20,
         temp_instructions: None,
         temp_preset: None,
         is_project_config: true,
@@ -210,6 +211,10 @@ fn test_project_config_only_serializes_changed_values() {
     assert!(
         !content.contains("subagent_timeout"),
         "subagent_timeout should NOT be serialized when default (120). Got:\n{content}"
+    );
+    assert!(
+        !content.contains("subagent_max_turns"),
+        "subagent_max_turns should NOT be serialized when default (20). Got:\n{content}"
     );
     assert!(
         !content.contains("instructions ="),
@@ -245,6 +250,7 @@ fn test_project_config_with_provider_only_serializes_set_fields() {
         instruction_preset: "default".to_string(), // default, should NOT serialize
         theme: String::new(),
         subagent_timeout_secs: 120,
+        subagent_max_turns: 20,
         temp_instructions: None,
         temp_preset: None,
         is_project_config: true,
@@ -291,6 +297,21 @@ fn test_project_config_with_provider_only_serializes_set_fields() {
     assert!(
         !content.contains("token_limit"),
         "None token_limit should NOT be serialized. Got:\n{content}"
+    );
+}
+
+#[test]
+fn test_subagent_max_turns_serializes_when_changed() {
+    let config = Config {
+        subagent_max_turns: 35,
+        ..Config::default()
+    };
+
+    let content = toml::to_string_pretty(&config).expect("Failed to serialize config");
+
+    assert!(
+        content.contains("subagent_max_turns = 35"),
+        "subagent_max_turns should serialize when non-default. Got:\n{content}"
     );
 }
 

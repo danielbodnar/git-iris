@@ -381,6 +381,10 @@ pub enum Commands {
             help = "Set timeout in seconds for parallel subagent tasks (default: 120)"
         )]
         subagent_timeout: Option<u64>,
+
+        /// Set turn budget for parallel subagent tasks
+        #[arg(long, help = "Set max turns for parallel subagent tasks (default: 20)")]
+        subagent_max_turns: Option<usize>,
     },
 
     /// Create or update a project-specific configuration file
@@ -416,6 +420,10 @@ pub enum Commands {
             help = "Set timeout in seconds for parallel subagent tasks (default: 120)"
         )]
         subagent_timeout: Option<u64>,
+
+        /// Set turn budget for parallel subagent tasks
+        #[arg(long, help = "Set max turns for parallel subagent tasks (default: 20)")]
+        subagent_max_turns: Option<usize>,
 
         /// Print the current project configuration
         #[arg(short, long, help = "Print the current project configuration")]
@@ -783,9 +791,10 @@ fn handle_config(
     token_limit: Option<usize>,
     param: Option<Vec<String>>,
     subagent_timeout: Option<u64>,
+    subagent_max_turns: Option<usize>,
 ) -> anyhow::Result<()> {
     log_debug!(
-        "Handling 'config' command with common: {:?}, api_key: {}, model: {:?}, token_limit: {:?}, param: {:?}, subagent_timeout: {:?}",
+        "Handling 'config' command with common: {:?}, api_key: {}, model: {:?}, token_limit: {:?}, param: {:?}, subagent_timeout: {:?}, subagent_max_turns: {:?}",
         common,
         if api_key.is_some() {
             "[REDACTED]"
@@ -795,7 +804,8 @@ fn handle_config(
         model,
         token_limit,
         param,
-        subagent_timeout
+        subagent_timeout,
+        subagent_max_turns
     );
     commands::handle_config_command(
         common,
@@ -805,6 +815,7 @@ fn handle_config(
         token_limit,
         param,
         subagent_timeout,
+        subagent_max_turns,
     )
 }
 
@@ -1192,6 +1203,7 @@ pub async fn handle_command(
             token_limit,
             param,
             subagent_timeout,
+            subagent_max_turns,
         } => handle_config(
             &common,
             api_key,
@@ -1200,6 +1212,7 @@ pub async fn handle_command(
             token_limit,
             param,
             subagent_timeout,
+            subagent_max_turns,
         ),
         Commands::Review {
             common,
@@ -1279,6 +1292,7 @@ pub async fn handle_command(
             token_limit,
             param,
             subagent_timeout,
+            subagent_max_turns,
             print,
         } => commands::handle_project_config_command(
             &common,
@@ -1287,6 +1301,7 @@ pub async fn handle_command(
             token_limit,
             param,
             subagent_timeout,
+            subagent_max_turns,
             print,
         ),
         Commands::ListPresets => commands::handle_list_presets_command(),

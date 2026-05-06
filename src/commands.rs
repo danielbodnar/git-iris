@@ -79,6 +79,7 @@ fn apply_config_changes(
     param: Option<Vec<String>>,
     api_key: Option<String>,
     subagent_timeout: Option<u64>,
+    subagent_max_turns: Option<usize>,
 ) -> anyhow::Result<bool> {
     let mut changes_made = false;
 
@@ -181,11 +182,17 @@ fn apply_config_changes(
         }
     }
 
-    // Apply subagent timeout
+    // Apply subagent limits
     if let Some(timeout) = subagent_timeout
         && config.subagent_timeout_secs != timeout
     {
         config.subagent_timeout_secs = timeout;
+        changes_made = true;
+    }
+    if let Some(max_turns) = subagent_max_turns
+        && config.subagent_max_turns != max_turns
+    {
+        config.subagent_max_turns = max_turns;
         changes_made = true;
     }
 
@@ -206,9 +213,10 @@ pub fn handle_config_command(
     token_limit: Option<usize>,
     param: Option<Vec<String>>,
     subagent_timeout: Option<u64>,
+    subagent_max_turns: Option<usize>,
 ) -> anyhow::Result<()> {
     log_debug!(
-        "Starting 'config' command with common: {:?}, api_key: {}, model: {:?}, token_limit: {:?}, param: {:?}, subagent_timeout: {:?}",
+        "Starting 'config' command with common: {:?}, api_key: {}, model: {:?}, token_limit: {:?}, param: {:?}, subagent_timeout: {:?}, subagent_max_turns: {:?}",
         common,
         if api_key.is_some() {
             "[REDACTED]"
@@ -218,7 +226,8 @@ pub fn handle_config_command(
         model,
         token_limit,
         param,
-        subagent_timeout
+        subagent_timeout,
+        subagent_max_turns
     );
 
     let mut config = Config::load()?;
@@ -233,6 +242,7 @@ pub fn handle_config_command(
         param,
         api_key,
         subagent_timeout,
+        subagent_max_turns,
     )?;
 
     if changes_made {
@@ -300,15 +310,17 @@ pub fn handle_project_config_command(
     token_limit: Option<usize>,
     param: Option<Vec<String>>,
     subagent_timeout: Option<u64>,
+    subagent_max_turns: Option<usize>,
     print: bool,
 ) -> anyhow::Result<()> {
     log_debug!(
-        "Starting 'project-config' command with common: {:?}, model: {:?}, token_limit: {:?}, param: {:?}, subagent_timeout: {:?}, print: {}",
+        "Starting 'project-config' command with common: {:?}, model: {:?}, token_limit: {:?}, param: {:?}, subagent_timeout: {:?}, subagent_max_turns: {:?}, print: {}",
         common,
         model,
         token_limit,
         param,
         subagent_timeout,
+        subagent_max_turns,
         print
     );
 
@@ -327,6 +339,7 @@ pub fn handle_project_config_command(
         instruction_preset: String::new(),
         theme: String::new(),
         subagent_timeout_secs: 120,
+        subagent_max_turns: 20,
         temp_instructions: None,
         temp_preset: None,
         is_project_config: true,
@@ -347,7 +360,13 @@ pub fn handle_project_config_command(
     )?;
 
     // Apply common settings
-    apply_common_settings(&mut config, common, subagent_timeout, &mut changes_made)?;
+    apply_common_settings(
+        &mut config,
+        common,
+        subagent_timeout,
+        subagent_max_turns,
+        &mut changes_made,
+    )?;
 
     // Display result
     display_project_config_result(&config, changes_made, &provider_name)?;
@@ -446,6 +465,7 @@ fn apply_common_settings(
     config: &mut Config,
     common: &CommonParams,
     subagent_timeout: Option<u64>,
+    subagent_max_turns: Option<usize>,
     changes_made: &mut bool,
 ) -> anyhow::Result<()> {
     if let Some(use_gitmoji) = common.resolved_gitmoji()
@@ -478,6 +498,12 @@ fn apply_common_settings(
         && config.subagent_timeout_secs != timeout
     {
         config.subagent_timeout_secs = timeout;
+        *changes_made = true;
+    }
+    if let Some(max_turns) = subagent_max_turns
+        && config.subagent_max_turns != max_turns
+    {
+        config.subagent_max_turns = max_turns;
         *changes_made = true;
     }
 
@@ -523,6 +549,7 @@ fn display_project_config_result(
 }
 
 /// Display the configuration with `SilkCircuit` styling
+#[allow(clippy::too_many_lines)]
 fn print_configuration(config: &Config) {
     let purple = colors::accent_primary();
     let cyan = colors::accent_secondary();
@@ -564,6 +591,12 @@ fn print_configuration(config: &Config) {
     print_config_row(
         "Timeout",
         &format!("{}s", config.subagent_timeout_secs),
+        dim,
+        false,
+    );
+    print_config_row(
+        "Subagent Max Turns",
+        &config.subagent_max_turns.to_string(),
         dim,
         false,
     );

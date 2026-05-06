@@ -45,6 +45,12 @@ pub struct Config {
         skip_serializing_if = "is_default_subagent_timeout"
     )]
     pub subagent_timeout_secs: u64,
+    /// Turn budget for parallel subagent tasks (default: 20)
+    #[serde(
+        default = "default_subagent_max_turns",
+        skip_serializing_if = "is_default_subagent_max_turns"
+    )]
+    pub subagent_max_turns: usize,
     /// Runtime-only: temporary instructions override
     #[serde(skip)]
     pub temp_instructions: Option<String>,
@@ -85,6 +91,15 @@ fn is_default_subagent_timeout(val: &u64) -> bool {
     *val == 120
 }
 
+fn default_subagent_max_turns() -> usize {
+    20
+}
+
+#[allow(clippy::trivially_copy_pass_by_ref)]
+fn is_default_subagent_max_turns(val: &usize) -> bool {
+    *val == 20
+}
+
 impl Default for Config {
     fn default() -> Self {
         let mut providers = HashMap::new();
@@ -103,6 +118,7 @@ impl Default for Config {
             instruction_preset: default_preset(),
             theme: String::new(),
             subagent_timeout_secs: default_subagent_timeout(),
+            subagent_max_turns: default_subagent_max_turns(),
             temp_instructions: None,
             temp_preset: None,
             is_project_config: false,
@@ -236,6 +252,9 @@ impl Config {
         if project_config.subagent_timeout_secs != default_subagent_timeout() {
             self.subagent_timeout_secs = project_config.subagent_timeout_secs;
         }
+        if project_config.subagent_max_turns != default_subagent_max_turns() {
+            self.subagent_max_turns = project_config.subagent_max_turns;
+        }
     }
 
     fn merge_loaded_project_config(&mut self, project_config: Self, project_source: &toml::Value) {
@@ -260,6 +279,9 @@ impl Config {
         }
         if Self::project_config_has_key(project_source, "subagent_timeout_secs") {
             self.subagent_timeout_secs = project_config.subagent_timeout_secs;
+        }
+        if Self::project_config_has_key(project_source, "subagent_max_turns") {
+            self.subagent_max_turns = project_config.subagent_max_turns;
         }
     }
 
