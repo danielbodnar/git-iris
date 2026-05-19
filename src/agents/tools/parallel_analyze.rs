@@ -21,7 +21,8 @@ use tokio::sync::Mutex;
 
 use crate::agents::debug as agent_debug;
 use crate::agents::provider::{
-    CompletionProfile, apply_completion_params, provider_from_name, resolve_api_key,
+    CompletionProfile, anthropic_agent_builder, apply_completion_params, provider_from_name,
+    resolve_api_key,
 };
 use crate::providers::Provider;
 
@@ -212,7 +213,7 @@ impl SubagentRunner {
                 model,
                 additional_params,
             } => {
-                let builder = client.agent(model).preamble(preamble);
+                let builder = anthropic_agent_builder(client, model).preamble(preamble);
                 let builder = apply_completion_params(
                     builder,
                     Provider::Anthropic,

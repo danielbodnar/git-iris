@@ -191,7 +191,19 @@ pub fn openai_builder(model: &str, api_key: Option<&str>) -> Result<OpenAIBuilde
     Ok(client.completions_api().agent(model))
 }
 
-/// Create an Anthropic agent builder
+/// Wrap an existing Anthropic client into an agent builder with prompt caching.
+///
+/// Enables Anthropic's automatic prompt caching: a top-level `cache_control`
+/// breakpoint that the API places on the last cacheable block and advances as
+/// the conversation grows. On Iris's multi-turn tool loops, where every turn
+/// otherwise re-sends the whole transcript at full input price, cached turns
+/// are billed at a fraction of that cost. Caching is unconditional: prompts
+/// below the model's cacheable minimum are simply not cached by the API.
+pub fn anthropic_agent_builder(client: &anthropic::Client, model: &str) -> AnthropicBuilder {
+    AgentBuilder::new(client.completion_model(model).with_automatic_caching())
+}
+
+/// Create an Anthropic agent builder with prompt caching enabled.
 ///
 /// # Arguments
 /// * `model` - The model name to use
@@ -218,7 +230,7 @@ pub fn anthropic_builder(model: &str, api_key: Option<&str>) -> Result<Anthropic
         None => anthropic::Client::from_env()
             .map_err(|_| anyhow::anyhow!("Failed to create Anthropic client from environment"))?,
     };
-    Ok(client.agent(model))
+    Ok(anthropic_agent_builder(&client, model))
 }
 
 /// Create a Gemini agent builder

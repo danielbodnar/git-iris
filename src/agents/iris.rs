@@ -766,8 +766,12 @@ Guidelines:
         debug::debug_context_management(
             "Token usage",
             &format!(
-                "input: {} | output: {} | total: {}",
-                usage.input_tokens, usage.output_tokens, usage.total_tokens
+                "input: {} | output: {} | total: {} | cache write: {} | cache read: {}",
+                usage.input_tokens,
+                usage.output_tokens,
+                usage.total_tokens,
+                usage.cache_creation_input_tokens,
+                usage.cached_input_tokens,
             ),
         );
 
