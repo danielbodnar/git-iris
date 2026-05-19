@@ -17,6 +17,26 @@ Available on all commands:
 | `--theme <NAME>`    |       | Override theme for this session                      |
 | `--help`            | `-h`  | Show help information                                |
 
+## Shared Flags (CommonParams)
+
+Every feature command (`gen`, `review`, `pr`, `changelog`, `release-notes`) accepts the same set of LLM/repository flags, in addition to the command-specific ones documented below:
+
+| Flag                    | Short | Description                                                       |
+| ----------------------- | ----- | ----------------------------------------------------------------- |
+| `--provider <NAME>`     |       | Override default provider for this invocation                     |
+| `--model <NAME>`        |       | Override model for this invocation                                |
+| `--instructions <TEXT>` | `-i`  | Custom instructions                                               |
+| `--preset <NAME>`       |       | Instruction preset name (see `git-iris list-presets`)             |
+| `--gitmoji`             |       | Enable gitmoji for this invocation (mutually exclusive)           |
+| `--no-gitmoji`          |       | Disable gitmoji for this invocation (mutually exclusive)          |
+| `--critic`              |       | Enable the critic verification pass (default: on)                 |
+| `--no-critic`           |       | Disable the critic verification pass (mutually exclusive)         |
+| `--repo <URL>`          | `-r`  | Operate on a remote repository URL instead of the local checkout  |
+
+These are surfaced again in each command's Options table only when behavior is unusual; otherwise assume the full set is available.
+
+> **About the critic:** when enabled, Iris runs a verification + revision pass after the initial generation, catching factual errors and tightening the output before it's returned. It costs a second model call but materially improves quality. Disable with `--no-critic` when latency matters more than polish.
+
 ## Commands
 
 ### `gen` - Generate Commit Messages
@@ -41,6 +61,7 @@ Generate AI-powered commit messages for staged changes.
 | `--instructions <TEXT>` | `-i`  | Custom instructions                           |
 | `--preset <NAME>`       |       | Instruction preset name                       |
 | `--gitmoji`             |       | Enable gitmoji for this invocation            |
+| `--critic`              |       | Enable critic verification (default: on)      |
 | `--no-critic`           |       | Disable critic verification for this run      |
 
 **Examples:**
@@ -79,6 +100,8 @@ Launch unified TUI for all operations.
 | `--mode <MODE>` | Initial mode: `explore`, `commit`, `review`, `pr`, `changelog`, `release-notes` |
 | `--from <REF>`  | Starting ref for comparison                                                     |
 | `--to <REF>`    | Ending ref for comparison                                                       |
+
+Unknown `--mode` values print a warning and fall back to auto-detect rather than erroring out.
 
 **Examples:**
 
@@ -120,7 +143,12 @@ Generate multi-dimensional code reviews with AI.
 | `--pr <NUMBER>`                 |       | Target a specific GitHub pull request number               |
 | `--github-inline-comments`      |       | Add validated inline comments for findings in the PR diff  |
 | `--github-review-event <EVENT>` |       | `comment` (default), `request-changes`, or `approve`       |
+| `--critic`                      |       | Enable critic verification (default: on)                   |
 | `--no-critic`                   |       | Disable critic verification for this run                   |
+
+Plus all [shared flags](#shared-flags-commonparams) — `--provider`, `--model`, `--instructions/-i`, `--preset`, `--gitmoji`/`--no-gitmoji`, `--repo/-r`.
+
+When `--github-review` is set, validated structured findings (with file/line locations) publish as inline review comments in the target PR; `--github-inline-comments` also opens individual line threads for each finding.
 
 **Examples:**
 
@@ -170,7 +198,10 @@ Generate pull request descriptions.
 | `--to <REF>`    |       | Target ref (default: `HEAD`)                                                                        |
 | `--update`      |       | Update the GitHub PR body (revises existing text, adapts to PR templates). Alias: `--github-update` |
 | `--pr <NUMBER>` |       | Target a specific GitHub pull request number when updating                                          |
-| `--no-critic`   |       | Disable critic verification for this run                                                           |
+| `--critic`      |       | Enable critic verification (default: on)                                                            |
+| `--no-critic`   |       | Disable critic verification for this run                                                            |
+
+Plus all [shared flags](#shared-flags-commonparams) — `--provider`, `--model`, `--instructions/-i`, `--preset`, `--gitmoji`/`--no-gitmoji`, `--repo/-r`.
 
 **Examples:**
 
@@ -217,7 +248,10 @@ Generate changelog between Git references.
 | `--update`              | No       | Update CHANGELOG.md file                      |
 | `--file <PATH>`         | No       | Changelog file path (default: `CHANGELOG.md`) |
 | `--version-name <NAME>` | No       | Explicit version name                         |
+| `--critic`              | No       | Enable critic verification (default: on)      |
 | `--no-critic`           | No       | Disable critic verification for this run      |
+
+Plus all [shared flags](#shared-flags-commonparams) — `--provider`, `--model`, `--instructions/-i`, `--preset`, `--gitmoji`/`--no-gitmoji`, `--repo/-r`.
 
 **Examples:**
 
@@ -255,7 +289,10 @@ Generate detailed release notes.
 | `--update`              | No       | Update the release notes file      |
 | `--file <PATH>`         | No       | Release notes file path            |
 | `--version-name <NAME>` | No       | Explicit version name              |
+| `--critic`              | No       | Enable critic verification (default: on) |
 | `--no-critic`           | No       | Disable critic verification for this run |
+
+Plus all [shared flags](#shared-flags-commonparams) — `--provider`, `--model`, `--instructions/-i`, `--preset`, `--gitmoji`/`--no-gitmoji`, `--repo/-r`.
 
 **Examples:**
 
@@ -299,8 +336,8 @@ Configure global Git-Iris settings.
 | `--fast-model <NAME>`          | Set fast model                |
 | `--token-limit <NUM>`          | Set token limit               |
 | `--param <KEY=VALUE>`          | Set additional parameters     |
-| `--subagent-timeout <SECONDS>` | Set parallel subagent timeout |
-| `--subagent-max-turns <NUM>`   | Set subagent turn budget      |
+| `--subagent-timeout <SECONDS>` | Set parallel subagent timeout (default: `120`) |
+| `--subagent-max-turns <NUM>`   | Set subagent turn budget (default: `20`)       |
 
 **Examples:**
 
@@ -347,8 +384,8 @@ Manage project-specific `.irisconfig` file.
 | `--fast-model <NAME>`          |       | Set project fast model        |
 | `--token-limit <NUM>`          |       | Set project token limit       |
 | `--param <KEY=VALUE>`          |       | Set project parameters        |
-| `--subagent-timeout <SECONDS>` |       | Set parallel subagent timeout |
-| `--subagent-max-turns <NUM>`   |       | Set subagent turn budget      |
+| `--subagent-timeout <SECONDS>` |       | Set parallel subagent timeout (default: `120`) |
+| `--subagent-max-turns <NUM>`   |       | Set subagent turn budget (default: `20`)       |
 | `--print`                      | `-p`  | Print current project config  |
 
 **Examples:**
@@ -511,6 +548,8 @@ git-iris gen --log --log-file my-debug.log
 # Color-coded agent debug
 git-iris gen --debug
 ```
+
+`--debug` surfaces every tool call Iris makes, including the newer code-archaeology helpers — `git_blame`, `git_show`, `repo_map`, and `static_analysis` — alongside the long-standing `git_diff`, `file_read`, `code_search`, `workspace`, `project_docs`, and `parallel_analyze` tools.
 
 ### Test Configuration
 

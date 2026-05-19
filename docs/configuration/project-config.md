@@ -116,13 +116,16 @@ model = "claude-opus-4-6"
 
 ## Supported Project Settings
 
-| Setting              | Type    | Description                 |
-| -------------------- | ------- | --------------------------- |
-| `use_gitmoji`        | Boolean | Enable/disable gitmoji      |
-| `default_provider`   | String  | Team's preferred provider   |
-| `instruction_preset` | String  | Shared instruction preset   |
-| `instructions`       | String  | Custom project instructions |
-| `theme`              | String  | Team's preferred theme      |
+| Setting                 | Type    | Description                                       |
+| ----------------------- | ------- | ------------------------------------------------- |
+| `use_gitmoji`           | Boolean | Enable/disable gitmoji                            |
+| `default_provider`      | String  | Team's preferred provider                         |
+| `instruction_preset`    | String  | Shared instruction preset                         |
+| `instructions`          | String  | Custom project instructions                       |
+| `theme`                 | String  | Team's preferred theme                            |
+| `critic_enabled`        | Boolean | Run critic verification pass after generation     |
+| `subagent_timeout_secs` | Integer | Timeout in seconds for parallel subagent tasks    |
+| `subagent_max_turns`    | Integer | Per-subagent turn budget for `parallel_analyze`   |
 
 ### Provider Settings (per provider)
 

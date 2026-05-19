@@ -166,7 +166,7 @@ pub use feature_summary::FeatureSummary;
 
 ### Step 3: Register in StructuredResponse
 
-Edit `src/agents/iris.rs`:
+Edit `src/agents/iris.rs`. The shipped variants today are `CommitMessage`, `PullRequest`, `Changelog`, `ReleaseNotes`, `Review`, `SemanticBlame`, and `PlainText` — note that the review arm is named `Review`, not `MarkdownReview`, and wraps `crate::types::Review` (a structured type, not a markdown wrapper):
 
 ```rust
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -175,7 +175,9 @@ pub enum StructuredResponse {
     PullRequest(crate::types::MarkdownPullRequest),
     Changelog(crate::types::MarkdownChangelog),
     ReleaseNotes(crate::types::MarkdownReleaseNotes),
-    MarkdownReview(crate::types::MarkdownReview),
+    /// Structured code review with parseable findings
+    Review(crate::types::Review),
+    /// Semantic blame explanation (plain text)
     SemanticBlame(String),
     PlainText(String),
     // Add your new type:
@@ -194,9 +196,11 @@ impl fmt::Display for StructuredResponse {
 }
 ```
 
+Also extend `serialize_artifact_for_critic` if the critic should be able to inspect your new variant — see [Critic Verification](#critic-verification-internal-output-types) below.
+
 ### Step 4: Load the Capability
 
-Add the embedded TOML constant in `src/agents/iris.rs`:
+Add the embedded TOML constant in `src/agents/iris.rs` alongside the existing ones:
 
 ```rust
 const CAPABILITY_COMMIT: &str = include_str!("capabilities/commit.toml");
@@ -205,28 +209,68 @@ const CAPABILITY_PR: &str = include_str!("capabilities/pr.toml");
 const CAPABILITY_FEATURE_SUMMARY: &str = include_str!("capabilities/feature_summary.toml");
 ```
 
-Register in the capability map (find the capability loading code):
+Then register the new capability inside `load_capability_config()`. The loader uses a plain `match` against the capability name, not a HashMap insertion:
 
 ```rust
-capabilities.insert("feature_summary", CAPABILITY_FEATURE_SUMMARY);
+let content = match capability {
+    "commit" => CAPABILITY_COMMIT,
+    "pr" => CAPABILITY_PR,
+    "review" => CAPABILITY_REVIEW,
+    "changelog" => CAPABILITY_CHANGELOG,
+    "release_notes" => CAPABILITY_RELEASE_NOTES,
+    "chat" => CAPABILITY_CHAT,
+    "semantic_blame" => CAPABILITY_SEMANTIC_BLAME,
+    "feature_summary" => CAPABILITY_FEATURE_SUMMARY,  // Add your arm
+    _ => {
+        // Unknown capabilities fall back to a generic prompt + PlainText output type
+        return Ok((
+            format!(
+                "You are helping with a {capability} task. Use the available Git tools to assist the user."
+            ),
+            "PlainText".to_string(),
+        ));
+    }
+};
 ```
 
 ### Step 5: Add Execution Logic
 
-In `src/agents/iris.rs`, find the `execute_task` method and add a match arm:
+Iris dispatches on the capability's declared `output_type` (the string in the TOML), not on the capability name. Find `execute_output_type(&self, output_type: &str, system_prompt: &str, user_prompt: &str)` in `src/agents/iris.rs` and add a match arm. It delegates the schema-driven call to the internal `execute_with_agent::<T>()` helper:
 
 ```rust
-match capability.output_type.as_str() {
-    "GeneratedMessage" => {
-        let response: GeneratedMessage = self.execute_with_schema(prompt).await?;
-        Ok(StructuredResponse::CommitMessage(response))
+async fn execute_output_type(
+    &self,
+    output_type: &str,
+    system_prompt: &str,
+    user_prompt: &str,
+) -> Result<StructuredResponse> {
+    match output_type {
+        "GeneratedMessage" => {
+            let response = self
+                .execute_with_agent::<crate::types::GeneratedMessage>(
+                    system_prompt,
+                    user_prompt,
+                )
+                .await?;
+            Ok(StructuredResponse::CommitMessage(response))
+        }
+        // ... existing arms (MarkdownPullRequest, MarkdownChangelog, MarkdownReleaseNotes, Review, SemanticBlame) ...
+        "FeatureSummary" => {
+            let response = self
+                .execute_with_agent::<crate::types::FeatureSummary>(
+                    system_prompt,
+                    user_prompt,
+                )
+                .await?;
+            Ok(StructuredResponse::FeatureSummary(response))
+        }
+        _ => {
+            let agent = self.build_agent()?;
+            let full_prompt = format!("{system_prompt}\n\n{user_prompt}");
+            let response = agent.prompt_multi_turn(&full_prompt, 50).await?;
+            Ok(StructuredResponse::PlainText(response))
+        }
     }
-    // ... existing arms ...
-    "FeatureSummary" => {
-        let response: FeatureSummary = self.execute_with_schema(prompt).await?;
-        Ok(StructuredResponse::FeatureSummary(response))
-    }
-    _ => Err(anyhow::anyhow!("Unknown output type: {}", capability.output_type)),
 }
 ```
 
@@ -234,13 +278,13 @@ match capability.output_type.as_str() {
 
 ```bash
 # Build
-cargo build
+just build
 
 # Test in CLI (you may need to add a CLI command for your capability)
-cargo run -- feature-summary main..feature-branch
+just run -- feature-summary main..feature-branch
 
 # Or test in Studio (if you add a mode for it)
-cargo run -- studio
+just studio
 ```
 
 ## Best Practices
@@ -384,6 +428,26 @@ Allow preset-based customization:
 If STYLE INSTRUCTIONS are provided, prioritize that style in your output.
 The structural requirements still apply, but adapt tone and word choice.
 ```
+
+## Critic Verification (Internal Output Types)
+
+Not every `output_type` corresponds to a user-facing `StructuredResponse` variant. The shipped `verify` capability (`src/agents/capabilities/verify.toml`) returns a `Critique` value that is consumed entirely inside `iris.rs`:
+
+- `should_run_critic(capability, output_type)` decides whether the critic should run for `(commit, GeneratedMessage)`, `(review, Review)`, `(pr, MarkdownPullRequest)`, `(changelog, MarkdownChangelog)`, or `(release_notes, MarkdownReleaseNotes)`.
+- `verify_response_if_enabled()` loads the `verify` capability, runs `execute_with_agent::<Critique>()`, and either accepts the response or re-runs `execute_output_type()` with a revision prompt.
+- `Critique` is a private internal type — it is never serialized into `StructuredResponse`.
+
+Use this pattern when you want a capability that audits or post-processes another capability's artifact without surfacing its raw output to the user. Add the capability TOML, wire it into `load_capability_config()`, but call it explicitly from another method rather than threading it through `execute_output_type()`.
+
+## Chat and Content Updates
+
+The `chat` capability (`src/agents/capabilities/chat.toml`) is the conversational entry point users open with `/` in Studio. It does not return a `StructuredResponse` variant — instead, Iris mutates the active mode's artifact through dedicated tools defined in `src/agents/tools/content_update.rs`:
+
+- `update_commit(emoji, title, message)` — rewrites the commit message
+- `update_pr(content)` — rewrites the PR description
+- `update_review(content)` — rewrites the review
+
+Each tool ships a `ContentUpdate` value over an `mpsc::Sender<ContentUpdate>` that the Studio app drains on its event loop, applying the change to the relevant `*State` struct. When you want chat to manipulate a new artifact type, add a corresponding `Update<X>Tool` next to the existing trio, extend the `ContentUpdate` enum with the new variant, and handle the new variant in the Studio receiver. The chat capability's TOML lists these tools so the LLM knows when to invoke them.
 
 ## Integration with Studio
 

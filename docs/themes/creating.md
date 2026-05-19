@@ -6,7 +6,12 @@ This guide walks you through creating custom themes for Git-Iris, from basic col
 
 ### 1. Create Your Theme File
 
-Themes are stored in `~/.config/git-iris/themes/` as TOML files:
+Git-Iris uses the [opaline](https://crates.io/crates/opaline) theme engine and scans two user directories for themes:
+
+- `~/.config/opaline/themes/` — shared with any other opaline-powered app
+- `~/.config/git-iris/themes/` — git-iris-specific
+
+When the same theme id appears in both directories, the **later directory wins** (git-iris-specific overrides the shared opaline directory). File-backed themes always override builtins of the same id.
 
 ```bash
 mkdir -p ~/.config/git-iris/themes
@@ -26,15 +31,15 @@ version = "1.0"
 description = "A brief description of your theme"
 ```
 
-**Required fields:**
+**Fields:**
 
-- `name` — Display name shown in theme selector
-- All other fields are optional but recommended
+- `name` — Display name shown in the theme selector (effectively required — opaline parses without it but the selector will show an empty string)
+- `author`, `version`, `description` — Optional metadata
+- `variant` — `dark` (default) or `light`
 
-**Variant:**
-
-- `dark` — Dark background theme (default)
-- `light` — Light background theme
+::: warning Unknown keys are rejected
+opaline parses theme TOML with `#[serde(deny_unknown_fields)]` on `[meta]`, on each `[styles.*]` entry, and at the top level. A misspelled key or an unrecognized property anywhere in your file causes a hard parse error at load time. Stick to the documented fields.
+:::
 
 ### 3. Define Your Palette
 
@@ -58,7 +63,7 @@ text_dim = "#666699"
 
 **Color formats:**
 
-- Hex RGB: `"#ff00ff"` or `"#f0f"`
+- Hex RGB: `"#ff00ff"` (must be the full 7-character `#rrggbb` form — opaline does not accept 3-digit shorthand)
 - Lowercase recommended for consistency
 
 **Naming conventions:**
@@ -90,29 +95,37 @@ Tokens map palette colors to semantic meanings:
 "git.modified" = "#f1fa8c"
 ```
 
-**Token types:**
+**Token value formats:**
 
 - Palette references: `"primary"` → looks up `[palette]` key
+- Token-to-token references: `"accent.primary"` → resolves through another token (cycles are detected and reported)
 - Direct hex colors: `"#ff00ff"` → inline color definition
-- Token references: See [Token Reference](./tokens.md) for complete list
+
+You only have to define the tokens you care about. opaline performs no required-token validation: any token a UI element asks for that isn't defined falls back silently to `OpalineColor::FALLBACK` (a neutral gray). Missing styles return `OpalineStyle::default()`. See the [Token Reference](./tokens.md) for the full 26-token contract and the optional git-iris extras.
 
 ### 5. Add Your Theme
 
 Once saved, your theme is automatically available:
 
 ```bash
-# List themes (yours will appear)
+# List themes (yours will appear alongside builtins)
 git-iris themes
 
 # Preview in Studio
 git-iris studio --theme my-theme
-
-# Set persistently in config.toml: theme = "my-theme"
 ```
+
+To set a theme persistently, edit `~/.config/git-iris/config.toml`:
+
+```toml
+theme = "my-theme"
+```
+
+Leaving `theme = ""` keeps the default (`silkcircuit-neon`). You can override the choice per-project by placing the same field in a `.irisconfig` file at the repo root.
 
 ## Complete Theme Template
 
-Here's a minimal but complete theme template:
+Here's a complete theme template that covers opaline's 26-token contract and the optional git-iris overrides. You can omit any token — missing tokens fall back to gray, but covering the full set produces a polished UI everywhere.
 
 ```toml
 [meta]
@@ -145,7 +158,7 @@ text_secondary = "#cbd5e1"
 text_muted = "#94a3b8"
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Tokens — Semantic color assignments
+# Tokens — opaline's 26-token contract
 # ═══════════════════════════════════════════════════════════════════════════════
 
 [tokens]
@@ -160,8 +173,6 @@ text_muted = "#94a3b8"
 "bg.panel" = "bg_panel"
 "bg.code" = "bg_code"
 "bg.highlight" = "bg_highlight"
-"bg.elevated" = "bg_highlight"
-"bg.active" = "bg_highlight"
 "bg.selection" = "bg_highlight"
 
 # Accent colors
@@ -170,31 +181,17 @@ text_muted = "#94a3b8"
 "accent.tertiary" = "pink"
 "accent.deep" = "purple"
 
-# Semantic colors
+# Semantic status
 success = "green"
 error = "red"
 warning = "yellow"
 info = "cyan"
 
-# Git status
-"git.staged" = "green"
-"git.modified" = "yellow"
-"git.untracked" = "text_muted"
-"git.deleted" = "red"
-
-# Diff colors
-"diff.added" = "green"
-"diff.removed" = "red"
-"diff.hunk" = "cyan"
-"diff.context" = "text_muted"
-
-# UI elements
+# Borders
 "border.focused" = "cyan"
 "border.unfocused" = "text_muted"
 
 # Code syntax
-"code.hash" = "pink"
-"code.path" = "cyan"
 "code.keyword" = "purple"
 "code.function" = "cyan"
 "code.string" = "green"
@@ -203,14 +200,31 @@ info = "cyan"
 "code.type" = "yellow"
 "code.line_number" = "text_muted"
 
-# Mode tabs
+# ─────────────────────────────────────────────────────────────────────────────
+# Optional git-iris overrides — derived from the contract above if omitted
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Git status (default: success / warning / text.muted / error)
+"git.staged" = "green"
+"git.modified" = "yellow"
+"git.untracked" = "text_muted"
+"git.deleted" = "red"
+
+# Diff colors (default: success / error / info / text.dim)
+"diff.added" = "green"
+"diff.removed" = "red"
+"diff.hunk" = "cyan"
+"diff.context" = "text_muted"
+
+# Mode tabs (default: accent.primary / text.muted / accent.secondary)
 "mode.active" = "purple"
 "mode.inactive" = "text_muted"
 "mode.hover" = "cyan"
 
-# Chat
-"chat.user" = "cyan"
-"chat.iris" = "purple"
+# Commit hashes and file paths in CLI output
+# (default: accent.tertiary / accent.secondary)
+"code.hash" = "pink"
+"code.path" = "cyan"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Styles — Composed styles with modifiers (optional)
@@ -275,10 +289,19 @@ error_highlight = { fg = "error", bg = "bg.highlight", bold = true }
 
 **Available modifiers:**
 
+opaline supports all nine ratatui text modifiers as boolean style properties:
+
 - `bold` — Bold text
 - `italic` — Italic text
 - `underline` — Underlined text
 - `dim` — Dimmed/faint text
+- `slow_blink` — Slow blink (terminal-dependent)
+- `rapid_blink` — Rapid blink (terminal-dependent, often disabled)
+- `reversed` — Swap foreground and background
+- `hidden` — Hidden / invisible text (still occupies space)
+- `crossed_out` — Strikethrough
+
+Whether a modifier actually renders depends on your terminal emulator. Bold, italic, underline, and dim are widely supported; the blinks and crossed-out are not.
 
 ### Multi-Stop Gradients
 
@@ -389,10 +412,10 @@ Maintain visual hierarchy:
 
 ### Performance
 
-- Themes load instantly (compiled into binary)
-- No runtime performance impact
-- Feel free to define many palette colors
-- Gradients are computed on-demand
+- The 39 opaline builtin themes are `include_str!`'d at compile time and load with zero I/O
+- User themes in `~/.config/opaline/themes/` and `~/.config/git-iris/themes/` are read from disk at runtime, but only once per theme switch
+- Resolution runs once per load; access via `theme::current().color()` and `.style()` is a HashMap lookup
+- Gradients interpolate on-demand; pre-generate with `Gradient::generate(n)` if you call inside tight loops
 
 ## Testing Your Theme
 
@@ -416,26 +439,25 @@ Maintain visual hierarchy:
    - Empty states
    - Error messages
 
-### Validation
+### Load-Time Errors
 
-Git-Iris validates themes at load time:
+opaline doesn't enforce a required-token list — a theme with zero tokens loads without complaint and just renders everything in the fallback gray. The errors you will see come from genuinely malformed TOML:
 
-```bash
-# If invalid, you'll see helpful errors
-git-iris studio --theme my-broken-theme
-
-# Error: Theme validation failed
-#   Missing required token: "accent.primary"
-#   Invalid color reference: "nonexistent_color"
-#   Invalid hex color: "#gggggg"
+```
+TOML parse error in /path/to/theme.toml: ...
+invalid color for token 'accent.primary': invalid hex color length 4 (expected 7, e.g. #rrggbb)
+unresolved token 'accent.primary' references 'nonexistent_color'
+circular token reference 'a': a → b → a
+gradient must have at least one color stop
 ```
 
 **Common issues:**
 
-- Missing required tokens
-- Invalid color references
-- Malformed hex colors
-- Circular token references
+- Unknown keys (caught by `#[serde(deny_unknown_fields)]`)
+- Malformed hex colors (must be `#rrggbb`, exactly 7 chars)
+- References to palette names or tokens that don't exist
+- Cycles in token-to-token references
+- Empty gradient arrays
 
 ### Iterative Refinement
 
@@ -454,17 +476,16 @@ git-iris studio --theme my-broken-theme
 cat ~/.config/git-iris/themes/my-theme.toml
 ```
 
-### Contribute to Git-Iris
+### Contribute to opaline
 
-To add your theme to the builtin collection:
+Git-Iris doesn't carry its own theme builtin directory — the 39 builtin themes live in the [opaline](https://crates.io/crates/opaline) crate and are discovered automatically from `opaline-<version>/src/builtins/*.toml` at compile time. To get your theme into the builtin set:
 
-1. Create a pull request with your theme TOML
-2. Place it in `src/theme/builtins/`
-3. Update `src/theme/builtins/mod.rs`
-4. Add tests for color validation
-5. Include screenshots in the PR
+1. Open a pull request against the opaline repository
+2. Place the `.toml` file in `src/builtins/`
+3. opaline's build script auto-discovers the file — no manifest edit needed
+4. Include screenshots demonstrating the theme in real apps
 
-See the [Contributing Guide](/extending/contributing) for guidelines.
+If you just want to ship a theme for git-iris users without going through opaline, distribute it as a `.toml` file users can drop into `~/.config/git-iris/themes/`.
 
 ### Community Themes
 
@@ -564,9 +585,9 @@ git-iris studio --theme my-theme
 - Test in different terminals (iTerm2, Alacritty, WezTerm)
 - Verify hex colors are valid RGB
 
-### Missing Tokens Error
+### Tokens Showing as Gray
 
-See [Token Reference](./tokens.md) for the complete list of required tokens. All semantic tokens must be defined.
+A token that isn't defined resolves to `OpalineColor::FALLBACK` — a neutral gray. If you see unexpected gray patches, check the [Token Reference](./tokens.md) and add the missing tokens. opaline never errors on a missing token, so this is a silent issue you have to spot visually.
 
 ---
 

@@ -20,18 +20,23 @@ This creates a style named `keyword` that:
 
 ### Style Properties
 
-Every style supports these properties:
+Every style supports these properties. The four color/text basics plus opaline's complete set of nine ratatui text modifiers:
 
-| Property    | Type        | Description             | Example                      |
-| ----------- | ----------- | ----------------------- | ---------------------------- |
-| `fg`        | Token/Color | Foreground (text) color | `"accent.primary"`, `"#fff"` |
-| `bg`        | Token/Color | Background color        | `"bg.highlight"`, `"#000"`   |
-| `bold`      | Boolean     | Bold text               | `true`, `false`              |
-| `italic`    | Boolean     | Italic text             | `true`, `false`              |
-| `underline` | Boolean     | Underlined text         | `true`, `false`              |
-| `dim`       | Boolean     | Dimmed/faint text       | `true`, `false`              |
+| Property      | Type        | Description                                | Example                          |
+| ------------- | ----------- | ------------------------------------------ | -------------------------------- |
+| `fg`          | Token/Color | Foreground (text) color                    | `"accent.primary"`, `"#e135ff"`  |
+| `bg`          | Token/Color | Background color                           | `"bg.highlight"`, `"#181820"`    |
+| `bold`        | Boolean     | Bold text                                  | `true`, `false`                  |
+| `italic`      | Boolean     | Italic text                                | `true`, `false`                  |
+| `underline`   | Boolean     | Underlined text                            | `true`, `false`                  |
+| `dim`         | Boolean     | Dimmed/faint text                          | `true`, `false`                  |
+| `slow_blink`  | Boolean     | Slow blink (terminal-dependent)            | `true`, `false`                  |
+| `rapid_blink` | Boolean     | Rapid blink (terminal-dependent)           | `true`, `false`                  |
+| `reversed`    | Boolean     | Swap foreground and background             | `true`, `false`                  |
+| `hidden`      | Boolean     | Hidden / invisible text                    | `true`, `false`                  |
+| `crossed_out` | Boolean     | Strikethrough                              | `true`, `false`                  |
 
-All properties are optional—omitted properties remain unset.
+All properties are optional — omitted properties remain unset. Color references must be palette names, token names, or full `#rrggbb` hex literals (no 3-digit shorthand). Unknown properties cause a hard parse error because opaline applies `#[serde(deny_unknown_fields)]` to every style definition.
 
 ### Complete Style Examples
 
@@ -206,25 +211,23 @@ timestamp = { fg = "warning" }
 
 ## Style Usage in Code
 
-Styles are accessed via the theme API:
+Styles are accessed via the active theme. Conversion to ratatui types is done through the `From`/`Into` adapter that opaline provides — there is no `to_ratatui_style` helper or `to_ratatui()` method.
 
 ```rust
 use git_iris::theme;
+use ratatui::style::Style;
+use ratatui::text::Span;
 
 let theme = theme::current();
 
-// Get a style
-let keyword_style = theme.style("keyword");
+// Look up an OpalineStyle and convert via Into
+let keyword_style: Style = theme.style("keyword").into();
 
-// Convert to Ratatui style
-use git_iris::theme::adapters::ratatui::to_ratatui_style;
-let ratatui_style = to_ratatui_style(&keyword_style);
-
-// Render with Ratatui
-Span::styled("fn", ratatui_style)
+// Render with ratatui
+Span::styled("fn", keyword_style)
 ```
 
-Styles are automatically applied throughout the UI based on semantic context.
+opaline also implements `Styled` on `OpalineStyle`, so you can use ratatui's `Stylize` fluent API directly. Inside Studio, `src/studio/theme.rs` exposes helpers like `theme::keyword()` that hand you a ready-to-use `ratatui::style::Style`.
 
 ## Color Gradients
 
@@ -433,12 +436,14 @@ emphasized = { bold = true, italic = true }
 highlighted = { bg = "bg.highlight" }
 ```
 
-In code, merge styles:
+In code, merge two `OpalineStyle` values:
 
 ```rust
 let base = theme.style("base_text");
 let emphasis = theme.style("emphasized");
+// other style wins on colors where set; boolean modifiers are OR'd together
 let combined = base.merge(&emphasis);
+let ratatui_style: ratatui::style::Style = combined.into();
 ```
 
 ### Conditional Styling
@@ -454,14 +459,17 @@ selected = { fg = "accent.primary", bg = "bg.active", bold = true }
 
 ### Gradient-Based Styles
 
-Use gradient colors in styles:
+Use gradient colors to build a dynamic `OpalineStyle`:
 
 ```rust
+use opaline::OpalineStyle;
+use ratatui::style::Style;
+
 // Get color from gradient
 let color = theme.gradient("primary", 0.3);
 
-// Create dynamic style
-let style = ThemeStyle::fg(color).bold();
+// Build a style and convert to ratatui
+let style: Style = OpalineStyle::fg(color).bold().into();
 ```
 
 Useful for progress indicators that change color as they fill.
@@ -558,6 +566,21 @@ link = { underline = true }
 disabled = { dim = true }
 ```
 
+### Additional Modifiers
+
+opaline also exposes the remaining ratatui modifiers. They're less universally supported by terminal emulators, but the field is there if you want it:
+
+- `slow_blink` / `rapid_blink` — Blinking text. Often disabled by terminals and accessibility settings.
+- `reversed` — Swaps foreground and background. Useful for cursors and selection indicators.
+- `hidden` — Renders invisible characters that still take up space. Niche.
+- `crossed_out` — Strikethrough. Handy for marking removed items or deprecated APIs.
+
+```toml
+[styles]
+selection_cursor = { reversed = true }
+deprecated = { fg = "text.muted", crossed_out = true }
+```
+
 ### Combining Modifiers
 
 Multiple modifiers can be applied:
@@ -574,8 +597,9 @@ maximum_attention = { bold = true, italic = true, underline = true }
 
 ### Style Resolution
 
-- Styles are resolved once at theme load time
-- No runtime performance cost
+- Styles are resolved once at theme load time (palette → tokens → styles → gradients)
+- Builtin themes are `include_str!`'d at compile time; user themes in `~/.config/opaline/themes/` or `~/.config/git-iris/themes/` are read from disk at load
+- After resolution, lookups are just HashMap reads
 - Feel free to define many styles
 
 ### Gradient Computation
@@ -650,11 +674,14 @@ theme.style("keywrod")
 **Verify style exists:**
 
 ```rust
+use opaline::OpalineStyle;
+
 if theme.has_style("keyword") {
     let style = theme.style("keyword");
 } else {
-    // Fallback to default
-    let style = ThemeStyle::default();
+    // theme.style() already returns OpalineStyle::default() for missing names,
+    // so this branch is only needed when you want to distinguish "missing" from "empty"
+    let style = OpalineStyle::default();
 }
 ```
 

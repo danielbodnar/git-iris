@@ -57,7 +57,7 @@
 | <kbd>u</kbd>                   | Unstage selected file                           |
 | <kbd>a</kbd>                   | Stage all files                                 |
 | <kbd>Shift+U</kbd>             | Unstage all files                               |
-| <kbd>Shift+A</kbd>             | Toggle view (changed files ↔ all tracked files) |
+| <kbd>Shift+A</kbd>             | Toggle view (changed files ↔ all tracked files); in the message editor this same chord toggles **amend mode** instead — see below |
 | <kbd>g</kbd> / <kbd>Home</kbd> | Jump to first file                              |
 | <kbd>G</kbd> / <kbd>End</kbd>  | Jump to last file                               |
 
@@ -68,12 +68,13 @@
 | <kbd>e</kbd>                | Edit message (enter text editing mode) |
 | <kbd>r</kbd>                | Regenerate message with AI             |
 | <kbd>Shift+R</kbd>          | Reset to original generated message    |
+| <kbd>Shift+A</kbd>          | Toggle **amend mode**: replaces the previous commit instead of creating a new one. Iris loads the HEAD commit message as the starting point, the title shows `[AMEND]`, and pressing <kbd>Enter</kbd> dispatches `ExecuteAmend` rather than `ExecuteCommit` |
 | <kbd>i</kbd>                | Add custom instructions for generation |
 | <kbd>g</kbd>                | Open emoji selector                    |
 | <kbd>Shift+E</kbd>          | Quick toggle emoji (None ↔ Auto)       |
 | <kbd>p</kbd>                | Open preset selector (style templates) |
 | <kbd>y</kbd>                | Copy message to clipboard              |
-| <kbd>Enter</kbd>            | Execute commit                         |
+| <kbd>Enter</kbd>            | Execute commit (or amend, in amend mode) |
 | <kbd>←</kbd> / <kbd>→</kbd> | Navigate between message variants      |
 
 ### Diff View (Right Panel)
@@ -281,12 +282,21 @@ Press <kbd>Shift+U</kbd> to unstage everything.
 
 ### Toggle View
 
-Press <kbd>Shift+A</kbd> to toggle between:
+Press <kbd>Shift+A</kbd> while the **file tree** has focus to toggle between:
 
 - **Changed files** (default): Only modified/staged/untracked
 - **All tracked files**: Entire repository tree
 
 Useful when you want to see unchanged files for context.
+
+### Amend Mode
+
+Press <kbd>Shift+A</kbd> while the **message editor** has focus to enter amend mode. The chord is overloaded by panel:
+
+- In the file tree it toggles the all-files view (above).
+- In the message editor it flips `commit.amend_mode`, loads the HEAD commit message as the starting point, clears any generated variants, prefixes the title with `[AMEND]`, and rewires <kbd>Enter</kbd> to dispatch `SideEffect::ExecuteAmend` instead of `ExecuteCommit`.
+
+Toggle it again to return to a normal commit. Amend mode is the right choice for fixing a typo in the last commit, squashing a small follow-up, or rewriting the most recent message — anything that should rewrite history rather than add to it.
 
 ## Message Format
 

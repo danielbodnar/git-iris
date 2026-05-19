@@ -13,11 +13,12 @@
 
 ## Panel Layout
 
-| Panel      | Content                                   |
-| ---------- | ----------------------------------------- |
-| **Left**   | File tree with git status indicators      |
-| **Center** | Syntax-highlighted code with line numbers |
-| **Right**  | Blame analysis and commit history         |
+| Panel          | Content                                                                |
+| -------------- | ---------------------------------------------------------------------- |
+| **Left**       | File tree with git status indicators                                   |
+| **Center**     | Syntax-highlighted code with line numbers                              |
+| **Right**      | Commit log for the current file (toggle to global log with `L`), or semantic blame after you press `w` |
+| **Bottom Bar** | Companion status: branch, ahead/behind, staged/unstaged, session timer |
 
 ### Left Panel: File Tree
 
@@ -32,14 +33,25 @@
 - Line numbers
 - Current line indicator
 - Visual selection support
-- Optional heat map (change frequency)
 
-### Right Panel: Blame Analysis
+### Right Panel: File Log / Blame Analysis
 
-- Semantic "why" explanations (when requested)
-- Related commit history
-- Code evolution context
-- Empty until you ask "why?"
+The right panel has three states:
+
+1. **File log (default)** — git history for the file open in the code view. Each entry shows the commit hash, message, author, relative time, and `+/-` line stats.
+2. **Global commit log** — branch-wide commit log when there is no file selected, or when you press <kbd>L</kbd> to toggle to the global view. Press <kbd>L</kbd> again to return to per-file history.
+3. **Semantic blame** — replaces the log after you press <kbd>w</kbd> on a line (or selection) in the code view. Iris explains *why* the code exists, referencing the related commits.
+
+### Bottom Bar: Companion Status
+
+Explore mode renders a slim status line at the bottom of the screen, powered by the companion subsystem (`src/companion/`). It surfaces:
+
+- `⎇ branch` — current branch in Neon Cyan, bold
+- `↑N ↓M` — commits ahead/behind upstream
+- `●N ○M` — staged / unstaged file counts (or `clean`)
+- `◷ duration` — current Iris session length
+- A welcome message after branch switches (italicized in Electric Purple)
+- `[w] why [/] chat` — quick hint reminders
 
 ## Essential Keybindings
 
@@ -71,17 +83,22 @@
 | <kbd>w</kbd>                        | Ask "why does this code exist?" (semantic blame)     |
 | <kbd>y</kbd>                        | Copy current line (or selection if in visual mode)   |
 | <kbd>Shift+Y</kbd>                  | Copy entire file content                             |
-| <kbd>Shift+H</kbd>                  | Toggle heat map (shows change frequency)             |
+| <kbd>Shift+L</kbd> / <kbd>L</kbd>   | <kbd>Shift+L</kbd> is the global mode switcher (Changelog); within Explore, <kbd>L</kbd> toggles the right panel between per-file history and the global commit log |
 | <kbd>o</kbd>                        | Open in $EDITOR (shows command, doesn't suspend TUI) |
 
 ### Context Panel (Right Panel)
 
-| Key                                 | Action      |
-| ----------------------------------- | ----------- |
-| <kbd>j</kbd> / <kbd>↓</kbd>         | Scroll down |
-| <kbd>k</kbd> / <kbd>↑</kbd>         | Scroll up   |
-| <kbd>Ctrl+d</kbd> / <kbd>PgDn</kbd> | Page down   |
-| <kbd>Ctrl+u</kbd> / <kbd>PgUp</kbd> | Page up     |
+| Key                                 | Action                                                                       |
+| ----------------------------------- | ---------------------------------------------------------------------------- |
+| <kbd>j</kbd> / <kbd>↓</kbd>         | Select next commit in the log                                                |
+| <kbd>k</kbd> / <kbd>↑</kbd>         | Select previous commit in the log                                            |
+| <kbd>g</kbd> / <kbd>Home</kbd>      | Jump to most recent commit                                                   |
+| <kbd>G</kbd> / <kbd>End</kbd>       | Jump to oldest commit                                                        |
+| <kbd>Ctrl+d</kbd> / <kbd>PgDn</kbd> | Page down by ten commits                                                     |
+| <kbd>Ctrl+u</kbd> / <kbd>PgUp</kbd> | Page up by ten commits                                                       |
+| <kbd>L</kbd>                        | Toggle between per-file history and the global commit log                    |
+| <kbd>Enter</kbd>                    | Copy a ready-to-run `git show <hash>` command to the clipboard (scoped to the file when in per-file mode) |
+| <kbd>y</kbd>                        | Copy just the selected commit's short hash to the clipboard                  |
 
 ## Visual Selection Mode
 
@@ -170,33 +187,6 @@ Select multiple lines, then press <kbd>w</kbd>:
 
 Iris explains the **entire block** and how it evolved together.
 
-## Heat Map
-
-Press <kbd>Shift+H</kbd> to toggle the **change frequency heat map**:
-
-```rust
- 42  pub fn new() {               [████░░░░░░] 60% changed
- 43    Self {                     [██████████] 100% hotspot!
- 44      mode: EmojiMode::Auto,   [██████░░░░] 80%
- 45      editing: false,          [██░░░░░░░░] 30%
-```
-
-- **Dark/Empty**: Rarely changed
-- **Bright bars**: Frequently modified
-- **Red-ish hue**: Very hot (changed in many commits)
-
-### What Heat Map Shows
-
-- Lines that change frequently (potential code smells)
-- Stable areas (well-tested, trusted)
-- Recent churn (active development)
-
-Useful for:
-
-- Finding fragile code
-- Identifying core vs. peripheral logic
-- Spotting refactor candidates
-
 ## Clipboard Integration
 
 ### Copy Current Line
@@ -267,9 +257,9 @@ Colors follow the SilkCircuit Neon palette.
 **Goal**: See how the codebase uses Result types
 
 1. Navigate to `src/agents/iris.rs`
-2. Toggle heat map (<kbd>Shift+H</kbd>) to see active areas
-3. Navigate to hot spots (frequently changed lines)
-4. Press <kbd>w</kbd> on error handling code
+2. Press <kbd>Tab</kbd> to focus the right panel and scan the commit log for recent activity
+3. Press <kbd>Tab</kbd> back to the code view and jump to an error-handling block
+4. Press <kbd>w</kbd> on the code
 5. Iris explains: "Added to gracefully handle JSON parse errors from LLM"
 6. Copy pattern with <kbd>y</kbd> for reuse
 
@@ -320,12 +310,12 @@ Return to Explore mode → pick up where you left off.
 
 Don't just ask "why" about a single line. Select the entire function/struct/block for richer explanations.
 
-### 2. Heat Map + Blame Combo
+### 2. Commit Log + Blame Combo
 
-1. Toggle heat map (<kbd>Shift+H</kbd>)
-2. Navigate to hottest lines
-3. Press <kbd>w</kbd> to understand why they change often
-4. Consider refactoring high-churn areas
+1. Press <kbd>Tab</kbd> to focus the right panel
+2. Browse the file's commit log; press <kbd>L</kbd> to switch to the global log when you need branch-wide context
+3. Press <kbd>Enter</kbd> on an interesting commit to copy a `git show` command, or <kbd>y</kbd> to grab just the hash
+4. Press <kbd>Tab</kbd> back, position the cursor on a relevant line, and press <kbd>w</kbd> for semantic blame
 
 ### 3. Copy Before Switching Modes
 
@@ -358,6 +348,7 @@ Soon you'll be able to type in the file tree to filter:
 - **Edit files**: Read-only (use `$EDITOR` outside Studio)
 - **Show uncommitted changes**: Displays HEAD version (use Commit mode for diffs)
 - **Navigate by symbol**: No function/class jump (yet)
+- **Visualize change frequency**: There is an internal `Shift+H` toggle for a heat map, but the corresponding renderer has not been implemented yet — pressing it currently flips a flag with no visible effect
 
 ### Performance Notes
 
@@ -370,10 +361,6 @@ Soon you'll be able to type in the file tree to filter:
 ### "No file selected" when pressing `w`
 
 You're in the file tree panel. Press <kbd>Tab</kbd> to move to code view, then try again.
-
-### Heat map shows all zeros
-
-File hasn't been modified in tracked history. Try a file with recent commits.
 
 ### Semantic blame takes too long
 

@@ -38,11 +38,14 @@ git-iris gen [FLAGS] [OPTIONS]
 
 ### Global Options
 
-| Option              | Description                           |
-| ------------------- | ------------------------------------- |
-| `--provider <name>` | Override LLM provider                 |
-| `--debug`           | Show agent execution details          |
-| `--quiet`           | Suppress spinners and progress output |
+| Option                     | Description                                                        |
+| -------------------------- | ------------------------------------------------------------------ |
+| `--provider <name>`        | Override LLM provider                                              |
+| `--model <name>`           | Override model for this operation                                  |
+| `-r, --repo <url>`         | Run against a remote repository URL instead of the local repo      |
+| `--critic` / `--no-critic` | Run or skip the critic verification pass after generation (default: on) |
+| `--debug`                  | Show agent execution details                                       |
+| `--quiet`                  | Suppress spinners and progress output                              |
 
 ## Workflow Modes
 
@@ -57,7 +60,7 @@ git-iris gen
 - Edit generated message before committing
 - View diff alongside message
 - Chat with Iris to refine the message
-- Press `c` to commit or `q` to cancel
+- Press `Enter` to commit (or amend, if amend mode is active); `q` to cancel
 
 ### Auto-Commit Mode
 
@@ -91,10 +94,12 @@ Rewrite the most recent commit message using the currently staged changes:
 
 ```bash
 git add <newly fixed files>
-git-iris gen --amend
+git-iris gen --amend --auto-commit
+# or preview without rewriting history:
+git-iris gen --amend --print
 ```
 
-Combine with `--auto-commit` to amend non-interactively, or with `--print` to preview the new message without rewriting history.
+`--amend` currently requires `--auto-commit` or `--print`. Plain `git-iris gen --amend` (without one of those flags) prints a warning and exits — interactive Studio support for amend is coming later. Combine with `--auto-commit` to rewrite history in one step, or with `--print` to preview the new message first.
 
 ## Message Format
 
@@ -115,7 +120,7 @@ Implements secure token-based authentication using RS256 signing.
 Includes refresh token rotation and automatic expiry handling.
 ```
 
-Iris auto-detects whether a repository uses Conventional Commits by inspecting recent commit history; you can force a style with `--preset conventional` or `--preset gitmoji-lover` if detection picks the wrong one. When gitmoji is enabled and the title already starts with an emoji, Iris drops the duplicate so you get a single leading emoji rather than two stacked together.
+Iris auto-detects whether a repository uses Conventional Commits by inspecting recent commit history; you can force a style with `--preset conventional` if detection picks the wrong one. When gitmoji is enabled and the title already starts with an emoji, Iris drops the duplicate so you get a single leading emoji rather than two stacked together.
 
 ## Customizing Style
 
@@ -213,7 +218,7 @@ Iris respects your Git hooks:
 # Standard workflow
 git add .
 git-iris gen
-# Edit in Studio, then press 'c' to commit
+# Edit in Studio, then press Enter to commit
 
 # Quick auto-commit
 git add src/auth.rs

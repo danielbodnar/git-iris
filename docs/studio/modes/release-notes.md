@@ -111,7 +111,7 @@ code with vim-like hjkl keys.
 - **Emoji Selector**: Interactive modal with type-to-filter
 - **Preset System**: Choose commit message styles (concise, detailed, technical)
 - **Visual Selection**: Select multiple lines in Explore mode (vim-style `v`)
-- **Heat Map**: See which lines change most frequently
+- **Commit Log in Explore**: Browse per-file or global git history alongside the code, with `Enter` to copy a `git show` command
 
 ### Improvements
 
@@ -194,13 +194,13 @@ If you're upgrading from v1.0.x:
    ```
 
 4. **Verify emoji mode**:
-   - Open Settings (press `,` in Studio)
+   - Open Settings (press `Shift+S` in Studio)
    - Check "Emoji" field shows your preference
 
 ## Known Issues
 
-- Heat map may be slow on very large files (10,000+ lines)
-  [Workaround: Use Explore mode for smaller files]
+- Large files (10,000+ lines) may scroll slowly in the code view
+  [Workaround: prefer reviewing smaller files inside Studio]
 - Emoji selector doesn't filter by category yet
   [Planned for v1.2.0]
 
@@ -303,9 +303,11 @@ Follow development at https://github.com/user/git-iris
 
 ## Special Features
 
+> The behaviors below are **prompt suggestions**, not coded features. The release-notes output type is a thin markdown wrapper (`MarkdownReleaseNotes = { content: String }` in `src/types/release_notes.rs`), so the structure and content come entirely from the LLM following `src/agents/capabilities/release_notes.toml`. Treat the sections below as conventions Iris tries to follow — not deterministic features of the codebase.
+
 ### Highlights Extraction
 
-Iris identifies the **3-5 most impactful changes** and features them prominently:
+Iris is prompted to identify the **3-5 most impactful changes** and feature them prominently:
 
 - Major new features
 - Significant performance improvements
@@ -343,12 +345,14 @@ The `generate_commit` function now requires...
 
 ### Upgrade Instructions
 
-Iris generates step-by-step upgrade guidance:
+Iris is encouraged to generate step-by-step upgrade guidance when the diff looks like it warrants it:
 
 1. Backup steps
 2. Installation commands
 3. Migration procedures
 4. Verification steps
+
+If the model judges the change too small to need an upgrade guide, this section may be absent — ask in chat to add one when you want it.
 
 ### Visual Formatting
 
@@ -411,7 +415,7 @@ Iris: Updated:
 ```
 You: Add placeholders for screenshots
 
-Iris: Added visual preview section with emoji selector and heat map documentation.
+Iris: Added a visual preview section with emoji selector screenshots and commit-log walkthroughs.
 ```
 
 ## Tips & Tricks

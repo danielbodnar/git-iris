@@ -2,7 +2,7 @@
 
 **Electric meets elegant.**
 
-Git-Iris features the SilkCircuit design language—a token-based theme system that combines neon-bright colors with sophisticated dark palettes. Every color, gradient, and style is fully customizable through simple TOML files.
+Git-Iris ships with the SilkCircuit design language as its default look, layered on top of the [opaline](https://crates.io/crates/opaline) theme engine. Every color, gradient, and style is defined in TOML, so you can swap in any opaline-compatible theme or author your own without touching Rust.
 
 ## Philosophy
 
@@ -27,9 +27,11 @@ The original SilkCircuit Neon theme defines six core brand colors:
 | Success Green   | `#50fa7b` | `(80, 250, 123)`  | Success states, staged changes |
 | Error Red       | `#ff6363` | `(255, 99, 99)`   | Errors, danger, deleted files  |
 
-## Theme Variants
+## Theme Catalog
 
-Git-Iris ships with five carefully crafted theme variants:
+Git-Iris exposes **39 builtin themes** that ship inside opaline 0.4 — the five SilkCircuit variants plus a curated set of community classics (Dracula, Nord, Tokyo Night, Catppuccin, Gruvbox, Ayu, Rose Pine, Kanagawa, Everforest, Flexoki, GitHub, Monokai Pro, One Dark, One Light, Palenight, Solarized, Night Owl, Light Owl).
+
+The five SilkCircuit variants:
 
 | Theme                   | Variant | Description                               |
 | ----------------------- | ------- | ----------------------------------------- |
@@ -39,7 +41,7 @@ Git-Iris ships with five carefully crafted theme variants:
 | **SilkCircuit Vibrant** | Dark    | High saturation with rich purple tones    |
 | **SilkCircuit Dawn**    | Light   | Purple accents on soft lavender-white     |
 
-See the [Theme Gallery](./gallery.md) for visual previews and color comparisons.
+Run `git-iris themes` to list every builtin alongside any user themes you have installed. The Gallery has visual previews and a tour of the non-SilkCircuit families.
 
 ## Token-Based Architecture
 
@@ -141,15 +143,17 @@ The result is a unique visual identity that stands out in the crowded landscape 
 
 ## Technical Implementation
 
-The theme system is built on:
+The theme system is built on the [opaline](https://crates.io/crates/opaline) crate (v0.4):
 
 - **TOML configuration** — Simple, human-readable format
-- **Semantic tokens** — 50+ predefined tokens for UI consistency
-- **Color interpolation** — Smooth gradients with multiple stops
+- **26 named semantic tokens** — opaline's standard contract for text, backgrounds, accents, status colors, borders, and code syntax
+- **Color interpolation** — Smooth multi-stop gradients
 - **Runtime switching** — Change themes without restarting
-- **Fallback handling** — Graceful degradation for missing tokens
+- **Graceful fallbacks** — Missing tokens resolve to `OpalineColor::FALLBACK` (a neutral gray); missing styles return `OpalineStyle::default()`. There is no separate "validation" step
 
-All themes are validated at load time, ensuring you never encounter broken color references or missing tokens.
+Git-Iris layers a handful of extra runtime-registered tokens on top of opaline's contract (`git.*`, `diff.*`, `mode.*`, `code.hash`, `code.path`) so file-tree, diff, and tab styling have semantic names too. These are derived from opaline's standard tokens by default but theme TOMLs can override them.
+
+Theme files load from `~/.config/opaline/themes/` and `~/.config/git-iris/themes/`. The only load-time errors come from TOML parsing failures, invalid hex colors, unresolved or circular token references, and empty gradients.
 
 ---
 

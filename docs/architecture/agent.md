@@ -1,6 +1,6 @@
 # Iris Agent System
 
-The Iris Agent is the core intelligence of Git-Iris, built on the [Rig framework](https://docs.rs/rig-core) for agentic workflows.
+The Iris Agent is the core intelligence of Git-Iris, built on [rig-core 0.37](https://docs.rs/rig-core/0.37.0) (imported as `rig` via `package = "rig-core"` in `Cargo.toml`) for agentic workflows.
 
 **Source:** `src/agents/iris.rs`
 
@@ -32,9 +32,9 @@ pub struct IrisAgent {
 
 ### Stateless and Send-Safe
 
-`IrisAgent` doesn't store the client builder — it creates it fresh each time using `DynClientBuilder::new()`. This design:
+`IrisAgent` doesn't store any rig clients. Each call to `build_agent` constructs a fresh provider client through `provider::openai_builder`, `provider::anthropic_builder`, or `provider::gemini_builder`, then returns a `DynAgent` enum wrapping the provider-specific `Agent<M>`. This design:
 
-- Reads API keys from environment at call time
+- Reads API keys from environment (or config) at call time via `resolve_api_key`
 - Allows the agent to be used across async boundaries (`tokio::spawn`)
 - Makes the agent `Send + Sync` safe
 
@@ -86,77 +86,90 @@ agent.execute_task_streaming("review", prompt, |chunk, aggregated| {
 
 ## Tool Attachment
 
-Tools are attached when the agent is built:
+Tools are attached when the agent is built. `build_agent` returns a `DynAgent` enum and dispatches on the configured provider string:
 
 ```rust
-fn build_agent(&self) -> Result<Agent<impl CompletionModel + 'static>> {
-    let agent_builder = DynClientBuilder::new()
-        .agent(&self.provider, &self.model)?
-        .preamble(preamble);
-    let agent_builder = self.apply_completion_params(
-        agent_builder,
-        &self.model,
-        16_384,
-        CompletionProfile::MainAgent,
-    )?;
+fn build_agent(&self) -> Result<DynAgent> {
+    let preamble = self.preamble.as_deref().unwrap_or(DEFAULT_PREAMBLE);
+    let fast_model = self.effective_fast_model();
+    let api_key = self.get_api_key();
+    let subagent_timeout = self.config.as_ref().map_or(120, |c| c.subagent_timeout_secs);
+    let subagent_max_turns = self.config.as_ref().map_or(20, |c| c.subagent_max_turns);
 
-    // Core tools (shared with subagents)
-    let agent_builder = attach_core_tools!(agent_builder)
-        .tool(DebugTool::new(GitRepoInfo))
-        .tool(DebugTool::new(Workspace::new()))
-        .tool(DebugTool::new(ParallelAnalyze::new(&self.provider, fast_model)))
-        .tool(sub_agent); // Rig's built-in agent-as-tool!
+    // ... macros build subagent, attach main tools, optionally add update tools ...
 
-    // Conditional tools for Studio chat mode
-    if let Some(sender) = &self.content_update_sender {
-        agent_builder
-            .tool(DebugTool::new(UpdateCommitTool::new(sender.clone())))
-            .tool(DebugTool::new(UpdatePRTool::new(sender.clone())))
-            .tool(DebugTool::new(UpdateReviewTool::new(sender.clone())))
-            .build()
-    } else {
-        agent_builder.build()
+    match self.provider.as_str() {
+        "openai" => {
+            let sub_agent = build_subagent!(provider::openai_builder(fast_model, api_key)?);
+            let builder = provider::openai_builder(&self.model, api_key)?.preamble(preamble);
+            let builder = self.apply_completion_params(builder, &self.model, 16384, CompletionProfile::MainAgent)?;
+            let builder = attach_main_tools!(builder).tool(sub_agent);
+            let agent = maybe_attach_update_tools!(builder);
+            Ok(DynAgent::OpenAI(agent))
+        }
+        "anthropic" => { /* mirror of OpenAI arm using anthropic_builder */ }
+        "google" | "gemini" => { /* mirror using gemini_builder */ }
+        _ => Err(anyhow::anyhow!("Unsupported provider: {}", self.provider)),
     }
 }
 ```
 
-`apply_completion_params` keeps provider quirks out of the main builder flow. For OpenAI GPT-5
-models, it injects the right completion-token parameter and a default reasoning profile
-(`medium` for the main agent unless the user explicitly overrides `reasoning`).
+Each arm:
+
+1. Builds a subagent with `attach_core_tools!` (no delegation tools).
+2. Builds the main agent with `attach_core_tools!` plus `GitRepoInfo`, `Workspace`, and `ParallelAnalyze::with_limits` (configured with `subagent_timeout` and `subagent_max_turns`).
+3. Conditionally attaches `UpdateCommitTool`, `UpdatePRTool`, and `UpdateReviewTool` when a `content_update_sender` is present (Studio chat mode).
+4. Wraps the resulting `Agent<M>` in the appropriate `DynAgent` variant.
+
+`apply_completion_params` keeps provider quirks out of the main builder flow. For OpenAI GPT-5 models, it injects the right completion-token parameter and a default reasoning profile (`medium` for the main agent unless the user explicitly overrides `reasoning`). For Anthropic, `anthropic_agent_builder` adds `.with_automatic_caching()` unconditionally so multi-turn tool loops bill prior turns at the cached rate.
 
 ### Tool Registry Pattern
 
-The `attach_core_tools!` macro ensures consistency:
+The `attach_core_tools!` macro ensures consistency. It wires **eleven** core tools — every Git source of evidence, file/code access, repository orientation, linter execution, and project documentation:
 
 ```rust
 #[macro_export]
 macro_rules! attach_core_tools {
     ($builder:expr) => {{
+        use $crate::agents::debug_tool::DebugTool;
+        use $crate::agents::tools::{
+            CodeSearch, FileRead, GitBlame, GitChangedFiles, GitDiff, GitLog, GitShow, GitStatus,
+            ProjectDocs, RepoMapTool, StaticAnalysis,
+        };
+
         $builder
             .tool(DebugTool::new(GitStatus))
             .tool(DebugTool::new(GitDiff))
             .tool(DebugTool::new(GitLog))
+            .tool(DebugTool::new(GitShow))
             .tool(DebugTool::new(GitChangedFiles))
+            .tool(DebugTool::new(GitBlame))
             .tool(DebugTool::new(FileRead))
             .tool(DebugTool::new(CodeSearch))
+            .tool(DebugTool::new(RepoMapTool))
+            .tool(DebugTool::new(StaticAnalysis))
             .tool(DebugTool::new(ProjectDocs))
     }};
 }
 ```
 
-**Prevents drift** — Main agents and subagents always have the same core tools.
+The companion `CORE_TOOLS: &[&str]` constant in `src/agents/tools/registry.rs` lists the same eleven names, and a unit test asserts the count stays at 11.
+
+**Prevents drift** — Main agents and subagents always have the same core tools. Delegation tools (`Workspace`, `ParallelAnalyze`, the sub-agent itself) are attached only to the main agent so subagents can't recurse.
 
 ## Multi-Turn Execution
 
-Iris operates in **multi-turn mode**, allowing up to 50 tool calls:
+Iris operates in **multi-turn mode**, allowing up to 50 tool calls. The non-streaming path calls `prompt_extended` on the `DynAgent`, which internally chains `max_turns(depth).extended_details()` for the active provider:
 
 ```rust
-let prompt_response = agent
-    .prompt(&full_prompt)
-    .multi_turn(50)        // Allow up to 50 tool calls
-    .extended_details()    // Get token usage stats
-    .await?;
+let prompt_response: PromptResponse = agent.prompt_extended(&full_prompt, 50).await?;
+// inside DynAgent::prompt_extended:
+//   Self::OpenAI(a)    => a.prompt(msg).max_turns(depth).extended_details().await,
+//   Self::Anthropic(a) => a.prompt(msg).max_turns(depth).extended_details().await,
+//   Self::Gemini(a)    => a.prompt(msg).max_turns(depth).extended_details().await,
 ```
+
+`.multi_turn()` is the streaming-only equivalent — the streaming path constructs a provider-specific `Agent<M>` first (see `build_*_agent_for_streaming`) and then calls `.stream_prompt(...).multi_turn(50).await`.
 
 ### Execution Flow
 
@@ -193,10 +206,15 @@ Iris knows when to stop, so we provide generous headroom.
 
 ## Capability Loading
 
-Capabilities are embedded at compile time and loaded dynamically:
+Capabilities are embedded at compile time and loaded dynamically. There are **eight** capability TOML files: seven user-facing capabilities plus the internal `verify` capability used by the critic pass.
 
 ```rust
 fn load_capability_config(&self, capability: &str) -> Result<(String, String)> {
+    // The verify capability is handled separately so the critic pass can be cached
+    if capability == "verify" {
+        return Self::load_verify_capability_config(); // uses CAPABILITY_VERIFY
+    }
+
     let content = match capability {
         "commit" => CAPABILITY_COMMIT,
         "pr" => CAPABILITY_PR,
@@ -221,6 +239,25 @@ The tuple `(task_prompt, output_type)` determines:
 - **What Iris is asked to do** (the prompt)
 - **What format to return** (JSON schema type)
 
+### Critic Verification Pass
+
+After `execute_output_type` returns a structured response, `execute_task` calls `verify_response_if_enabled`. When the critic is enabled (default `Config.critic_enabled = true`), Iris loads the `verify` capability — whose `output_type = "Critique"` — and runs it as an `execute_with_agent::<Critique>` call against the serialized artifact and the original task.
+
+`Critique` has four fields: `requires_revision: bool`, `issues: Vec<CritiqueIssue>` (title, body, severity), `revision_prompt: String`, `confidence: u8`. If the critic returns `requires_revision = true` and provides either issues or a revision prompt, `execute_output_type` runs once more with the original system prompt and a user prompt augmented with the critic feedback. The pass runs only for output types where a critic check pays off:
+
+```rust
+matches!(
+    (capability, output_type),
+    ("commit", "GeneratedMessage")
+        | ("review", "Review")
+        | ("pr", "MarkdownPullRequest")
+        | ("changelog", "MarkdownChangelog")
+        | ("release_notes", "MarkdownReleaseNotes"),
+)
+```
+
+Failures inside the critic (loading the capability, parsing the JSON, network errors) are logged as warnings and the original artifact is returned unchanged — the critic is a safety net, not a hard gate.
+
 ## Structured Output Generation
 
 After tools are called, Iris must return valid JSON:
@@ -242,10 +279,11 @@ where
         Your entire response should be ONLY the JSON object."
     );
 
-    let response = agent.prompt(&full_prompt).multi_turn(50).await?;
+    let prompt_response: PromptResponse = agent.prompt_extended(&full_prompt, 50).await?;
+    let response = &prompt_response.output;
 
     // Extract and validate JSON
-    let json_str = extract_json_from_response(&response)?;
+    let json_str = extract_json_from_response(response)?;
     let sanitized = sanitize_json_response(&json_str);
     let result: T = parse_with_recovery(sanitized.as_ref())?;
 
@@ -345,46 +383,38 @@ Iris: [Incorporates sub-agent findings into final output]
 
 Git-Iris targets the GPT-5 family for OpenAI. Keep examples and docs aligned with the current defaults in `src/providers.rs` rather than older model aliases.
 
+### Anthropic Prompt Caching
+
+`anthropic_agent_builder` calls `.with_automatic_caching()` on every Anthropic completion model (`src/agents/provider.rs:194-204`). Rig places a top-level `cache_control` breakpoint on the last cacheable block, which the API advances as the conversation grows. On Iris's multi-turn tool loops, where every turn otherwise re-sends the whole transcript at full input price, cached turns are billed at a fraction of that cost. Caching is unconditional — prompts below the model's cacheable minimum are simply not cached by the API. Debug output surfaces both `cache_creation_input_tokens` and `cached_input_tokens` so you can confirm the cache is doing real work on your workload.
+
 ## Streaming Support
 
-For real-time TUI updates:
+For real-time TUI updates, streaming dispatches per-provider through `build_openai_agent_for_streaming`, `build_anthropic_agent_for_streaming`, or `build_gemini_agent_for_streaming` — each returns a concrete `rig::agent::Agent<M>` rather than a `DynAgent`, because rig's streaming types are model-specific. The aggregated text is then converted to the appropriate structured response by `text_to_structured_response`:
 
 ```rust
-pub async fn execute_task_streaming<F>(
-    &mut self,
-    capability: &str,
-    user_prompt: &str,
-    mut on_chunk: F,
-) -> Result<StructuredResponse>
-where
-    F: FnMut(&str, &str) + Send,
-{
-    let agent = self.build_agent()?;
-    let mut stream = agent.stream_prompt(&full_prompt).multi_turn(50).await;
-
-    let mut aggregated_text = String::new();
-
-    while let Some(item) = stream.next().await {
-        match item {
-            StreamedAssistantContent::Text(text) => {
-                aggregated_text.push_str(&text.text);
-                on_chunk(&text.text, &aggregated_text);
-            }
-            StreamedAssistantContent::ToolCall(tool_call) => {
-                // Update status: "Calling git_diff..."
-            }
-            _ => {}
-        }
+let aggregated_text = match self.provider.as_str() {
+    "openai" => {
+        let agent = self.build_openai_agent_for_streaming(&full_prompt)?;
+        let stream = agent.stream_prompt(&full_prompt).multi_turn(50).await;
+        consume_stream!(stream)
     }
+    "anthropic" => { /* build_anthropic_agent_for_streaming + stream_prompt */ }
+    "google" | "gemini" => { /* build_gemini_agent_for_streaming + stream_prompt */ }
+    _ => return Err(anyhow::anyhow!("Unsupported provider: {}", self.provider)),
+};
 
-    // Convert aggregated text to structured response
-    Ok(StructuredResponse::MarkdownReview(MarkdownReview {
-        content: aggregated_text,
-    }))
-}
+let response = Self::text_to_structured_response(&output_type, aggregated_text);
 ```
 
-**Note:** Streaming mode returns markdown directly, not JSON, for simpler real-time display.
+The `consume_stream!` macro matches `MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(...))` for text chunks and `StreamedAssistantContent::ToolCall { tool_call, .. }` for status updates. `text_to_structured_response` dispatches on the capability's declared output type:
+
+- `GeneratedMessage` — try JSON parse, fall back to `PlainText`.
+- `Review` — wrap text in `Review::from_unstructured` so the streamed markdown is still surfaced when structured parsing fails.
+- `MarkdownPullRequest`, `MarkdownChangelog`, `MarkdownReleaseNotes` — wrap the text directly.
+- `SemanticBlame` — return as-is.
+- anything else — `PlainText` fallback.
+
+**Note:** Streaming does not enforce a JSON schema in-flight. The structured response is reconstructed once the stream completes.
 
 ## Debug Instrumentation
 
@@ -398,7 +428,8 @@ debug::debug_context_management("Agent built with tools", "Provider: anthropic..
 debug::debug_llm_request(&full_prompt, Some(16384));
 
 let timer = debug::DebugTimer::start("Agent prompt execution");
-let response = agent.prompt(&full_prompt).multi_turn(50).await?;
+let prompt_response = agent.prompt_extended(&full_prompt, 50).await?;
+let response = &prompt_response.output;
 timer.finish();
 
 debug::debug_llm_response(&response, duration, Some(total_tokens));

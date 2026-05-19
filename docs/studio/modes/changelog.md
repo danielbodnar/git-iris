@@ -15,17 +15,19 @@
 
 | Panel      | Content                                                          |
 | ---------- | ---------------------------------------------------------------- |
-| **Left**   | Commits in version range with hash, title, and version tags      |
+| **Left**   | Flat commit list for the selected range (no directory tree)      |
 | **Center** | Keep a Changelog format output with categorized changes          |
 | **Right**  | Aggregated diff summary with file statistics and hunk navigation |
 
 ### Left Panel: Commit List
 
-- All commits in version range
-- Commit hash (short)
-- Commit title
-- Version tags displayed
-- Ref range summary
+The left panel is a simple, flat list — not a directory tree. The title shows `from → to (count) [f/t]`, with the count of commits in range and a reminder of the ref-selector keys. Each row renders as:
+
+- `▸` marker for the currently selected commit (other rows use two spaces of padding)
+- Short commit hash in coral
+- The commit message (truncated to fit)
+
+There is no separate "version tags" line — tags only appear in the title via the `from`/`to` refs you pick with <kbd>f</kbd>/<kbd>t</kbd>. The empty state prompts: "No commits to show — Press 'f' for from ref, 't' for to ref."
 
 ### Center Panel: Changelog Output
 
@@ -330,6 +332,8 @@ Iris: Recategorized:
 ```
 
 ## Special Features
+
+> The behaviors below are **prompt suggestions**, not coded features. The output type for changelogs is a thin markdown wrapper (`MarkdownChangelog = { content: String }` in `src/types/changelog.rs`), so the structure and content come from whatever the LLM emits while following `src/agents/capabilities/changelog.toml`. Iris usually honors these conventions — but they aren't guaranteed by the type system, and you can always nudge in chat if something is missing.
 
 ### Unreleased Section
 

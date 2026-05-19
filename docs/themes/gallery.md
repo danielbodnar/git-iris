@@ -220,23 +220,50 @@ git-iris studio --theme silkcircuit-dawn
 | Vibrant | Dark    | Very High  | High     | Deep purple    | Rich, luxurious feel |
 | Dawn    | Light   | High       | High     | Lavender-white | Bright environments  |
 
+## Beyond SilkCircuit
+
+The opaline engine bundles 34 community-favorite themes alongside the SilkCircuit family. They share the same 26-token contract, so they all light up Studio without any extra configuration. Pick whichever matches your terminal mood:
+
+| Family              | Variants                                                                        |
+| ------------------- | ------------------------------------------------------------------------------- |
+| **Ayu**             | `ayu-dark`, `ayu-light`, `ayu-mirage`                                           |
+| **Catppuccin**      | `catppuccin-mocha`, `catppuccin-macchiato`, `catppuccin-frappe`, `catppuccin-latte` |
+| **Dracula**         | `dracula`                                                                       |
+| **Everforest**      | `everforest-dark`, `everforest-light`                                           |
+| **Flexoki**         | `flexoki-dark`, `flexoki-light`                                                 |
+| **GitHub**          | `github-dark-dimmed`, `github-light`                                            |
+| **Gruvbox**         | `gruvbox-dark`, `gruvbox-light`                                                 |
+| **Kanagawa**        | `kanagawa-wave`, `kanagawa-dragon`, `kanagawa-lotus`                            |
+| **Monokai Pro**     | `monokai-pro`                                                                   |
+| **Night Owl**       | `night-owl`, `light-owl`                                                        |
+| **Nord**            | `nord`                                                                          |
+| **One**             | `one-dark`, `one-light`                                                         |
+| **Palenight**       | `palenight`                                                                     |
+| **Rose Pine**       | `rose-pine`, `rose-pine-moon`, `rose-pine-dawn`                                 |
+| **Solarized**       | `solarized-dark`, `solarized-light`                                             |
+| **Tokyo Night**     | `tokyo-night`, `tokyo-night-moon`, `tokyo-night-storm`                          |
+
+Run `git-iris themes` to see every builtin (and any user themes you've installed) with author, description, and variant. The name `default` is an alias for `silkcircuit-neon`.
+
 ## Switching Themes
 
 ### Command Line
 
 ```bash
-# List all available themes
+# List all available themes (builtins + user themes)
 git-iris themes
 
 # Use a theme for this session
 git-iris studio --theme silkcircuit-soft
 
-# Set persistently in config.toml: theme = "silkcircuit-soft"
+# Set persistently in ~/.config/git-iris/config.toml:
+#   theme = "silkcircuit-soft"
+# Or set per-project in .irisconfig at the repo root.
 ```
 
 ### In Studio
 
-Press `s` to open the theme selector modal and cycle through themes in real-time.
+Press `Shift+S` to open the Settings modal, navigate to the **Theme** field, and press Enter to open the theme selector sub-modal. Pick a theme and the UI updates immediately.
 
 ## Custom Theme Inspiration
 

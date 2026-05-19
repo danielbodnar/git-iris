@@ -46,7 +46,7 @@ flowchart TD
 
 1. **Capability TOML** (`review.toml`) defines the review task prompt and output format
 2. **Tools** (`git_diff`, `file_read`, `code_search`) provide Iris with code context
-3. **Output Type** (`MarkdownReview`) structures the review content
+3. **Output Type** (`Review` in `crate::types::Review`) structures the review content
 4. **Studio Mode** (Review mode) displays the review with panels for file list, diff, and output
 
 ## Quick Start
@@ -82,19 +82,19 @@ flowchart TD
 
 ```bash
 # Build with your changes
-cargo build
+just build
 
 # Test a capability
-cargo run -- gen --debug
+just gen-debug
 
 # Test in Studio
-cargo run -- studio
+just studio
 
 # Run tests
-cargo test
+just test
 
 # Lint
-cargo clippy
+just lint
 ```
 
 ## Key Design Principles
@@ -140,9 +140,9 @@ Throughout the extension guides, we reference real implementations from the code
 
 - **Commit Capability**: `src/agents/capabilities/commit.toml`
 - **Git Tools**: `src/agents/tools/git.rs`
-- **Commit Mode**: `src/studio/state/modes.rs` → `CommitMode`
+- **Commit Mode**: `src/studio/state/modes.rs` → `CommitState`
 - **File Read**: `src/agents/tools/file_read.rs`
-- **Review Mode**: Complete mode with state, handler, and renderer
+- **Review Mode**: Complete mode with state (`ReviewState`), handler, and renderer
 
 ## Contributing
 

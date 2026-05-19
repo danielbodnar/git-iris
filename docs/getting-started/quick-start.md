@@ -95,6 +95,15 @@ This outputs the commit message without starting Studio.
 git-iris gen --auto-commit
 ```
 
+**Amend the previous commit with staged changes:**
+
+```bash
+git-iris gen --amend --print
+git-iris gen --amend --auto-commit
+```
+
+`--amend` requires `--print` or `--auto-commit`—Studio support is on the way.
+
 ## What Just Happened?
 
 Iris didn't just pattern-match your diff. She:

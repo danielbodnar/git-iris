@@ -2,10 +2,10 @@
 
 > **Note:** This is a quick-reference guide for AI assistants. For comprehensive documentation, see:
 >
-> - **[Architecture Documentation](/docs/architecture/)** — System design, patterns, and data flow
-> - **[Theme System Documentation](/docs/themes/)** — SilkCircuit design language and theming
-> - **[Studio Internals](/docs/studio-internals/)** — Deep dive into TUI implementation
-> - **[Extension Guide](/docs/extending/)** — Creating new capabilities, tools, and modes
+> - **[Architecture Documentation](docs/architecture/)** — System design, patterns, and data flow
+> - **[Theme System Documentation](docs/themes/)** — SilkCircuit design language and theming
+> - **[Studio Internals](docs/studio-internals/)** — Deep dive into TUI implementation
+> - **[Extension Guide](docs/extending/)** — Creating new capabilities, tools, and modes
 
 ## Architecture Overview
 
@@ -22,72 +22,119 @@ Git-Iris uses an agent-first architecture powered by **Iris**, an LLM-driven age
 
 ```
 src/
-├── agents/                 # Agent framework (core of Git-Iris)
-│   ├── iris.rs            # Main agent implementation
-│   ├── core.rs            # Backend abstraction (OpenAI/Anthropic/Google)
-│   ├── setup.rs           # IrisAgentService entry point
-│   ├── status.rs          # Real-time status tracking
-│   ├── debug.rs           # Debug mode output formatting
-│   ├── capabilities/      # Task-specific prompts (TOML)
-│   │   ├── commit.toml    # Commit message generation
-│   │   ├── review.toml    # Code review analysis
-│   │   ├── pr.toml        # PR description generation
-│   │   ├── changelog.toml # Changelog generation
-│   │   ├── release_notes.toml # Release notes
-│   │   └── chat.toml      # Interactive chat capability
-│   └── tools/             # Tools Iris can use
-│       ├── git.rs         # Git operations (diff, log, status)
-│       ├── file_read.rs   # File content reading and targeted excerpts
-│       ├── code_search.rs # Pattern searching
-│       ├── workspace.rs   # Notes and task tracking
-│       ├── docs.rs        # Project documentation
-│       ├── parallel_analyze.rs # Concurrent subagent processing
-│       └── content_update.rs # Chat content update tools
+├── agents/                       # Agent framework (core of Git-Iris)
+│   ├── iris.rs                   # Main agent implementation
+│   ├── core.rs                   # Backend abstraction (OpenAI/Anthropic/Google)
+│   ├── context.rs                # TaskContext and shared agent context
+│   ├── provider.rs               # Provider-specific agent builders (caching, models)
+│   ├── setup.rs                  # IrisAgentService entry point
+│   ├── status.rs                 # Real-time status tracking
+│   ├── status_messages.rs        # Witty status messages via fast model
+│   ├── debug.rs                  # Debug mode output formatting
+│   ├── debug_tool.rs             # Tool wrapper for debug instrumentation
+│   ├── output_validator.rs       # JSON recovery for malformed responses
+│   ├── capabilities/             # Task-specific prompts (TOML, 8 total)
+│   │   ├── commit.toml           # Commit message generation
+│   │   ├── review.toml           # Structured code review (findings, severity)
+│   │   ├── pr.toml               # PR description generation
+│   │   ├── changelog.toml        # Changelog generation
+│   │   ├── release_notes.toml    # Release notes
+│   │   ├── chat.toml             # Interactive chat capability
+│   │   ├── semantic_blame.toml   # "Why does this code exist?"
+│   │   └── verify.toml           # Critic verification pass (internal)
+│   └── tools/                    # Tools Iris can use
+│       ├── registry.rs           # CORE_TOOLS list + attach_core_tools! macro
+│       ├── common.rs             # Shared tool utilities (repo root, schemas)
+│       ├── git.rs                # git_diff, git_log, git_status, git_show,
+│       │                         # git_changed_files, git_blame, git_repo_info
+│       ├── file_read.rs          # File content reading and targeted excerpts
+│       ├── code_search.rs        # Pattern searching
+│       ├── repo_map.rs           # Ranked codebase orientation map
+│       ├── static_analysis.rs    # Direct linter runs (rust/python/js/go)
+│       ├── docs.rs               # Project documentation (README, CLAUDE.md)
+│       ├── workspace.rs          # Iris's notes and task tracking
+│       ├── parallel_analyze.rs   # Concurrent subagent processing
+│       └── content_update.rs     # Chat tools that update commit/PR/review
 │
-├── studio/                 # Iris Studio TUI (Ratatui-based)
-│   ├── app.rs             # Main event loop and app coordination
-│   ├── state.rs           # Centralized state for all modes
-│   ├── reducer.rs         # Reducer-centric state transitions and effects
-│   ├── events.rs          # Comprehensive event type definitions
-│   ├── history.rs         # Complete audit trail and session persistence
-│   ├── theme.rs           # SilkCircuit Neon color definitions
-│   ├── components/        # Reusable UI components
-│   │   ├── code_view.rs   # Syntax-highlighted source display
-│   │   ├── diff_view.rs   # Unified diff rendering with hunks
-│   │   ├── file_tree.rs   # Directory navigation with git status
-│   │   └── message_editor.rs # Text editing with cursor management
-│   ├── render/            # Mode-specific rendering
-│   │   ├── commit.rs      # Commit mode panels
-│   │   ├── explore.rs     # Explore mode panels
-│   │   ├── review.rs      # Review mode panels
-│   │   ├── pr.rs          # PR mode panels
-│   │   ├── changelog.rs   # Changelog mode panels
-│   │   ├── release_notes.rs # Release notes panels
-│   │   ├── chat.rs        # Chat panel with markdown
-│   │   └── modals.rs      # Settings, search, selectors
-│   └── handlers/          # Input handling
-│       ├── global.rs      # Cross-mode keybindings
-│       ├── commit.rs      # Commit mode handlers
-│       ├── explore.rs     # Explore mode handlers
-│       └── ...            # Other mode handlers
+├── studio/                       # Iris Studio TUI (Ratatui-based)
+│   ├── app/                      # Main event loop and app coordination
+│   │   ├── mod.rs                # StudioApp lifecycle
+│   │   └── agent_tasks.rs        # Agent task spawning and orchestration
+│   ├── state/                    # Centralized state for all modes
+│   │   ├── mod.rs                # StudioState root and helpers
+│   │   ├── chat.rs               # ChatState (messages, streaming, tools)
+│   │   └── modes.rs              # ExploreState, CommitState, ReviewState, etc.
+│   ├── reducer/                  # Reducer-centric state transitions
+│   │   ├── mod.rs                # Top-level reduce() dispatch
+│   │   ├── agent.rs              # Agent task events
+│   │   ├── content.rs            # Content updates (commit, PR, review)
+│   │   ├── git.rs                # Git operation events
+│   │   ├── modal.rs              # Modal open/close transitions
+│   │   ├── navigation.rs         # Mode switching and panel focus
+│   │   ├── settings.rs           # Settings modal state
+│   │   └── ui.rs                 # UI-level events (resize, scroll)
+│   ├── events.rs                 # StudioEvent, AgentTask, SideEffect enums
+│   ├── history.rs                # Audit trail and session persistence
+│   ├── layout.rs                 # Layout calculations and panel sizing
+│   ├── theme.rs                  # Studio-specific style derivation
+│   ├── utils.rs                  # Shared rendering helpers
+│   ├── components/               # Reusable UI components
+│   │   ├── code_view.rs          # Syntax-highlighted source display
+│   │   ├── diff_view.rs          # Unified diff rendering with hunks
+│   │   ├── file_tree.rs          # Directory navigation with git status
+│   │   ├── message_editor.rs     # Text editing with cursor management
+│   │   └── syntax.rs             # Syntect-based syntax highlighting
+│   ├── render/                   # Mode-specific rendering
+│   │   ├── commit.rs             # Commit mode panels
+│   │   ├── explore.rs            # Explore mode panels
+│   │   ├── review.rs             # Review mode panels
+│   │   ├── pr.rs                 # PR mode panels
+│   │   ├── changelog.rs          # Changelog mode panels
+│   │   ├── release_notes.rs      # Release notes panels
+│   │   ├── chat.rs               # Chat panel with markdown
+│   │   └── modals/               # Modal renderers (12 files: help, settings,
+│   │                             # search, theme/preset/ref/emoji/commit_count
+│   │                             # selectors, chat_modal, confirm, instructions)
+│   └── handlers/                 # Input handling
+│       ├── mod.rs                # Cross-mode key dispatch and global bindings
+│       ├── commit.rs             # Commit mode handlers
+│       ├── explore.rs            # Explore mode handlers
+│       ├── review.rs             # Review mode handlers
+│       ├── pr.rs                 # PR mode handlers
+│       ├── changelog.rs          # Changelog mode handlers
+│       ├── release_notes.rs      # Release notes mode handlers
+│       └── modals/               # Modal input handlers (10 files matching
+│                                 # the modal renderers)
 │
-├── types/                  # Response type definitions
-│   ├── commit.rs          # GeneratedMessage
-│   ├── pr.rs              # MarkdownPullRequest
-│   ├── review.rs          # MarkdownReview
-│   ├── changelog.rs       # MarkdownChangelog
-│   └── release_notes.rs   # MarkdownReleaseNotes
+├── companion/                    # Iris Companion (ambient session awareness)
+│   ├── session.rs                # SessionState and FileActivity tracking
+│   ├── branch_memory.rs          # Per-branch focus and memory persistence
+│   ├── storage.rs                # Persistence backend
+│   └── watcher.rs                # Live file watching via notify
 │
-├── services/               # Pure operations (no LLM)
-│   └── git_commit.rs      # GitCommitService for git operations
+├── types/                        # Response type definitions
+│   ├── commit.rs                 # GeneratedMessage (emoji/title/message/completion)
+│   ├── pr.rs                     # MarkdownPullRequest
+│   ├── review.rs                 # Review (structured findings + metadata + stats)
+│   ├── changelog.rs              # MarkdownChangelog
+│   └── release_notes.rs          # MarkdownReleaseNotes
 │
-├── cli.rs                 # CLI entry point
-├── commands.rs            # Command handlers
-├── providers.rs           # LLM provider configuration
-├── config.rs              # Configuration management
-├── git/                   # Git2 wrapper module
-├── gitmoji.rs             # Emoji processing
-└── output.rs              # Git output formatting
+├── services/                     # Pure operations (no LLM)
+│   └── git_commit.rs             # GitCommitService for git operations
+│
+├── git/                          # Git2 wrapper module
+├── github/                       # GitHub API client (octocrab wrapper)
+├── config/                       # Configuration loading helpers
+├── cli.rs                        # CLI entry point
+├── commands.rs                   # Command handlers
+├── common.rs                     # Shared CLI params (CommonParams, --critic)
+├── providers.rs                  # LLM provider configuration
+├── config.rs                     # Configuration management
+├── theme.rs                      # Opaline-backed theme engine (re-exports)
+├── github.rs                     # GitHub publishing (PR descriptions, reviews)
+├── crypto.rs                     # Process-wide rustls/aws-lc-rs provider pin
+├── gitmoji.rs                    # Emoji processing
+└── output.rs                     # Git output formatting
 ```
 
 ## Iris Studio Architecture
@@ -129,42 +176,48 @@ Studio is built around a **reducer-centric event loop** for predictable state ma
 - Events are dispatched from handlers and async tasks
 - Clear, traceable data flow
 
-**Reducer (`reducer.rs`):**
+**Reducer (`reducer/`):**
 
-- Central event reducer for cross-mode state transitions
+- Central event reducer split into submodules: `agent`, `content`, `git`, `modal`, `navigation`, `settings`, `ui`
 - Avoids direct I/O by returning side effects as data
 - Works alongside handlers and `StudioApp`, which still perform some direct UI/data updates
 
-**Side Effects:**
+**Side Effects (`SideEffect` enum in `events.rs`):**
 
 - `SpawnAgent { task }` — Start async agent execution
-- `LoadData { data_type, from_ref, to_ref }` — Load git data
-- `UpdateContent { content, update_type }` — Update displayed content
-- `StreamUpdate { tool_name, message }` — Show progress updates
+- `LoadData { data_type, from_ref, to_ref }` — Load git data asynchronously
+- `ExecuteCommit { message }` / `ExecuteAmend { message }` — Perform git commit
+- `GitStage(path)` / `GitUnstage(path)` / `GitStageAll` / `GitUnstageAll` — Index updates
+- `GatherBlameAndSpawnAgent { file, start_line, end_line }` — Semantic blame flow
+- `CopyToClipboard(text)`, `SaveSettings`, `RefreshGitStatus`, `LoadFileLog`, `LoadGlobalLog`, `Quit`
 
 ### Studio Modes
 
-| Mode              | Description                        | State Struct       |
-| ----------------- | ---------------------------------- | ------------------ |
-| **Explore**       | Navigate codebase with AI insights | `ExploreMode`      |
-| **Commit**        | Generate/edit commit messages      | `CommitMode`       |
-| **Review**        | AI-powered code reviews            | `ReviewMode`       |
-| **PR**            | Pull request descriptions          | `PRMode`           |
-| **Changelog**     | Structured changelog generation    | `ChangelogMode`    |
-| **Release Notes** | Release documentation              | `ReleaseNotesMode` |
+| Mode              | Description                        | State Struct        |
+| ----------------- | ---------------------------------- | ------------------- |
+| **Explore**       | Navigate codebase with AI insights | `ExploreState`      |
+| **Commit**        | Generate/edit commit messages      | `CommitState`       |
+| **Review**        | AI-powered code reviews            | `ReviewState`       |
+| **PR**            | Pull request descriptions          | `PrState`           |
+| **Changelog**     | Structured changelog generation    | `ChangelogState`    |
+| **Release Notes** | Release documentation              | `ReleaseNotesState` |
 
 ### Chat Integration
 
 Press `/` in any mode to open chat with Iris:
 
 ```rust
-// Chat state tracks conversation
+// Chat state tracks conversation (src/studio/state/chat.rs)
 pub struct ChatState {
-    pub is_open: bool,
+    pub messages: VecDeque<ChatMessage>,
     pub input: String,
-    pub messages: Vec<ChatMessage>,
-    pub is_typing: bool,
-    pub scroll_offset: u16,
+    pub scroll_offset: usize,
+    pub is_responding: bool,
+    pub streaming_response: Option<String>,
+    pub auto_scroll: bool,
+    pub current_tool: Option<String>,
+    pub tool_history: VecDeque<String>,
+    pub error: Option<String>,
 }
 ```
 
@@ -180,41 +233,50 @@ Iris can update content directly through tools:
 
 Each capability is defined in `src/agents/capabilities/*.toml`:
 
-| Capability      | Output Type            | Description                           |
-| --------------- | ---------------------- | ------------------------------------- |
-| `commit`        | `GeneratedMessage`     | Commit messages with emoji/title/body |
-| `review`        | `MarkdownReview`       | Multi-dimensional code analysis       |
-| `pr`            | `MarkdownPullRequest`  | Pull request descriptions             |
-| `changelog`     | `MarkdownChangelog`    | Keep a Changelog format               |
-| `release_notes` | `MarkdownReleaseNotes` | Release documentation                 |
-| `chat`          | Varies                 | Interactive conversation              |
+| Capability        | Output Type            | Description                                                        |
+| ----------------- | ---------------------- | ------------------------------------------------------------------ |
+| `commit`          | `GeneratedMessage`     | Commit messages with emoji/title/body                              |
+| `review`          | `Review`               | Structured code review with findings, severity, confidence, GitHub inline links |
+| `pr`              | `MarkdownPullRequest`  | Pull request descriptions                                          |
+| `changelog`       | `MarkdownChangelog`    | Keep a Changelog format                                            |
+| `release_notes`   | `MarkdownReleaseNotes` | Release documentation                                              |
+| `chat`            | Varies                 | Interactive conversation                                           |
+| `semantic_blame`  | `SemanticBlame`        | "Why does this code exist?" history-aware explanation              |
+| `verify`          | `Critique`             | Critic verification pass — internal, runs after generation         |
 
 ### Tools Available to Iris
 
-| Tool                          | Purpose                                   |
-| ----------------------------- | ----------------------------------------- |
-| `git_diff(detail, from, to)`  | Get changes with relevance scores         |
-| `git_log(count)`              | Recent commit history for style reference |
-| `git_status()`                | Repository status                         |
-| `git_changed_files()`         | List of changed files                     |
-| `file_read(path, start, end)` | Read targeted file content and excerpts   |
-| `code_search()`               | Search for patterns, functions, classes   |
-| `workspace()`                 | Iris's notes and task tracking            |
-| `project_docs(doc_type)`      | Read README, AGENTS.md, CLAUDE.md         |
-| `parallel_analyze()`          | Concurrent subagent processing            |
-| `update_commit()`             | Chat: update commit message               |
-| `update_pr()`                 | Chat: update PR description               |
-| `update_review()`             | Chat: update review                       |
+| Tool                                                       | Purpose                                                   |
+| ---------------------------------------------------------- | --------------------------------------------------------- |
+| `git_diff(detail, from, to, files)`                        | Get changes with relevance scores; optional file filter   |
+| `git_log(count, from, to)`                                 | Recent commit history for style reference                 |
+| `git_status()`                                             | Repository status                                         |
+| `git_changed_files(from, to)`                              | List of changed files                                     |
+| `git_show(commit, files, max_output_chars)`                | Inspect a historical commit (truncated to budget)         |
+| `git_blame(file, start_line, end_line, recent_commits)`    | Line history and recent file commits                      |
+| `git_repo_info()`                                          | Branch, remote, default-base metadata                     |
+| `file_read(path, start, end)`                              | Read targeted file content and excerpts                   |
+| `code_search()`                                            | Search for patterns, functions, classes                   |
+| `repo_map(token_budget, mentioned_files, max_files)`       | Ranked codebase orientation map                           |
+| `static_analysis(analyzer, timeout_secs, max_output_chars)`| Run rust/python/javascript/go linters directly            |
+| `project_docs(doc_type)`                                   | Read README, AGENTS.md, CLAUDE.md                         |
+| `workspace()`                                              | Iris's notes and task tracking                            |
+| `parallel_analyze()`                                       | Concurrent subagent processing (per-call `max_turns`)     |
+| `update_commit()` / `update_pr()` / `update_review()`      | Chat: update generated content in place                   |
+
+The four extraction tools — `repo_map`, `git_blame`, `git_show`, and `static_analysis` — are **core tools**, attached to every main agent and subagent via `attach_core_tools!` in `src/agents/tools/registry.rs` (`CORE_TOOLS`, 11 entries).
 
 ### Context Strategy
 
 Iris adapts her approach based on changeset size:
 
-| Scenario                           | Strategy                        |
-| ---------------------------------- | ------------------------------- |
-| Small (<10 files, <100 lines each) | Full context for all files      |
-| Medium (10-20 files)               | Relevance scoring to prioritize |
-| Large (20+ files)                  | Parallel subagent analysis      |
+| Scenario                              | Strategy                                              |
+| ------------------------------------- | ----------------------------------------------------- |
+| Small (≤3 files, <100 lines total)    | Full context for all files                            |
+| Medium (≤10 files, <500 lines total)  | Prioritize files with >60% relevance score            |
+| Large (everything else)               | Summaries by default; `parallel_analyze` for breadth  |
+
+Thresholds live in `format_diff_output` in `src/agents/tools/git.rs`. Iris also gets per-call control via `parallel_analyze`'s `max_turns` and the configurable `subagent_timeout_secs` / `subagent_max_turns` budgets.
 
 ### Adding a New Capability
 
@@ -231,22 +293,23 @@ Instructions for Iris...
 ```
 
 2. Add output type to `src/agents/iris.rs` `StructuredResponse` enum
-3. Add match arm in `execute_task()` for the new output type
-4. (Optional) Add Studio mode in `src/studio/state.rs`
+3. Add match arm in `execute_output_type()` for the new output type (`src/agents/iris.rs`)
+4. Wire the capability into `load_capability_config()` (`src/agents/iris.rs`) — capabilities are dispatched via a `match capability { "commit" => CAPABILITY_COMMIT, ... }` block on embedded TOML strings, not a HashMap
+5. (Optional) Add Studio mode in `src/studio/state/mod.rs`
 
 ## Output Types
 
 Iris produces structured responses (all in `src/types/`):
 
-| Type                   | Format   | Description                 |
-| ---------------------- | -------- | --------------------------- |
-| `GeneratedMessage`     | JSON     | `{ emoji, title, message }` |
-| `MarkdownPullRequest`  | Markdown | `{ content: String }`       |
-| `MarkdownReview`       | Markdown | `{ content: String }`       |
-| `MarkdownChangelog`    | Markdown | `{ content: String }`       |
-| `MarkdownReleaseNotes` | Markdown | `{ content: String }`       |
+| Type                   | Format   | Description                                                          |
+| ---------------------- | -------- | -------------------------------------------------------------------- |
+| `GeneratedMessage`     | JSON     | `{ emoji, title, message, completion_message }`                      |
+| `MarkdownPullRequest`  | Markdown | `{ content: String }`                                                |
+| `Review`               | JSON     | `{ summary, metadata, findings[], stats }` — structured findings with confidence |
+| `MarkdownChangelog`    | Markdown | `{ content: String }`                                                |
+| `MarkdownReleaseNotes` | Markdown | `{ content: String }`                                                |
 
-The `Markdown*` types use a simple wrapper, letting the LLM drive format while capability TOMLs provide guidelines.
+The `Markdown*` types use a simple wrapper, letting the LLM drive format while capability TOMLs provide guidelines. `Review` is fully structured — findings carry severity, category, file/line citations, and a confidence score. Findings are gated at confidence ≥ 70 for terminal display and GitHub inline publishing.
 
 ## SilkCircuit Design Language
 
@@ -360,21 +423,22 @@ src/
 ### Example
 
 ```rust
-// src/theme/mod.rs (at the end)
+// src/agents/tools/mod.rs (at the end)
 #[cfg(test)]
 mod tests;
 
-// src/theme/tests/mod.rs
-mod theme_tests;
-mod builtins_tests;
+// src/agents/tools/tests/mod.rs
+mod git_blame_tests;
+mod git_show_tests;
+mod repo_map_tests;
+mod static_analysis_tests;
 
-// src/theme/tests/theme_tests.rs
-use crate::theme::{current, set_theme, Theme};
+// src/agents/tools/tests/repo_map_tests.rs
+use crate::agents::tools::repo_map::{RepoMapArgs, RepoMapTool};
 
 #[test]
-fn test_current_returns_theme() {
-    let theme = current();
-    assert_eq!(theme.meta.name, "SilkCircuit Neon");
+fn repo_map_ranks_mentioned_files_and_extracts_symbols() {
+    // ... real test from the codebase
 }
 ```
 

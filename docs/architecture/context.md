@@ -187,39 +187,22 @@ Cargo.lock
 
 ## Size-Based Strategies
 
-The `git_diff` tool includes size guidance in its output:
+The `git_diff` tool includes a one-line size label and guidance in its output header. There is no `ChangesetSize` enum — the buckets are computed inline inside `format_diff_output` as a `(size, guidance)` tuple. Three size labels are emitted, plus a `Filtered` label when the caller passes `files` to restrict the diff:
 
 ```rust
-pub enum ChangesetSize {
-    Small,      // ≤3 files, <100 lines total
-    Medium,     // ≤10 files, <500 lines total
-    Large,      // ≤20 files, <1000 lines total
-    VeryLarge,  // >20 files or >1000 lines
-}
-
-impl ChangesetSize {
-    fn from_stats(file_count: usize, total_lines: usize) -> Self {
-        if file_count <= 3 && total_lines < 100 {
-            Self::Small
-        } else if file_count <= 10 && total_lines < 500 {
-            Self::Medium
-        } else if file_count <= 20 && total_lines < 1000 {
-            Self::Large
-        } else {
-            Self::VeryLarge
-        }
-    }
-
-    fn guidance(&self) -> &str {
-        match self {
-            Self::Small => "Consider all changes equally",
-            Self::Medium => "Focus on files with >60% relevance (top 5-7 shown)",
-            Self::Large => "Focus ONLY on top 5-7 highest-relevance files; summarize lower-relevance changes",
-            Self::VeryLarge => "Consider using `parallel_analyze` to distribute analysis across subagents",
-        }
-    }
-}
+let (size, guidance) = if is_filtered {
+    ("Filtered", "Showing requested files only.")
+} else if total_files <= 3 && total_lines < 100 {
+    ("Small",  "Focus on all files equally.")
+} else if total_files <= 10 && total_lines < 500 {
+    ("Medium", "Prioritize files with >60% relevance.")
+} else {
+    ("Large",
+     "Use files=['path1','path2'] with detail='standard' to analyze specific files.")
+};
 ```
+
+Capability prompts layer additional guidance on top — for very large changesets (>20 files or >1000 lines) the `review`, `pr`, and `commit` prompts instruct Iris to escalate to `parallel_analyze`, even though `format_diff_output` doesn't emit a dedicated "very large" bucket.
 
 ### Output Format
 
@@ -258,11 +241,11 @@ Guidance: Focus on files with >60% relevance (top 5-7 shown)
 
 ## Detail Levels
 
-The `git_diff` tool supports three detail levels:
+The `git_diff` tool supports **two** detail levels — `Summary` (default) and `Standard`. To narrow `Standard` output to a specific subset of files, pass the `files: Vec<String>` argument instead of relying on a third detail level.
 
 ### 1. Summary
 
-**Use case:** Quick overview, parallel analysis task planning
+**Use case:** Quick overview, parallel analysis task planning, first call on any changeset.
 
 **Output:**
 
@@ -271,39 +254,30 @@ The `git_diff` tool supports three detail levels:
 - No diffs
 
 ```
-=== DIFF SUMMARY ===
-Size: Medium (8 files, 347 lines)
+=== CHANGES SUMMARY ===
+8 files | +247 -100 | Size: Medium (347 lines)
+Guidance: Prioritize files with >60% relevance.
 
-=== CHANGES (by relevance) ===
-1. src/agents/iris.rs (95%) - source code, adds function
-2. src/agents/tools/parallel_analyze.rs (92%) - source code, adds type
-3. src/types/commit.rs (78%) - source code, new file
-4. tests/integration_test.rs (65%) - test file
-5. Cargo.toml (60%) - config
-6. Cargo.lock (40%) - generated/lock
-7. README.md (35%) - docs
-8. .gitignore (20%) - config
+Files by importance:
+  [95%] Modified src/agents/iris.rs (source code, adds function)
+  [92%] Modified src/agents/tools/parallel_analyze.rs (source code, adds type)
+  [78%] Added    src/types/commit.rs (source code, new file)
+  [65%] Modified tests/integration_test.rs (test file)
+  ...
+(Use detail='standard' with files=['file1','file2'] to see specific diffs)
 ```
 
-### 2. Minimal
+### 2. Standard
 
-**Use case:** Medium changesets, focused analysis
-
-**Output:**
-
-- Files with relevance >60%
-- Complete diffs for high-relevance files
-- Truncated/omitted for low-relevance files
-
-### 3. Full
-
-**Use case:** Small changesets, comprehensive review
+**Use case:** After scanning the summary, pull full diffs — either for the entire changeset (small/medium) or for a curated set of high-relevance files via `files=[...]`.
 
 **Output:**
 
-- All files with complete diffs
-- Relevance scores (for Iris's reference)
-- No truncation
+- Full unified diffs for every included file
+- Relevance scores still attached for Iris's reference
+- When `files` is set, the header reports `Size: Filtered`
+
+The progressive flow is intentional: call once with `detail="summary"`, then again with `detail="standard"` and a `files` filter scoped to whatever the relevance scores surfaced.
 
 ## Capability-Specific Strategies
 
@@ -363,11 +337,12 @@ For very large changesets, Iris spawns **concurrent subagents**:
 
 ### When to Use
 
-Automatically triggered for:
+Capability prompts direct Iris to escalate to `parallel_analyze` (no hardcoded auto-trigger — the LLM decides based on `git_diff` summary output) when:
 
 - **>20 files** changed
 - **>1000 lines** changed
 - **Batch operations** (multiple commits, release notes)
+- Independent specialist passes (security, API contracts, concurrency, tests) would reduce blind spots
 
 ### How It Works
 
@@ -403,20 +378,28 @@ flowchart TB
 - **Focused analysis** — Each subagent examines its area deeply
 - **Cost effective** — Uses fast model for bounded tasks
 
+### Configurable Budgets
+
+Subagent resource use is tunable from two places:
+
+- **Global config.** `Config.subagent_timeout_secs` (default `120`) caps each subagent's wall-clock time, and `Config.subagent_max_turns` (default `20`) caps each subagent's tool-call rounds. Both are read by `IrisAgent::build_agent` and passed into `ParallelAnalyze::with_limits` so every subagent inherits them.
+- **Per-call override.** `parallel_analyze` accepts an optional `max_turns: usize` argument (clamped to `1..=100`) that overrides the configured turn budget for that call only. Raise it for sweeping repository searches; lower it to cap cost or runaway tool loops. The JSON schema enforces `minItems: 1, maxItems: 10` on the `tasks` array.
+
 ### Example Call
 
-```rust
-parallel_analyze({
-    "tasks": [
-        "Analyze security implications of authentication changes in src/auth/",
-        "Review performance impact of database query refactors in src/db/",
-        "Summarize API endpoint changes in src/api/",
-        "Check for breaking changes in public interfaces"
-    ]
-})
+```jsonc
+{
+  "tasks": [
+    "Analyze security implications of authentication changes in src/auth/",
+    "Review performance impact of database query refactors in src/db/",
+    "Summarize API endpoint changes in src/api/",
+    "Check for breaking changes in public interfaces"
+  ],
+  "max_turns": 30
+}
 ```
 
-Each task gets its own subagent with independent context.
+Each task gets its own subagent with independent context. The aggregated result reports per-task success/error, plus overall `successful`, `failed`, and `execution_time_ms`.
 
 ## Progressive Deepening
 
@@ -533,10 +516,11 @@ async fn handles_large_changeset() {
         detail: DetailLevel::Summary,
         from: None,
         to: None,
+        files: None,
     }).await.unwrap();
 
-    assert!(result.contains("Very Large"));
-    assert!(result.contains("parallel_analyze"));
+    assert!(result.contains("Size: Large"));
+    // Capability prompts will then direct Iris to call parallel_analyze.
 }
 ```
 

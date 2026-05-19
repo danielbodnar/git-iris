@@ -49,17 +49,17 @@ Output types map to Rust enums in `src/agents/iris.rs`:
 
 ```rust
 pub enum StructuredResponse {
-    CommitMessage(GeneratedMessage),       // JSON: { emoji, title, message }
-    PullRequest(MarkdownPullRequest),      // Markdown wrapper
-    Changelog(MarkdownChangelog),          // Markdown wrapper
-    ReleaseNotes(MarkdownReleaseNotes),    // Markdown wrapper
-    MarkdownReview(MarkdownReview),        // Markdown wrapper
+    CommitMessage(GeneratedMessage),       // JSON: { emoji, title, message, completion_message }
+    PullRequest(MarkdownPullRequest),      // Markdown wrapper: { content: String }
+    Changelog(MarkdownChangelog),          // Markdown wrapper: { content: String }
+    ReleaseNotes(MarkdownReleaseNotes),    // Markdown wrapper: { content: String }
+    Review(crate::types::Review),          // Structured: { summary, metadata, findings[], stats }
     SemanticBlame(String),                 // Plain text
     PlainText(String),                     // Fallback
 }
 ```
 
-**JSON types** (like `GeneratedMessage`) have strict schemas. **Markdown types** wrap a single `content: String` field, giving Iris flexibility in formatting.
+**Strict structured types** (`GeneratedMessage`, `Review`) define schemas Iris must populate field-by-field. **Markdown wrappers** carry a single `content: String` field and let Iris choose the layout. The internal `verify` capability returns a private `Critique` struct (see [Critic Verification](#critic-verification)); it never appears in `StructuredResponse`.
 
 ## Built-in Capabilities
 
@@ -72,11 +72,15 @@ pub enum StructuredResponse {
 ```rust
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct GeneratedMessage {
-    pub emoji: Option<String>,  // Single gitmoji or null
-    pub title: String,          // Subject line (max 72 chars)
-    pub message: String,        // Body (optional)
+    pub emoji: Option<String>,            // Single gitmoji or null
+    pub title: String,                    // Subject line (max 72 chars)
+    pub message: String,                  // Body (may be empty)
+    #[serde(default)]
+    pub completion_message: Option<String>, // Short UI status, e.g. "Auth refactor ready."
 }
 ```
+
+`completion_message` is required by `commit.toml` so the Studio TUI has a one-line status to show when generation finishes.
 
 **Key instructions:**
 
@@ -94,25 +98,29 @@ pub struct GeneratedMessage {
 
 ### 2. Review (`review.toml`)
 
-**Purpose:** Analyze code changes and provide structured feedback
+**Purpose:** Analyze code changes and emit a structured, parseable review
 
-**Output:** `MarkdownReview`
+**Output:** `Review` — a strict JSON shape, not a markdown wrapper. The capability's `output_type = "Review"` (see `src/agents/capabilities/review.toml:3`).
 
-**Suggested sections:**
+```rust
+pub struct Review {
+    pub summary: String,
+    pub metadata: ReviewMetadata,   // risk_level, strategy, specialist_passes, coverage_notes
+    pub findings: Vec<Finding>,     // id, severity, confidence, file, line range, category, body, suggested_fix, evidence
+    pub stats: ReviewStats,         // files_reviewed, findings_count, critical/high/medium/low counts
+    pub parse_failed: bool,         // set when from_unstructured() rescues raw text
+}
+```
 
-- Overview
-- Security Concerns
-- Performance Impact
-- Code Quality
-- Testing Recommendations
-- Documentation Needs
+`Finding.confidence` is an integer 0–100. Findings below `DEFAULT_MIN_FINDING_CONFIDENCE = 70` are hidden from `visible_findings()` and from inline GitHub comments. `Category` is a 12-variant enum: `security`, `performance`, `error_handling`, `complexity`, `abstraction`, `duplication`, `testing`, `style`, `api_contract`, `concurrency`, `documentation`, `other`. `Severity` and `RiskLevel` accept `critical`/`high`/`medium`/`low`.
 
-**Key instructions:**
+**Key instructions (from `review.toml`):**
 
-- Focus on substantive issues, not nitpicks
-- Highlight security and performance concerns
-- Suggest concrete improvements
-- Consider project context from README/AGENTS.md
+- Use `git_diff(detail="summary")` first; escalate to `repo_map`, `file_read`, `static_analysis`, `git_show`, or `parallel_analyze` based on size and risk.
+- Only report findings with confidence ≥ 70; do not duplicate issues a configured linter or type-checker already catches.
+- Cite an exact `file:start_line` (and `end_line`) on a changed line; supply `suggested_fix` when feasible and `evidence` references for non-trivial claims.
+- Set `metadata.risk_level`, name your `strategy`, list `specialist_passes` you ran (or delegated through `parallel_analyze`), and record `coverage_notes`.
+- Return a JSON object matching the schema — never markdown. If there are no actionable issues, return `findings: []` and zero counts in `stats`.
 
 ### 3. Pull Request (`pr.toml`)
 
@@ -226,6 +234,21 @@ pub struct GeneratedMessage {
 - Explain _why_ the code evolved this way
 - Connect changes to broader project goals
 
+### 8. Verify (`verify.toml`) — Critic Verification
+
+**Purpose:** Internal critic pass that checks a generated artifact against repository evidence.
+
+**Output:** `Critique` — a private struct in `iris.rs` with fields `requires_revision: bool`, `issues: Vec<CritiqueIssue>` (title, body, severity), `revision_prompt: String`, `confidence: u8`. `Critique` is **not** part of `StructuredResponse`; it's consumed inside `verify_response_if_enabled` and used to decide whether to regenerate the artifact.
+
+**How it runs.** After `execute_output_type` produces a `StructuredResponse`, `execute_task` passes the result to `verify_response_if_enabled`. When the critic is enabled (default `Config.critic_enabled = true`) and the `(capability, output_type)` pair matches commit / review / pr / changelog / release_notes, Iris loads `verify.toml`, runs `execute_with_agent::<Critique>` against the serialized artifact and the original user prompt, and:
+
+- If `requires_revision` is `false` (or `true` but issues and `revision_prompt` are both empty), returns the original artifact.
+- Otherwise builds a revision prompt with the critic's issues and instruction appended and calls `execute_output_type` exactly once more.
+
+**What the critic flags.** Unsupported claims, asserted risks without code verification, review findings citing the wrong file or line, commit/PR/changelog text that overstates scope, and missing caveats when an inference is presented as fact. It deliberately skips wording preferences and style choices that match repository conventions.
+
+The critic is a safety net: any error inside the pass (capability load failure, schema mismatch, network error) is logged as a warning and the original artifact is returned unchanged. To opt out, set `critic_enabled = false` in the Git-Iris config.
+
 ## Creating a Custom Capability
 
 ### Step 1: Create the TOML File
@@ -312,21 +335,22 @@ fn load_capability_config(&self, capability: &str) -> Result<(String, String)> {
 
 ### Step 5: Handle Execution
 
-In `execute_task()`, add a match arm:
+In `execute_output_type()` (`src/agents/iris.rs:1068-1129`) — the inner dispatch function called by `execute_task` — add a match arm:
 
 ```rust
-match output_type.as_str() {
+match output_type {
     // ... existing types
     "MyOutputType" => {
-        let response = self.execute_with_agent::<MyOutputType>(
-            &system_prompt,
-            user_prompt,
-        ).await?;
+        let response = self
+            .execute_with_agent::<MyOutputType>(system_prompt, user_prompt)
+            .await?;
         Ok(StructuredResponse::MyOutput(response))
     }
     // ...
 }
 ```
+
+`execute_task` itself just loads the capability, injects style instructions, calls `execute_output_type`, then runs `verify_response_if_enabled` for the critic pass — you don't need to touch it for a new output type unless you want the critic to gate your new artifact (add the `(capability, output_type)` pair to `should_run_critic` if you do).
 
 ### Step 6: Test
 

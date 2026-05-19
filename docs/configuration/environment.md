@@ -174,13 +174,12 @@ jobs:
   check-commit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install Git-Iris
         run: |
-          wget https://github.com/hyperb1iss/git-iris/releases/latest/download/git-iris-linux-amd64
-          chmod +x git-iris-linux-amd64
-          sudo mv git-iris-linux-amd64 /usr/local/bin/git-iris
+          curl -fsSL https://raw.githubusercontent.com/hyperb1iss/git-iris/main/install.sh \
+            | IRIS_INSTALL_DIR=/usr/local/bin sh
 
       - name: Generate commit message
         env:

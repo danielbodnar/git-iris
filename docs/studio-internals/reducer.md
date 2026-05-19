@@ -71,6 +71,23 @@ Studio is no longer a fully pure reducer architecture end-to-end.
 
 This page focuses on that reducer layer, not on an exclusivity guarantee.
 
+## Reducer Submodules
+
+`reducer/` is a directory, not a single file. `mod.rs` owns the top-level `match` on `StudioEvent` and delegates per-domain logic to sibling files so each one stays focused:
+
+| File              | Owns                                                                            |
+| ----------------- | ------------------------------------------------------------------------------- |
+| `mod.rs`          | The `reduce()` entry point, navigation events, lifecycle events, key/mouse plumbing |
+| `agent.rs`        | `AgentStarted`/`Progress`/`Complete`/`Error`, streaming chunks                  |
+| `content.rs`      | `UpdateContent` (tool-triggered UI edits), `StageFile`/`UnstageFile`            |
+| `git.rs`          | `FileStaged`/`Unstaged`, `RefreshGitStatus`, file log + global log              |
+| `modal.rs`        | `create_modal`, `apply_ref_selection`                                            |
+| `navigation.rs`   | `apply_scroll` across all modes and panels                                       |
+| `settings.rs`     | Preset, gitmoji, emoji, amend-mode toggles                                       |
+| `ui.rs`           | Notifications, scroll wrapper, edit-mode toggle, message-variant cycling, clipboard |
+
+The dispatcher in `mod.rs` looks like a fat `match`, but most arms call straight into a one-line helper such as `agent::agent_complete(state, history, task_type, result)` or `git::toggle_global_log(state)`.
+
 ## The Reducer Function
 
 Located in `src/studio/reducer/mod.rs`:
@@ -160,10 +177,16 @@ StudioEvent::GenerateCommit {
     instructions,
     preset,
     use_gitmoji,
+    amend,
 } => {
     // 1. Update UI state
     state.modes.commit.generating = true;
-    state.set_iris_thinking("Generating commit message...");
+    let thinking_msg = if amend {
+        "Generating amended commit message..."
+    } else {
+        "Generating commit message..."
+    };
+    state.set_iris_thinking(thinking_msg);
 
     // 2. Record to history
     history.record_agent_start(TaskType::Commit);
@@ -174,6 +197,7 @@ StudioEvent::GenerateCommit {
             instructions,
             preset,
             use_gitmoji,
+            amend,
         },
     });
 }
@@ -191,16 +215,23 @@ StudioEvent::GenerateCommit {
 **Effects are data** describing I/O operations:
 
 ```rust
+#[derive(Debug, Clone)]
 pub enum SideEffect {
     SpawnAgent { task: AgentTask },
     LoadData { data_type, from_ref, to_ref },
-    GitStage(PathBuf),
-    GitUnstage(PathBuf),
+    GitStage(PathBuf), GitUnstage(PathBuf),
+    GitStageAll, GitUnstageAll,
     SaveSettings,
     RefreshGitStatus,
     CopyToClipboard(String),
     ExecuteCommit { message },
+    ExecuteAmend { message },
+    ShowNotification { level, message, duration_ms },
+    Redraw,
     Quit,
+    GatherBlameAndSpawnAgent { file, start_line, end_line },
+    LoadFileLog(PathBuf),
+    LoadGlobalLog,
 }
 ```
 
@@ -216,24 +247,33 @@ pub enum SideEffect {
 After reducer returns, `StudioApp::execute_effects()` runs:
 
 ```rust
-fn execute_effects(&mut self, effects: Vec<SideEffect>) {
+fn execute_effects(&mut self, effects: Vec<SideEffect>) -> Option<ExitResult> {
     for effect in effects {
         match effect {
-            SideEffect::SpawnAgent { task } => {
-                self.spawn_agent_task(task);
+            SideEffect::Quit => return Some(ExitResult::Quit),
+            SideEffect::ExecuteCommit { message } => {
+                return Some(self.perform_commit(&message));
+            }
+            SideEffect::ExecuteAmend { message } => {
+                return Some(self.perform_amend(&message));
+            }
+            SideEffect::SpawnAgent { task } => match task {
+                AgentTask::Commit { instructions, preset, use_gitmoji, amend } => {
+                    self.spawn_commit_generation(instructions, preset, use_gitmoji, amend);
+                }
+                // ... other agent task variants
             }
             SideEffect::GitStage(path) => {
-                if let Some(svc) = &self.commit_service {
-                    svc.stage_file(&path)?;
-                    // Emit new event
-                    self.push_event(StudioEvent::FileStaged(path));
-                }
+                self.stage_file(&path.to_string_lossy());
             }
-            // ...
+            // ... see src/studio/app/mod.rs for the full executor
         }
     }
+    None
 }
 ```
+
+The executor returns `Option<ExitResult>` so the `Quit`, `ExecuteCommit`, and `ExecuteAmend` paths can short-circuit the event loop with a typed exit reason.
 
 **Notice:** Effects can trigger new events, which feed back into the reducer.
 
@@ -246,6 +286,7 @@ pub struct StudioState {
     // Repository & git
     pub repo: Option<Arc<GitRepo>>,
     pub git_status: GitStatus,
+    pub git_status_loading: bool,
 
     // Configuration
     pub config: Config,
@@ -267,6 +308,10 @@ pub struct StudioState {
     // Agent status
     pub iris_status: IrisStatus,
 
+    // Companion (ambient awareness)
+    pub companion: Option<CompanionService>,
+    pub companion_display: CompanionSessionDisplay,
+
     // UI state
     pub dirty: bool,
     pub last_render: Instant,
@@ -279,23 +324,34 @@ Each mode has its own state struct:
 
 ```rust
 pub struct ModeStates {
-    pub explore: ExploreMode,
-    pub commit: CommitMode,
-    pub review: ReviewMode,
-    pub pr: PRMode,
-    pub changelog: ChangelogMode,
-    pub release_notes: ReleaseNotesMode,
+    pub explore: ExploreState,
+    pub commit: CommitState,
+    pub review: ReviewState,
+    pub pr: PrState,
+    pub changelog: ChangelogState,
+    pub release_notes: ReleaseNotesState,
 }
 
-pub struct CommitMode {
+pub struct CommitState {
     pub messages: Vec<GeneratedMessage>,
     pub current_index: usize,
+    pub custom_instructions: String,
+    pub selected_file_index: usize,
+    pub editing_message: bool,
     pub generating: bool,
-    pub message_editor: MessageEditorState,
-    pub diff_view: DiffViewState,
+    pub use_gitmoji: bool,
+    pub emoji_mode: EmojiMode,         // None | Auto | Custom(String)
+    pub preset: String,
     pub file_tree: FileTreeState,
+    pub diff_view: DiffViewState,
+    pub message_editor: MessageEditorState,
+    pub show_all_files: bool,
+    pub amend_mode: bool,
+    pub original_message: Option<String>,
 }
 ```
+
+Note the naming: each mode's state struct is `*State`, not `*Mode`. The container fields are `explore`, `commit`, `review`, `pr`, `changelog`, `release_notes`.
 
 **Why separate?** Each mode has unique state. Keeps `StudioState` organized.
 
@@ -308,17 +364,28 @@ The reducer records all significant events to `History`:
 history.record_agent_start(TaskType::Commit);
 
 // Agent completed
-history.record_agent_complete(TaskType::Commit, success: true);
+history.record_agent_complete(TaskType::Commit, /* success */ true);
 
 // Mode switched
 history.record_mode_switch(old_mode, new_mode);
 
-// Content generated
-history.record_commit_message(message);
-history.record_review_content(content);
+// Content generated (one API for every content type)
+history.record_content(
+    Mode::Commit,
+    ContentType::CommitMessage,
+    &ContentData::Commit(msg.clone()),
+    EventSource::Agent,
+    "generation_complete",
+);
 
 // Chat message
-history.add_chat_message(role, message, mode, context);
+history.add_chat_message(ChatRole::User, "hi");                   // simple form
+history.add_chat_message_with_context(                            // with mode context
+    ChatRole::User,
+    "tighten this up",
+    state.active_mode,
+    Some(formatted_content),
+);
 ```
 
 **Why in reducer?** Guarantees every state change is recorded, no missed events.
@@ -439,6 +506,7 @@ fn test_generate_commit_starts_agent() {
         instructions: None,
         preset: "default".into(),
         use_gitmoji: true,
+        amend: false,
     };
 
     let effects = reduce(&mut state, event, &mut history);
@@ -451,8 +519,8 @@ fn test_generate_commit_starts_agent() {
     assert_eq!(effects.len(), 1);
     assert!(matches!(effects[0], SideEffect::SpawnAgent { .. }));
 
-    // Assert history
-    assert_eq!(history.events.len(), 1);
+    // Assert history captured the start
+    assert_eq!(history.event_count(), 1);
 }
 ```
 
@@ -483,9 +551,9 @@ eprintln!("BEFORE: {}\nAFTER: {}", before, after);
 ### 3. Check History
 
 ```rust
-// In test or at runtime
-for event in &history.events {
-    println!("{:?} at {:?}", event.event, event.timestamp);
+// In test or at runtime - events() returns an iterator
+for entry in history.events() {
+    println!("{:?} from {:?} at {:?}", entry.change, entry.source, entry.timestamp);
 }
 ```
 
@@ -526,21 +594,24 @@ StudioEvent::AnalyzeCode => {
 
 ### Optimistic Updates
 
-Update state immediately, rollback if operation fails:
+Update state immediately, rollback if operation fails. The current `StageFile` flow is conservative — it returns a `GitStage` effect, then waits for `FileStaged` (or a notification on error) to update state — but an optimistic variant would look like this:
 
 ```rust
+// Hypothetical optimistic version
 StudioEvent::StageFile(path) => {
-    // Optimistic: assume success
     state.git_status.staged_files.push(path.clone());
-    state.dirty = true;
-
+    state.mark_dirty();
     effects.push(SideEffect::GitStage(path));
 }
 
-StudioEvent::FileStageFailed(path) => {
-    // Rollback on error
-    state.git_status.staged_files.retain(|p| p != &path);
-    state.notify(Notification::error("Failed to stage file"));
+// On failure, the executor would push a follow-up event to roll back.
+```
+
+Today's actual `StageFile` handler is simpler:
+
+```rust
+StudioEvent::StageFile(path) => {
+    effects.push(content::stage_file(path));   // returns SideEffect::GitStage
 }
 ```
 

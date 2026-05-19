@@ -31,6 +31,7 @@ git-iris pr [FLAGS] [OPTIONS]
 | --------------- | ---------------------------------------------------------------------------------------- |
 | `-p, --print`   | Print PR description to stdout and exit                                                  |
 | `--raw`         | Output raw markdown without console formatting                                           |
+| `-c, --copy`    | Copy raw markdown to clipboard (for pasting into GitHub/GitLab)                          |
 | `--from <ref>`  | Starting reference (commit, branch, commitish)                                           |
 | `--to <ref>`    | Target reference (commit, branch, commitish)                                             |
 | `--update`      | Update the GitHub PR body with the generated description (`--github-update` still works) |
@@ -38,12 +39,15 @@ git-iris pr [FLAGS] [OPTIONS]
 
 ### Global Options
 
-| Option                      | Description                  |
-| --------------------------- | ---------------------------- |
-| `--provider <name>`         | Override LLM provider        |
-| `--preset <name>`           | Use instruction preset       |
-| `-i, --instructions "text"` | Custom PR focus              |
-| `--debug`                   | Show agent execution details |
+| Option                      | Description                                                        |
+| --------------------------- | ------------------------------------------------------------------ |
+| `--provider <name>`         | Override LLM provider                                              |
+| `--model <name>`            | Override model for this operation                                  |
+| `-r, --repo <url>`          | Run against a remote repository URL instead of the local repo      |
+| `--preset <name>`           | Use instruction preset                                             |
+| `-i, --instructions "text"` | Custom PR focus                                                    |
+| `--critic` / `--no-critic`  | Run or skip the critic verification pass after generation (default: on) |
+| `--debug`                   | Show agent execution details                                       |
 
 ## Usage Patterns
 
@@ -211,10 +215,13 @@ For piping or saving:
 # Save to file
 git-iris pr --from main --to feature-branch --print > pr-description.md
 
-# Copy to clipboard (macOS)
-git-iris pr --from main --to feature-branch --print | pbcopy
+# Copy to clipboard (native, cross-platform)
+git-iris pr --from main --to feature-branch --copy
 
-# Copy to clipboard (Linux)
+# Or pipe yourself if you prefer:
+# macOS
+git-iris pr --from main --to feature-branch --print | pbcopy
+# Linux
 git-iris pr --from main --to feature-branch --print | xclip -selection clipboard
 ```
 
@@ -243,6 +250,11 @@ git-iris pr --from main --to feature-branch --update --pr 123
 ```
 
 When updating, Git-Iris reads the existing PR body first and asks Iris to revise it instead of blindly replacing it. Git-Iris reads `GH_TOKEN` / `GITHUB_TOKEN`, then falls back to the GitHub CLI auth store.
+
+PR auto-detection (when `--pr` is omitted) looks at the current branch. It fails clearly in two cases:
+
+- **Detached HEAD** — no branch to infer a PR from. Pass `--pr <number>`.
+- **Zero or multiple open PRs for the branch** — Iris can't pick for you. Pass `--pr <number>`.
 
 Git-Iris also looks for GitHub PR templates and asks Iris to adapt the generated body around the template. Supported locations include `.github/pull_request_template.md`, `pull_request_template.md`, `docs/pull_request_template.md`, and unambiguous markdown files in `PULL_REQUEST_TEMPLATE` directories.
 

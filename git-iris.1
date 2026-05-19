@@ -1,4 +1,4 @@
-.TH GIT-IRIS 1 "November 2025" "git-iris 2.0.0" "User Commands"
+.TH GIT-IRIS 1 "May 2026" "git-iris 2.0.9" "User Commands"
 .SH NAME
 git-iris \- agentic Git companion
 .SH SYNOPSIS
@@ -8,12 +8,14 @@ git-iris \- agentic Git companion
 .SH DESCRIPTION
 .B git-iris
 is powered by Iris, an intelligent agent that actively explores your codebase to understand what you're building. Rather than dumping context and hoping for the best, Iris uses tools to gather precisely the information she needs\(emanalyzing diffs, exploring file relationships, and building understanding iteratively. This agent-first architecture delivers contextual commit messages, thorough code reviews, structured changelogs, and comprehensive release notes.
+.PP
+When run without a subcommand, Git-Iris launches Iris Studio (see the \fBstudio\fR command) with auto-detected mode.
 .SH GLOBAL OPTIONS
 .TP
 .BR \-l ", " \-\-log
 Log debug messages to a file
 .TP
-.BR \-\-log-file
+.BR \-\-log-file =\fIPATH\fR
 Specify a custom log file path
 .TP
 .BR \-q ", " \-\-quiet
@@ -22,18 +24,50 @@ Suppress non-essential output (spinners, waiting messages, etc.)
 .BR \-v ", " \-\-version
 Display the version
 .TP
-.BR \-r ", " \-\-repo
+.BR \-r ", " \-\-repo =\fIURL\fR
 Repository URL to use instead of local repository
 .TP
 .BR \-\-debug
-Enable debug mode with detailed agent execution output
+Enable debug mode with gorgeous color-coded output showing agent execution details
+.TP
+.BR \-\-theme =\fINAME\fR
+Override theme for this session (use 'git-iris themes' to list available)
+.SH "COMMON OPTIONS"
+The following options are accepted by every feature command (\fBgen\fR, \fBreview\fR, \fBpr\fR, \fBchangelog\fR, \fBrelease-notes\fR, \fBstudio\fR, \fBconfig\fR, \fBproject-config\fR):
+.TP
+.BR \-\-provider =\fIPROVIDER\fR
+Override default LLM provider
+.TP
+.BR \-\-model =\fIMODEL\fR
+Override model for this operation
+.TP
+.BR \-i ", " \-\-instructions =\fIINSTR\fR
+Custom instructions for this operation
+.TP
+.BR \-\-preset =\fIPRESET\fR
+Select an instruction preset (use 'git-iris list-presets' to see available presets)
+.TP
+.BR \-\-gitmoji
+Enable Gitmoji
+.TP
+.BR \-\-no-gitmoji
+Disable Gitmoji
+.TP
+.BR \-\-critic
+Enable critic verification pass
+.TP
+.BR \-\-no-critic
+Disable critic verification pass
+.TP
+.BR \-r ", " \-\-repo =\fIURL\fR
+Repository URL to use instead of local repository (also available as a global flag)
 .SH COMMANDS
 .TP
 .B gen
-Generate a commit message with Iris
+Generate a commit message with Iris (alias: \fBcommit\fR)
 .TP
 .B review
-Have Iris review staged changes and provide feedback
+Have Iris review staged changes, a specific commit, or a branch comparison and provide feedback
 .TP
 .B pr
 Generate a pull request description for commit ranges or branch comparisons
@@ -44,6 +78,9 @@ Generate a changelog between two Git references
 .B release-notes
 Generate comprehensive release notes
 .TP
+.B studio
+Launch Iris Studio, the unified TUI for exploring code, generating commits, reviewing changes, and more
+.TP
 .B config
 Configure Git-Iris settings and providers
 .TP
@@ -52,41 +89,37 @@ Create or update a project-specific configuration file
 .TP
 .B list-presets
 List available instruction presets
+.TP
+.B themes
+List available themes
+.TP
+.B completions
+Generate shell completions (bash, zsh, fish, elvish, powershell)
+.TP
+.B hook
+Install or uninstall the prepare-commit-msg Git hook
 .SH "GEN COMMAND OPTIONS"
+Accepts all options listed in \fBCOMMON OPTIONS\fR, plus:
 .TP
 .BR \-a ", " \-\-auto-commit
 Automatically commit with the generated message
-.TP
-.BR \-i ", " \-\-instructions =\fIINSTR\fR
-Custom instructions for this commit
-.TP
-.BR \-\-provider =\fIPROVIDER\fR
-Override default LLM provider
-.TP
-.BR \-\-preset =\fIPRESET\fR
-Use a specific instruction preset
-.TP
-.BR \-\-no-gitmoji
-Disable Gitmoji for this commit
 .TP
 .BR \-p ", " \-\-print
 Print the generated message to stdout and exit
 .TP
 .BR \-\-no-verify
 Skip verification steps (pre/post commit hooks)
+.TP
+.BR \-\-amend
+Amend the previous commit with staged changes (requires \fB--print\fR or \fB--auto-commit\fR)
 .SH "REVIEW COMMAND OPTIONS"
-.TP
-.BR \-i ", " \-\-instructions =\fIINSTR\fR
-Custom instructions for this review
-.TP
-.BR \-\-provider =\fIPROVIDER\fR
-Override default LLM provider
-.TP
-.BR \-\-preset =\fIPRESET\fR
-Use a specific instruction preset
+Accepts all options listed in \fBCOMMON OPTIONS\fR, plus:
 .TP
 .BR \-p ", " \-\-print
 Print the generated review to stdout and exit
+.TP
+.BR \-\-raw
+Output raw markdown without any console formatting
 .TP
 .BR \-\-include-unstaged
 Include unstaged changes in the review
@@ -95,45 +128,56 @@ Include unstaged changes in the review
 Review a specific commit by ID (hash, branch, or reference)
 .TP
 .BR \-\-from =\fIBRANCH\fR
-Starting branch for comparison (defaults to 'main'). Used with --to for branch comparison reviews. Ideal for reviewing entire PRs or feature branches.
+Starting branch for comparison (defaults to the repository's primary branch). Used with \fB--to\fR for branch comparison reviews.
 .TP
 .BR \-\-to =\fIBRANCH\fR
-Target branch for comparison (e.g., 'feature-branch', 'pr-branch'). Used with --from for branch comparison reviews. If only --to is specified, --from defaults to 'main'. The changes from --from to --to will be reviewed
+Target branch for comparison (e.g., 'feature-branch', 'pr-branch'). Used with \fB--from\fR for branch comparison reviews. If only \fB--to\fR is specified, \fB--from\fR defaults to the repository's primary branch.
+.TP
+.BR \-\-github-review
+Publish the generated review as a GitHub PR review comment
+.TP
+.BR \-\-pr =\fINUMBER\fR
+GitHub pull request number to publish to (auto-detects from branch when omitted)
+.TP
+.BR \-\-github-inline-comments
+Add validated inline comments for review findings whose file and line references appear in the PR diff
+.TP
+.BR \-\-github-review-event =\fIEVENT\fR
+GitHub review event to submit: \fIcomment\fR (default), \fIrequest-changes\fR, or \fIapprove\fR
 .SH "PR COMMAND OPTIONS"
+Accepts all options listed in \fBCOMMON OPTIONS\fR, plus:
+.TP
+.BR \-p ", " \-\-print
+Print the generated PR description to stdout and exit
+.TP
+.BR \-\-raw
+Output raw markdown without any console formatting
+.TP
+.BR \-c ", " \-\-copy
+Copy raw markdown to the clipboard (for pasting into GitHub/GitLab)
 .TP
 .BR \-\-from =\fIREF\fR
-Starting branch, commit, or commitish for comparison. For single commit analysis, specify just this parameter with a commit hash.
+Starting branch, commit, or commitish for comparison. For single commit analysis, specify just this parameter with a commit hash (e.g., \fB--from abc1234\fR). For reviewing multiple commits, use commitish syntax (e.g., \fB--from HEAD~3\fR to review the last 3 commits).
 .TP
 .BR \-\-to =\fIREF\fR
 Target branch, commit, or commitish for comparison (defaults to HEAD)
 .TP
-.BR \-i ", " \-\-instructions =\fIINSTR\fR
-Custom instructions for PR description generation
+.BR \-\-update ", " \-\-github-update
+Update the GitHub PR body with the generated description
 .TP
-.BR \-\-preset =\fIPRESET\fR
-Select an instruction preset for PR description generation
-.TP
-.BR \-p ", " \-\-print
-Print the generated PR description to stdout and exit
+.BR \-\-pr =\fINUMBER\fR
+GitHub pull request number to update (auto-detects from branch when omitted)
 .SH "CHANGELOG COMMAND OPTIONS"
+Accepts all options listed in \fBCOMMON OPTIONS\fR, plus:
 .TP
 .BR \-\-from =\fIREF\fR
-Starting Git reference (commit hash, tag, or branch name)
+Starting Git reference (commit hash, tag, or branch name). Required.
 .TP
 .BR \-\-to =\fIREF\fR
 Ending Git reference (defaults to HEAD if not specified)
 .TP
-.BR \-i ", " \-\-instructions =\fIINSTR\fR
-Custom instructions for changelog generation
-.TP
-.BR \-\-preset =\fIPRESET\fR
-Select an instruction preset for changelog generation
-.TP
-.BR \-\-detail-level =\fILEVEL\fR
-Set the detail level (minimal, standard, detailed)
-.TP
-.BR \-\-gitmoji =\fIBOOL\fR
-Enable or disable Gitmoji in the changelog
+.BR \-\-raw
+Output raw markdown without any console formatting
 .TP
 .BR \-\-update
 Update the changelog file with the new changes
@@ -144,77 +188,88 @@ Path to the changelog file (defaults to CHANGELOG.md)
 .BR \-\-version-name =\fIVERSION\fR
 Explicit version name to use in the changelog instead of getting it from Git
 .SH "RELEASE-NOTES COMMAND OPTIONS"
+Accepts all options listed in \fBCOMMON OPTIONS\fR, plus:
 .TP
 .BR \-\-from =\fIREF\fR
-Starting Git reference (commit hash, tag, or branch name)
+Starting Git reference (commit hash, tag, or branch name). Required.
 .TP
 .BR \-\-to =\fIREF\fR
 Ending Git reference (defaults to HEAD if not specified)
 .TP
-.BR \-i ", " \-\-instructions =\fIINSTR\fR
-Custom instructions for release notes generation
+.BR \-\-raw
+Output raw markdown without any console formatting
 .TP
-.BR \-\-preset =\fIPRESET\fR
-Select an instruction preset for release notes generation
+.BR \-\-update
+Update the release notes file with the new content
 .TP
-.BR \-\-detail-level =\fILEVEL\fR
-Set the detail level (minimal, standard, detailed)
-.TP
-.BR \-\-gitmoji =\fIBOOL\fR
-Enable or disable Gitmoji in the release notes
+.BR \-\-file =\fIFILE\fR
+Path to the release notes file (defaults to RELEASE_NOTES.md)
 .TP
 .BR \-\-version-name =\fIVERSION\fR
 Explicit version name to use in the release notes instead of getting it from Git
-.SH "CONFIG COMMAND OPTIONS"
+.SH "STUDIO COMMAND OPTIONS"
+Accepts all options listed in \fBCOMMON OPTIONS\fR, plus:
 .TP
-.BR \-\-provider =\fIPROVIDER\fR
-Set default LLM provider
+.BR \-\-mode =\fIMODE\fR
+Initial mode to launch in: \fIexplore\fR, \fIcommit\fR, \fIreview\fR, \fIpr\fR, \fIchangelog\fR, or \fIrelease-notes\fR
+.TP
+.BR \-\-from =\fIREF\fR
+Starting ref for PR/changelog comparison (defaults to the repository's primary branch)
+.TP
+.BR \-\-to =\fIREF\fR
+Ending ref for PR/changelog comparison (defaults to HEAD)
+.SH "CONFIG COMMAND OPTIONS"
+Accepts all options listed in \fBCOMMON OPTIONS\fR, plus:
 .TP
 .BR \-\-api-key =\fIKEY\fR
 Set API key for the specified provider
 .TP
-.BR \-\-model =\fIMODEL\fR
-Set model for the specified provider
+.BR \-\-fast-model =\fIMODEL\fR
+Set fast model for the specified provider (used for status updates and simple tasks)
 .TP
 .BR \-\-token-limit =\fILIMIT\fR
 Set token limit for the specified provider
 .TP
 .BR \-\-param =\fIKEY\fR=\fIVALUE\fR
-Set additional parameters for the specified provider
+Set additional parameters for the specified provider (repeatable)
 .TP
-.BR \-\-gitmoji =\fIBOOL\fR
-Enable or disable Gitmoji
+.BR \-\-subagent-timeout =\fISECONDS\fR
+Set timeout in seconds for parallel subagent tasks (default: 120)
 .TP
-.BR \-i ", " \-\-instructions =\fIINSTR\fR
-Set instructions for the commit message generation
-.TP
-.BR \-\-preset =\fIPRESET\fR
-Set default instruction preset
+.BR \-\-subagent-max-turns =\fIN\fR
+Set turn budget for parallel subagent tasks (default: 20)
 .SH "PROJECT-CONFIG COMMAND OPTIONS"
+Accepts all options listed in \fBCOMMON OPTIONS\fR (which set per-project defaults), plus:
 .TP
-.BR \-\-provider =\fIPROVIDER\fR
-Set default LLM provider for this project
-.TP
-.BR \-\-model =\fIMODEL\fR
-Set model for the specified provider
+.BR \-\-fast-model =\fIMODEL\fR
+Set fast model for the specified provider (used for status updates and simple tasks)
 .TP
 .BR \-\-token-limit =\fILIMIT\fR
 Set token limit for the specified provider
 .TP
 .BR \-\-param =\fIKEY\fR=\fIVALUE\fR
-Set additional parameters for the specified provider
+Set additional parameters for the specified provider (repeatable)
+.TP
+.BR \-\-subagent-timeout =\fISECONDS\fR
+Set timeout in seconds for parallel subagent tasks (default: 120)
+.TP
+.BR \-\-subagent-max-turns =\fIN\fR
+Set turn budget for parallel subagent tasks (default: 20)
 .TP
 .BR \-p ", " \-\-print
 Print the current project configuration
+.SH "HOOK COMMAND OPTIONS"
+The \fBhook\fR command takes one of the following subcommands:
 .TP
-.BR \-\-gitmoji =\fIBOOL\fR
-Enable or disable Gitmoji for this project
+.B install [\-\-force]
+Install the prepare-commit-msg hook. Pass \fB--force\fR to overwrite an existing hook that wasn't installed by git-iris.
 .TP
-.BR \-i ", " \-\-instructions =\fIINSTR\fR
-Set instructions for message generation and reviews
+.B uninstall
+Uninstall the prepare-commit-msg hook.
+.SH "COMPLETIONS COMMAND OPTIONS"
 .TP
-.BR \-\-preset =\fIPRESET\fR
-Set default instruction preset for this project
+.B SHELL
+Shell to generate completions for: \fIbash\fR, \fIzsh\fR, \fIfish\fR, \fIelvish\fR, or \fIpowershell\fR.
 .SH "SUPPORTED LLM PROVIDERS"
 Git-Iris supports the following LLM providers:
 .TP
@@ -251,11 +306,27 @@ git-iris gen --preset conventional
 .RE
 .fi
 .PP
+Amend the previous commit with staged changes:
+.PP
+.nf
+.RS
+git-iris gen --amend --auto-commit
+.RE
+.fi
+.PP
 Have Iris review your code:
 .PP
 .nf
 .RS
 git-iris review
+.RE
+.fi
+.PP
+Publish a review to a GitHub PR with inline comments:
+.PP
+.nf
+.RS
+git-iris review --github-review --github-inline-comments --pr 42
 .RE
 .fi
 .PP
@@ -283,6 +354,14 @@ git-iris config --provider openai --api-key YOUR_API_KEY
 .RE
 .fi
 .PP
+Set a faster model for status updates:
+.PP
+.nf
+.RS
+git-iris config --provider anthropic --fast-model claude-haiku-4-5-20251001
+.RE
+.fi
+.PP
 Create or update project-specific configuration:
 .PP
 .nf
@@ -291,19 +370,27 @@ git-iris project-config --provider anthropic --preset security
 .RE
 .fi
 .PP
-Generate a PR description:
+Generate a PR description and copy it to the clipboard:
 .PP
 .nf
 .RS
-git-iris pr --from main --to feature-branch
+git-iris pr --from main --to feature-branch --copy
 .RE
 .fi
 .PP
-Set a default preset:
+Update an existing GitHub PR body in place:
 .PP
 .nf
 .RS
-git-iris config --preset conventional
+git-iris pr --update --pr 123
+.RE
+.fi
+.PP
+Launch Iris Studio in review mode:
+.PP
+.nf
+.RS
+git-iris studio --mode review
 .RE
 .fi
 .PP
@@ -314,23 +401,66 @@ List all available presets:
 git-iris list-presets
 .RE
 .fi
+.PP
+List available themes:
+.PP
+.nf
+.RS
+git-iris themes
+.RE
+.fi
+.PP
+Install shell completions for zsh:
+.PP
+.nf
+.RS
+git-iris completions zsh >> ~/.zshrc
+.RE
+.fi
+.PP
+Install the prepare-commit-msg Git hook:
+.PP
+.nf
+.RS
+git-iris hook install
+.RE
+.fi
 .SH FILES
+Git-Iris resolves its personal config directory in this order:
 .TP
-.I ~/.config/git-iris/config.toml
-Global configuration file for Git-Iris
+.I $XDG_CONFIG_HOME/git-iris/config.toml
+Used when \fBXDG_CONFIG_HOME\fR is set (non-empty). Highest precedence.
+.TP
+.I $HOME/.config/git-iris/config.toml
+Default location on Linux, WSL, and modern macOS setups.
+.TP
+.I ~/Library/Application Support/git-iris/config.toml
+Honored on macOS only if it already exists (legacy location). New macOS installs use \fI~/.config/git-iris/config.toml\fR.
 .TP
 .I .irisconfig
-Project-specific configuration file (stored in repository root)
+Project-specific configuration, stored in the repository root. Overrides personal config for the current repository.
 .SH ENVIRONMENT
+.TP
+.B XDG_CONFIG_HOME
+When set, used as the base directory for personal Git-Iris configuration (see \fBFILES\fR).
 .TP
 .B EDITOR
 The editor to use when editing commit messages. If not set, defaults to vim.
+.TP
+.B OPENAI_API_KEY
+API key for the OpenAI provider (alternative to \fBgit-iris config --api-key\fR).
+.TP
+.B ANTHROPIC_API_KEY
+API key for the Anthropic provider.
+.TP
+.B GOOGLE_API_KEY
+API key for the Google provider.
 .SH BUGS
 Report bugs to: https://github.com/hyperb1iss/git-iris/issues
 .SH AUTHOR
 Written by Stefanie Jane and the Git-Iris contributors.
 .SH COPYRIGHT
-Copyright © 2024-2025 Git-Iris Contributors. License Apache-2.0: Apache License, Version 2.0 <https://www.apache.org/licenses/LICENSE-2.0>
+Copyright \(co 2024-2026 Git-Iris Contributors. License Apache-2.0: Apache License, Version 2.0 <https://www.apache.org/licenses/LICENSE-2.0>
 .SH SEE ALSO
 git(1), git-commit(1)
 .PP

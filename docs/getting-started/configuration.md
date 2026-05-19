@@ -215,24 +215,25 @@ git-iris gen --provider openai
 
 ## Themes
 
-Git-Iris supports custom themes for Studio. Set your preferred theme:
+Git-Iris ships with five SilkCircuit variants (`silkcircuit-neon`, `silkcircuit-soft`, `silkcircuit-vibrant`, `silkcircuit-glow`, `silkcircuit-dawn`) plus 34 community themes from the [opaline](https://crates.io/crates/opaline) catalog.
 
-```bash
-git-iris config --theme silkcircuit-neon  # Default
-git-iris config --theme silkcircuit-dusk
-git-iris config --theme silkcircuit-coral
+There is no `git-iris config --theme` flag. Set your default theme by editing `~/.config/git-iris/config.toml`:
+
+```toml
+theme = "silkcircuit-glow"
 ```
 
-List available themes:
+List available themes (builtins + any installed in `~/.config/git-iris/themes/` or `~/.config/opaline/themes/`):
 
 ```bash
 git-iris themes
 ```
 
-Override theme for a single session:
+`--theme` is a global flag, so it works on any subcommand for a single session:
 
 ```bash
-git-iris studio --theme silkcircuit-violet
+git-iris studio --theme silkcircuit-dawn
+git-iris gen --theme silkcircuit-vibrant
 ```
 
 ## Advanced Options

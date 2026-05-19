@@ -112,12 +112,12 @@ impl Mode {
 
 ### Step 2: Create State Struct
 
-Edit `src/studio/state/modes.rs`:
+Edit `src/studio/state/modes.rs`. Mode state structs follow the `*State` naming convention (not `*Mode`) — the shipped structs are `ExploreState`, `CommitState`, `ReviewState`, `PrState`, `ChangelogState`, and `ReleaseNotesState`:
 
 ```rust
 /// Feature Summary mode state
 #[derive(Debug, Clone, Default)]
-pub struct FeatureSummaryMode {
+pub struct FeatureSummaryState {
     /// Base branch to compare against
     pub from_ref: String,
     /// Feature branch to summarize
@@ -133,7 +133,7 @@ pub struct FeatureSummaryMode {
     pub file_list_selected: usize,
 }
 
-impl FeatureSummaryMode {
+impl FeatureSummaryState {
     pub fn new() -> Self {
         Self {
             from_ref: "<default-branch>".to_string(),
@@ -170,19 +170,19 @@ impl FeatureSummaryMode {
 }
 ```
 
-Add to `ModeStates`:
+Add to `ModeStates`. The shipped fields are `explore`, `commit`, `review`, `pr`, `changelog`, and `release_notes`, all of the `*State` types above:
 
 ```rust
-/// Container for all mode-specific states
+/// Container for all mode states
 #[derive(Debug, Default)]
 pub struct ModeStates {
-    pub explore: ExploreMode,
-    pub commit: CommitMode,
-    pub review: ReviewMode,
-    pub pr: PRMode,
-    pub changelog: ChangelogMode,
-    pub release_notes: ReleaseNotesMode,
-    pub feature_summary: FeatureSummaryMode,  // Add here
+    pub explore: ExploreState,
+    pub commit: CommitState,
+    pub review: ReviewState,
+    pub pr: PrState,
+    pub changelog: ChangelogState,
+    pub release_notes: ReleaseNotesState,
+    pub feature_summary: FeatureSummaryState,  // Add here
 }
 ```
 
@@ -195,7 +195,7 @@ Create `src/studio/handlers/feature_summary.rs`:
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-use crate::studio::events::SideEffect;
+use crate::studio::events::{AgentTask, SideEffect};
 use crate::studio::state::{Modal, PanelId, RefSelectorTarget, StudioState};
 
 use super::copy_to_clipboard;
@@ -317,29 +317,44 @@ fn handle_diff_key(state: &mut StudioState, key: KeyEvent) -> Vec<SideEffect> {
 }
 
 /// Spawn task to generate feature summary
+///
+/// `SideEffect::SpawnAgent` carries a typed `AgentTask` variant — not a boxed
+/// async future. Extend the `AgentTask` enum in `src/studio/events.rs` with a
+/// `FeatureSummary { from_ref, to_ref }` variant, then return it from here. The
+/// actual call to `IrisAgentService` happens inside `src/studio/app/agent_tasks.rs`
+/// when the app drains `SpawnAgent` effects.
 fn spawn_feature_summary_task(state: &StudioState) -> SideEffect {
-    let from_ref = state.modes.feature_summary.from_ref.clone();
-    let to_ref = state.modes.feature_summary.to_ref.clone();
-    let config = state.config.clone();
-
     SideEffect::SpawnAgent {
-        task: Box::pin(async move {
-            use crate::agents::setup::IrisAgentService;
-
-            let service = IrisAgentService::new(config)?;
-            let response = service
-                .execute_capability("feature_summary", &[
-                    ("from_ref", &from_ref),
-                    ("to_ref", &to_ref),
-                ])
-                .await?;
-
-            // Return the summary content
-            Ok(response.to_string())
-        }),
+        task: AgentTask::FeatureSummary {
+            from_ref: state.modes.feature_summary.from_ref.clone(),
+            to_ref: state.modes.feature_summary.to_ref.clone(),
+        },
     }
 }
 ```
+
+When the app executes the new `AgentTask::FeatureSummary` variant, it constructs the service and calls `execute_task` (or `execute_task_with_prompt`). The real signatures live in `src/agents/setup.rs`:
+
+```rust
+// IrisAgentService::new takes four args and is NOT fallible.
+pub fn new(config: Config, provider: String, model: String, fast_model: String) -> Self { ... }
+
+// Task execution uses execute_task with a structured TaskContext...
+pub async fn execute_task(
+    &self,
+    capability: &str,
+    context: TaskContext,
+) -> Result<StructuredResponse> { ... }
+
+// ...or execute_task_with_prompt for a pre-built prompt string.
+pub async fn execute_task_with_prompt(
+    &self,
+    capability: &str,
+    task_prompt: &str,
+) -> Result<StructuredResponse> { ... }
+```
+
+There is no `execute_capability(name, &[(key, value)])` method.
 
 Add to `src/studio/handlers/mod.rs`:
 
@@ -348,13 +363,25 @@ pub mod feature_summary;
 pub use feature_summary::handle_feature_summary_key;
 ```
 
-Update main handler to dispatch to your mode:
+Update the mode dispatch in `handle_key_event` (in `src/studio/handlers/mod.rs`, around line 45) — `handlers/global.rs` does not exist; cross-mode dispatch lives in `mod.rs`:
 
 ```rust
-// In src/studio/handlers/global.rs or main handler
 match state.active_mode {
-    // ... existing modes ...
+    Mode::Explore => handle_explore_key(state, key),
+    Mode::Commit => handle_commit_key(state, key),
+    Mode::Review => handle_review_key(state, key),
+    Mode::PR => handle_pr_key(state, key),
+    Mode::Changelog => handle_changelog_key(state, key),
+    Mode::ReleaseNotes => handle_release_notes_key(state, key),
     Mode::FeatureSummary => handle_feature_summary_key(state, key),
+}
+```
+
+You also need to register the mode's keyboard shortcut in `handle_global_key` (same file, around line 59). Each shipped mode has a hard-coded `matches_shift_char` check; add one for your mode:
+
+```rust
+if matches_shift_char(&key, 'f') {
+    return Some(switch_mode(state, Mode::FeatureSummary));
 }
 ```
 
@@ -535,55 +562,55 @@ fn render_diff(
 }
 ```
 
-Add to `src/studio/render/mod.rs`:
+Register the renderer module in `src/studio/render/mod.rs`:
 
 ```rust
 pub mod feature_summary;
 pub use feature_summary::render_feature_summary_panel;
 ```
 
-Update main renderer to use your mode:
+The per-mode renderer dispatch does **not** live in `render/mod.rs` — that file only contains module declarations and re-exports. The actual `match state.active_mode { ... }` happens in `render_panel_content` inside `src/studio/app/mod.rs` (around line 2093). Add your arm there:
 
 ```rust
-// In src/studio/render/mod.rs or main render function
-match state.active_mode {
-    // ... existing modes ...
-    Mode::FeatureSummary => {
-        render_feature_summary_panel(state, frame, left_area, PanelId::Left);
-        render_feature_summary_panel(state, frame, center_area, PanelId::Center);
-        render_feature_summary_panel(state, frame, right_area, PanelId::Right);
+fn render_panel_content(&mut self, frame: &mut Frame, area: Rect, panel_id: PanelId) {
+    match self.state.active_mode {
+        Mode::Explore => render_explore_panel(&mut self.state, frame, area, panel_id),
+        Mode::Commit => render_commit_panel(&mut self.state, frame, area, panel_id),
+        Mode::Review => render_review_panel(&mut self.state, frame, area, panel_id),
+        Mode::PR => render_pr_panel(&mut self.state, frame, area, panel_id),
+        Mode::Changelog => render_changelog_panel(&mut self.state, frame, area, panel_id),
+        Mode::ReleaseNotes => {
+            render_release_notes_panel(&mut self.state, frame, area, panel_id);
+        }
+        Mode::FeatureSummary => {
+            render_feature_summary_panel(&mut self.state, frame, area, panel_id);
+        }
     }
 }
 ```
 
+The shipped renderers all receive a single `panel_id` and decide internally which panel to draw, so panel area iteration is already handled by `render_panels` further up in `app/mod.rs`.
+
 ### Step 5: Add Side Effects
 
-Edit `src/studio/events.rs` to add any new side effects:
+The reducer lives in `src/studio/reducer/` as a directory module (`mod.rs` plus `agent.rs`, `content.rs`, `git.rs`, `modal.rs`, `navigation.rs`, `settings.rs`, `ui.rs`). It reduces `StudioEvent` values, mutates state, and returns `SideEffect` values for the app to execute — it does not match on side effects itself.
+
+If your mode needs anything beyond `SideEffect::SpawnAgent { task: AgentTask::FeatureSummary { ... } }` (added in Step 3), add the new variant to the `SideEffect` enum in `src/studio/events.rs`:
 
 ```rust
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SideEffect {
     // ... existing effects ...
 
-    /// Generate feature summary
-    GenerateFeatureSummary {
+    /// Pre-load feature-summary inputs before the agent runs
+    PrepareFeatureSummary {
         from_ref: String,
         to_ref: String,
     },
 }
 ```
 
-Handle in reducer (if using specialized effects instead of generic `SpawnAgent`):
-
-```rust
-// In src/studio/reducer.rs
-match effect {
-    // ... existing effects ...
-    SideEffect::GenerateFeatureSummary { from_ref, to_ref } => {
-        // Spawn agent task
-    }
-}
-```
+The app's effect dispatcher (not the reducer) is responsible for actually executing the effect — wire your new variant into the app loop alongside `SpawnAgent`, `LoadData`, etc.
 
 ### Step 6: Update Focus Defaults
 
@@ -607,9 +634,11 @@ pub fn switch_mode(&mut self, new_mode: Mode) {
 ### Step 7: Test Your Mode
 
 ```bash
-cargo build
-cargo run -- studio
+just build
+just studio
 ```
+
+Make sure you've also added the `matches_shift_char(&key, 'f')` line to `handle_global_key` (Step 3) — mode shortcuts are dispatched explicitly per mode, not auto-derived from `Mode::shortcut()`.
 
 In Studio:
 
@@ -687,7 +716,7 @@ render_code_view(
 **Keep state minimal:**
 
 ```rust
-pub struct MyMode {
+pub struct MyState {
     pub essential_data: String,
     pub scroll_offset: usize,
     // Don't store derived data - compute on render
@@ -697,7 +726,7 @@ pub struct MyMode {
 **Use clear field names:**
 
 ```rust
-pub struct MyMode {
+pub struct MyState {
     pub from_ref: String,      // Good - clear purpose
     pub to_ref: String,         // Good
     pub data: String,           // Bad - vague
@@ -870,7 +899,7 @@ Study these complete mode implementations:
 
 ### Commit Mode
 
-- **State**: `src/studio/state/modes.rs` → `CommitMode`
+- **State**: `src/studio/state/modes.rs` → `CommitState`
 - **Handler**: `src/studio/handlers/commit.rs`
 - **Renderer**: `src/studio/render/commit.rs`
 
@@ -878,7 +907,7 @@ Study these complete mode implementations:
 
 ### Review Mode
 
-- **State**: `src/studio/state/modes.rs` → `ReviewMode`
+- **State**: `src/studio/state/modes.rs` → `ReviewState`
 - **Handler**: `src/studio/handlers/review.rs`
 - **Renderer**: `src/studio/render/review.rs`
 
@@ -886,7 +915,7 @@ Study these complete mode implementations:
 
 ### PR Mode
 
-- **State**: `src/studio/state/modes.rs` → `PRMode`
+- **State**: `src/studio/state/modes.rs` → `PrState`
 - **Handler**: `src/studio/handlers/pr.rs`
 - **Renderer**: `src/studio/render/pr.rs`
 
@@ -912,10 +941,10 @@ Study these complete mode implementations:
 
 ```bash
 # Run with verbose logging
-RUST_LOG=debug cargo run -- studio
+just run-debug -- studio
 
 # Check for panics
-cargo run -- studio 2> errors.log
+just studio 2> errors.log
 ```
 
 ## Next Steps

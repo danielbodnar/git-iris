@@ -55,6 +55,7 @@
 | <kbd>G</kbd> / <kbd>End</kbd>  | Jump to last commit             |
 | <kbd>f</kbd>                   | Select "from" ref (base branch) |
 | <kbd>t</kbd>                   | Select "to" ref (target branch) |
+| <kbd>#</kbd>                   | Quick "last N commits" picker — opens a `CommitCount` modal that sets the from-ref to `HEAD~N` for fast PR descriptions over the last few commits |
 | <kbd>r</kbd>                   | Generate PR description         |
 
 ### PR Description (Center Panel)
@@ -294,9 +295,11 @@ Existing configs are auto-migrated on first run.
 
 ## Special Features
 
+> The behaviors below are **prompt-driven**, not coded features. The PR mode output type is a thin markdown wrapper (`MarkdownPullRequest = { content: String }` in `src/types/pr.rs`), so what you actually get is whatever the LLM decides to emit given the commit range and the capability prompt at `src/agents/capabilities/pr.toml`. Treat these as guidelines Iris tries to follow, not deterministic guarantees.
+
 ### Commit Analysis
 
-Iris reads **all commits** in the range to:
+Iris is prompted to read **all commits** in the range to:
 
 - Extract common themes
 - Identify breaking changes
@@ -305,7 +308,7 @@ Iris reads **all commits** in the range to:
 
 ### Intelligent Grouping
 
-Changes are grouped by:
+The prompt encourages grouping changes by:
 
 - **Feature**: Related functionality
 - **Type**: Bug fixes, features, refactors
@@ -313,23 +316,25 @@ Changes are grouped by:
 
 ### Breaking Change Detection
 
-Iris automatically identifies:
+When the diff looks like it changes a public surface, Iris is encouraged to call it out:
 
 - API changes (function signature modifications)
 - Config format changes
 - Removed features
 - Behavioral changes
 
-And generates migration guidance.
+And to generate migration guidance.
 
 ### Test Plan Generation
 
-Based on changes, Iris suggests:
+Based on changes, Iris will often suggest:
 
 - Unit test requirements
 - Integration test scenarios
 - Manual testing steps
 - Edge cases to verify
+
+These appear only when the model judges them useful — the test-plan section is not always present.
 
 ## Chat Integration
 
@@ -420,7 +425,7 @@ Iris extracts these and adds to "Related Issues" section automatically.
 
 ### 5. Screenshot Placeholders
 
-For UI changes, Iris adds:
+When the diff looks like a UI change, the prompt nudges Iris to add something like:
 
 ```markdown
 ## Screenshots
@@ -428,7 +433,7 @@ For UI changes, Iris adds:
 [TODO: Add before/after screenshots]
 ```
 
-Reminds you to add visuals before submitting PR.
+This is a prompt suggestion rather than guaranteed output — if Iris doesn't add it and you want it, ask in chat: "Add a Screenshots placeholder."
 
 ### 6. Save Descriptions
 

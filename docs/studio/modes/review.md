@@ -14,26 +14,19 @@
 
 ## Panel Layout
 
-| Panel      | Content                                                                     |
-| ---------- | --------------------------------------------------------------------------- |
-| **Left**   | Changed files in selected range with directory tree and ref selection       |
-| **Center** | Markdown-formatted review with categorized findings and severity indicators |
-| **Right**  | Unified diff view with syntax highlighting and hunk navigation              |
+| Panel      | Content                                                                  |
+| ---------- | ------------------------------------------------------------------------ |
+| **Left**   | `Changed Files` tree of files in the selected ref range                  |
+| **Center** | Structured markdown review: summary, coverage, and findings by severity  |
+| **Right**  | Unified diff view with syntax highlighting and hunk navigation           |
 
 ### Left Panel: Changed Files
 
-- Files with changes in selected range
-- Directory tree structure
-- Git status indicators
-- Ref selection (from/to)
+A `FileTree` titled `Changed Files`, listing each path touched between `from` and `to`. Ref selection itself happens in a modal (press <kbd>f</kbd> or <kbd>t</kbd>), not as inline UI in this panel.
 
 ### Center Panel: Review Output
 
-- Markdown-formatted review
-- Categorized by dimension (Security, Performance, etc.)
-- Severity indicators (✓, ⚠️, ✗)
-- Line number references
-- Scrollable multi-section output
+Iris emits a **structured** `Review` (see `src/types/review.rs`), then renders it as markdown. Each finding carries a severity (`critical`, `high`, `medium`, `low`), a category (security, performance, error handling, complexity, abstraction, duplication, testing, style, API contract, concurrency, documentation, or other), and a confidence score from 0–100. The center panel scrolls through this rendered markdown.
 
 ### Right Panel: Diff View
 
@@ -46,6 +39,8 @@
 
 ### File List (Left Panel)
 
+The `f`/`t` chords are handled when the **left panel** has focus — they open a ref selector modal scoped to Review's from/to refs.
+
 | Key                            | Action                             |
 | ------------------------------ | ---------------------------------- |
 | <kbd>j</kbd> / <kbd>↓</kbd>    | Select next file                   |
@@ -53,8 +48,8 @@
 | <kbd>h</kbd> / <kbd>←</kbd>    | Collapse directory                 |
 | <kbd>l</kbd> / <kbd>→</kbd>    | Expand directory                   |
 | <kbd>Enter</kbd>               | Load file diff (focus right panel) |
-| <kbd>f</kbd>                   | Select "from" ref (base)           |
-| <kbd>t</kbd>                   | Select "to" ref (target)           |
+| <kbd>f</kbd>                   | Open "from" ref selector modal     |
+| <kbd>t</kbd>                   | Open "to" ref selector modal       |
 | <kbd>r</kbd>                   | Generate review                    |
 | <kbd>g</kbd> / <kbd>Home</kbd> | Jump to first file                 |
 | <kbd>G</kbd> / <kbd>End</kbd>  | Jump to last file                  |
@@ -69,7 +64,7 @@
 | <kbd>Ctrl+u</kbd> / <kbd>PgUp</kbd> | Page up                  |
 | <kbd>g</kbd> / <kbd>Home</kbd>      | Jump to top              |
 | <kbd>G</kbd> / <kbd>End</kbd>       | Jump to bottom           |
-| <kbd>r</kbd>                        | Regenerate review        |
+| <kbd>r</kbd>                        | Regenerate review (spawns a fresh `AgentTask::Review` for the current from/to refs — there is no incremental memory between runs) |
 | <kbd>Shift+R</kbd>                  | Reset (clear review)     |
 | <kbd>y</kbd>                        | Copy review to clipboard |
 
@@ -163,70 +158,75 @@ Iris analyzes code across multiple dimensions:
 
 ## Review Output Format
 
+Iris emits a structured `Review` (defined in `src/types/review.rs`) and renders it as markdown. Top-level sections always follow this order:
+
+1. `# Code Review`
+2. `## Summary` — the model's narrative paragraph
+3. `## Review Coverage` — optional metadata: overall risk level, strategy, specialist passes, coverage notes
+4. `## Findings` — a stats line followed by findings grouped under `### CRITICAL`, `### HIGH`, `### MEDIUM`, `### LOW`
+
+Findings below the default confidence threshold (70%) are filtered out before display, so the stats line reports only the visible findings. When nothing remains, the section reads "No blocking issues found." instead of listing categories.
+
+Each finding renders as:
+
+```markdown
+- [SEVERITY] **title in `file:line`**
+  Category: <category>. Confidence: NN%.
+  <body paragraph explaining the issue>
+  **Fix**: <optional suggested fix>
+  Evidence: file.rs:12, file.rs:30 (optional notes)
+```
+
+### Example
+
 ```markdown
 # Code Review
 
 ## Summary
 
-Reviewed 3 files with 145 additions and 32 deletions.
-Overall: ✓ Good with minor improvements suggested.
+Reviewed 3 files with 145 additions and 32 deletions. The diff is mostly self-contained, but two changes need attention before merge.
 
-## Security
+## Review Coverage
 
-✓ No critical security issues found.
+Risk: high
 
-⚠️ Consider validating user input in `src/handlers/commit.rs:45`
-Current implementation trusts all input from message editor.
-Suggestion: Add length limits and sanitize special characters.
+Strategy: focused review of input validation and hot-path performance, with a security specialist pass on the message editor.
 
-## Performance
+Specialist passes:
+- security
+- performance
 
-✓ Efficient use of iterators throughout.
+## Findings
 
-✗ Potential O(n²) issue in `src/studio/state.rs:123`
-Nested loop scans all files for each commit.
-Suggestion: Index files by commit ID for O(1) lookups.
+Reviewed 3 file(s). Found 2 issue(s): 0 critical, 1 high, 1 medium, 0 low.
 
-## Best Practices
+### HIGH
 
-✓ Follows Rust idioms well.
-✓ Good error handling with Result types.
+- [HIGH] **Unvalidated input from message editor in `src/handlers/commit.rs:45`**
+  Category: security. Confidence: 88%.
+  The handler trusts every byte from the editor and forwards it straight into the commit pipeline. A pathological payload could exceed downstream buffers.
+  **Fix**: Cap length and sanitize control characters before dispatch.
+  Evidence: src/handlers/commit.rs:45, src/handlers/commit.rs:72
 
-⚠️ Consider extracting `sync_file_selection()` to a trait
-This pattern is repeated in 3 different handlers.
-Suggestion: Create a `FileSync` trait for reuse.
+### MEDIUM
 
-## Potential Bugs
-
-✓ No obvious bugs detected.
-
-## Code Quality
-
-Overall quality: High
-
-⚠️ Function `handle_commit_key` is complex (cyclomatic: 12)
-Consider splitting into smaller functions.
-
-## Documentation
-
-⚠️ Missing docstring for `EmojiMode::Custom`
-Add documentation explaining when to use this variant.
-
-## Recommendations
-
-1. Add input validation to message editor
-2. Optimize file lookup in state management
-3. Extract file sync logic to shared trait
-4. Document EmojiMode variants
-
-Estimated time to address: 2-3 hours
+- [MEDIUM] **O(n²) lookup in commit indexing in `src/studio/state.rs:123-141`**
+  Category: performance. Confidence: 76%.
+  The nested loop scans every file for every commit, which scales poorly on large repos.
+  **Fix**: Build a `HashMap<CommitId, Vec<FileId>>` once, then look up in O(1).
 ```
 
 ### Severity Indicators
 
-- **✓ (Green)**: Good, no issues
-- **⚠️ (Yellow)**: Warning, minor improvement
-- **✗ (Red)**: Error, significant issue
+The terminal renderer styles each severity badge instead of using check/warn/cross glyphs:
+
+- `[CRITICAL]` and `[HIGH]` — error color, bold (the most urgent issues)
+- `[MEDIUM]` — warning color, bold
+- `[LOW]` — coral, bold
+
+### Confidence Gating
+
+The default cutoff is 70%, defined as `DEFAULT_MIN_FINDING_CONFIDENCE` in `src/types/review.rs`. Anything Iris is less than 70% sure about is dropped from the rendered view and from the stats counts — they exist in the structured payload but never reach the markdown the user sees.
 
 ## Workflow Examples
 
@@ -239,11 +239,11 @@ Estimated time to address: 2-3 hours
 3. Default refs are `primary-branch..HEAD` on feature branches
    On the primary branch, Review falls back to `HEAD~1..HEAD`
 4. Press <kbd>r</kbd> to generate review
-5. Read through each dimension
+5. Read the summary and walk the findings from CRITICAL down to LOW
 6. Press <kbd>/</kbd> to chat: "Explain the O(n²) issue you found"
 7. Fix issues in your editor
 8. Press <kbd>r</kbd> to review again
-9. When ✓ across all dimensions, switch to Commit mode (<kbd>Shift+C</kbd>)
+9. When the findings list is empty (or shows "No blocking issues found."), switch to Commit mode (<kbd>Shift+C</kbd>)
 
 ### Example 2: PR Preparation
 
@@ -254,7 +254,7 @@ Estimated time to address: 2-3 hours
 3. Press <kbd>f</kbd> to select from ref: `origin/<default-branch>`
 4. Press <kbd>t</kbd> to select to ref: `HEAD`
 5. Press <kbd>r</kbd> to generate review
-6. Address all ✗ and ⚠️ items
+6. Address every `[CRITICAL]` and `[HIGH]` finding, then triage the `[MEDIUM]` and `[LOW]` ones
 7. Press <kbd>y</kbd> to copy review to clipboard
 8. Paste into PR description as "Self-Review" section
 
@@ -290,14 +290,14 @@ Estimated time to address: 2-3 hours
 **Goal**: Audit for security issues only
 
 1. Generate review
-2. Scroll to Security section with <kbd>j</kbd>/<kbd>k</kbd>
-3. For each ⚠️ or ✗:
-   - Note the line number
-   - Press <kbd>Tab</kbd> to focus diff panel
+2. Scan the Findings section for entries whose `Category:` line reads `security`
+3. For each one:
+   - Note the file and line range in the finding title
+   - Press <kbd>Tab</kbd> to focus the diff panel
    - Navigate to that line with <kbd>j</kbd>/<kbd>k</kbd>
    - Press <kbd>/</kbd> to ask: "How would you exploit this?"
 4. Fix vulnerabilities
-5. Press <kbd>r</kbd> to verify fixes
+5. Press <kbd>r</kbd> to regenerate the review against the updated tree
 
 ## Special Features
 
@@ -347,36 +347,9 @@ You: Show me the indexed version
 Iris: [Provides code example]
 ```
 
-### Incremental Review
+### Re-running a Review
 
-After fixing issues:
-
-1. Press <kbd>r</kbd> to regenerate
-2. Iris focuses on **new issues only** (remembers context)
-3. Confirms fixes: "✓ O(n²) loop now uses indexed lookup"
-
-## Review Modes
-
-### Quick Review (Default)
-
-Fast analysis focusing on critical issues:
-
-- Security vulnerabilities
-- Obvious bugs
-- Major performance problems
-
-Takes 10-30 seconds.
-
-### Deep Review (Future)
-
-Full analysis including:
-
-- Test coverage gaps
-- Documentation completeness
-- Architecture adherence
-- Dependency analysis
-
-Takes 1-3 minutes.
+Each press of <kbd>r</kbd> spawns a brand-new `AgentTask::Review` for the current `from`/`to` refs (see `src/studio/handlers/mod.rs` and `handlers/review.rs`). There is no cross-run memory: Iris does not remember that you fixed an earlier issue, and there are no "quick" vs "deep" review modes — every run is a full re-analysis. To narrow the scope, change the refs (`f`/`t`) before regenerating.
 
 ## Tips & Tricks
 
@@ -412,21 +385,17 @@ Copy review (<kbd>y</kbd>) and paste into:
 - Commit message (for complex changes)
 - Team wiki (as examples)
 
-### 5. Focus on One Dimension
+### 5. Filter by Category in Your Head
 
-Use <kbd>j</kbd>/<kbd>k</kbd> to scroll directly to:
-
-- Security (if handling user input)
-- Performance (if optimizing hot paths)
-- Best Practices (for mentorship/learning)
+Findings carry an explicit `Category:` line (security, performance, error handling, etc.). Scan the rendered output and ignore categories that aren't your current focus — useful when you only have time to triage security or performance issues.
 
 ### 6. Iterative Improvement
 
 Don't try to fix everything at once:
 
-1. First pass: Fix ✗ (errors)
-2. Second pass: Address ⚠️ (warnings)
-3. Third pass: Polish ✓ sections
+1. First pass: clear all `[CRITICAL]` and `[HIGH]` findings
+2. Second pass: address `[MEDIUM]`
+3. Third pass: polish `[LOW]` items where it's worth the effort
 
 ## Troubleshooting
 
@@ -461,9 +430,11 @@ Don't try to fix everything at once:
 
 **Fix**: Navigate diff to find context around that area.
 
-### No security issues found but I'm suspicious
+### No security findings but I'm suspicious
 
-**Symptom**: Review says "✓ No security issues" but you're not convinced
+**Symptom**: The findings section shows "No blocking issues found." (or no `security` category entries) but you're not convinced.
+
+**Cause**: Confidence gating may have hidden a borderline finding (anything below 70% is filtered before display).
 
 **Fix**:
 

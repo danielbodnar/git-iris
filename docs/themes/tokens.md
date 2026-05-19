@@ -1,6 +1,8 @@
 # Semantic Token Reference
 
-Complete reference of all semantic tokens used by Git-Iris. Every token must be defined in your theme for it to be valid.
+Complete reference of the semantic tokens git-iris reads from the active theme. The 26 tokens listed under "opaline's 26-token contract" are what every well-rounded theme defines; git-iris also registers a handful of additional tokens at runtime (`git.*`, `diff.*`, `mode.*`, `code.hash`, `code.path`) with sensible defaults derived from the contract tokens — those are optional overrides, not required inputs.
+
+opaline performs no required-token validation. A token that isn't defined silently resolves to `OpalineColor::FALLBACK` (a neutral gray, `#808080`). Themes never fail to load over missing tokens — they only fail on malformed TOML, bad hex colors, unresolved or circular references, or empty gradients.
 
 ## Token Naming Convention
 
@@ -48,15 +50,17 @@ Dim:       ██░░░░░░  25% contrast
 
 Defines background layers and elevation.
 
-| Token          | Usage                                | Example                    |
-| -------------- | ------------------------------------ | -------------------------- |
-| `bg.base`      | Main application background          | Canvas, root window        |
-| `bg.panel`     | Panel/section backgrounds            | Sidebar, main content area |
-| `bg.code`      | Code block backgrounds               | Diff view, file contents   |
-| `bg.highlight` | Highlighted/hovered items            | Cursor line, row hover     |
-| `bg.elevated`  | Elevated surfaces (modals, tooltips) | Popups, overlays           |
-| `bg.active`    | Currently active/selected state      | Active tab, focused panel  |
-| `bg.selection` | Text selection background            | Selected text range        |
+| Token          | Contract | Usage                       | Example                    |
+| -------------- | -------- | --------------------------- | -------------------------- |
+| `bg.base`      | ✓        | Main application background | Canvas, root window        |
+| `bg.panel`     | ✓        | Panel/section backgrounds   | Sidebar, main content area |
+| `bg.code`      | ✓        | Code block backgrounds      | Diff view, file contents   |
+| `bg.highlight` | ✓        | Highlighted/hovered items   | Cursor line, row hover     |
+| `bg.selection` | ✓        | Selection background        | Active selection, focused row |
+| `bg.elevated`  | extra    | Elevated surfaces (modals, tooltips) | Used by SilkCircuit builtins |
+| `bg.active`    | extra    | Active/selected state       | Used by SilkCircuit builtins |
+
+The five tokens marked **✓** are part of opaline's standard 26-token contract. `bg.elevated` and `bg.active` are extras the SilkCircuit builtins define — they're not part of the standard contract, so other themes may omit them and Studio still renders correctly.
 
 **Example:**
 
@@ -66,9 +70,10 @@ Defines background layers and elevation.
 "bg.panel" = "#181820"       # Slightly lighter
 "bg.code" = "#1e1e28"        # Code context
 "bg.highlight" = "#37324b"   # Hover state
+"bg.selection" = "#3c3c50"   # Selection
+# SilkCircuit-specific extras
 "bg.elevated" = "#37324b"    # Floating elements
 "bg.active" = "#3c2d55"      # Active selection
-"bg.selection" = "#3c3c50"   # Lightest
 ```
 
 **Elevation model:**
@@ -122,14 +127,14 @@ info = "#80ffea"      # Cyan
 
 ## Git Status Colors
 
-Git file state indicators.
+Git file state indicators. These are git-iris extras with derived defaults — define them in your TOML only if you want to override the defaults shown.
 
-| Token           | Usage                            | Git Status     |
-| --------------- | -------------------------------- | -------------- |
-| `git.staged`    | Staged changes (ready to commit) | `A ` added     |
-| `git.modified`  | Modified but unstaged            | ` M` modified  |
-| `git.untracked` | Untracked files                  | `??` untracked |
-| `git.deleted`   | Deleted files                    | ` D` deleted   |
+| Token           | Default fallback | Usage                            | Git Status     |
+| --------------- | ---------------- | -------------------------------- | -------------- |
+| `git.staged`    | `success`        | Staged changes (ready to commit) | `A ` added     |
+| `git.modified`  | `warning`        | Modified but unstaged            | ` M` modified  |
+| `git.untracked` | `text.muted`     | Untracked files                  | `??` untracked |
+| `git.deleted`   | `error`          | Deleted files                    | ` D` deleted   |
 
 **Example:**
 
@@ -153,14 +158,14 @@ src/
 
 ## Diff Colors
 
-Unified diff view syntax highlighting.
+Unified diff view syntax highlighting. Like the git status tokens, these are git-iris extras with derived defaults.
 
-| Token          | Usage                      | Diff Line Prefix |
-| -------------- | -------------------------- | ---------------- |
-| `diff.added`   | Added lines                | `+`              |
-| `diff.removed` | Removed lines              | `-`              |
-| `diff.hunk`    | Hunk headers (`@@ ... @@`) | `@@`             |
-| `diff.context` | Unchanged context lines    | ` ` (space)      |
+| Token          | Default fallback | Usage                      | Diff Line Prefix |
+| -------------- | ---------------- | -------------------------- | ---------------- |
+| `diff.added`   | `success`        | Added lines                | `+`              |
+| `diff.removed` | `error`          | Removed lines              | `-`              |
+| `diff.hunk`    | `info`           | Hunk headers (`@@ ... @@`) | `@@`             |
+| `diff.context` | `text.dim`       | Unchanged context lines    | ` ` (space)      |
 
 **Example:**
 
@@ -212,19 +217,19 @@ Interface components and interactions.
 
 ## Code Syntax
 
-Syntax highlighting tokens for source code.
+Syntax highlighting tokens for source code. The seven `code.keyword` / `code.function` / `code.string` / `code.number` / `code.comment` / `code.type` / `code.line_number` tokens are part of opaline's contract. `code.hash` and `code.path` are git-iris extras with derived defaults (commit hashes default to `accent.tertiary`, file paths to `accent.secondary`).
 
-| Token              | Usage                     | Example                    |
-| ------------------ | ------------------------- | -------------------------- |
-| `code.hash`        | Commit hashes, checksums  | `a3f2c9b`                  |
-| `code.path`        | File paths, URLs          | `src/main.rs`              |
-| `code.keyword`     | Programming keywords      | `fn`, `let`, `if`          |
-| `code.function`    | Function/method names     | `calculate()`, `get_value` |
-| `code.string`      | String literals           | `"hello"`, `'world'`       |
-| `code.number`      | Numeric literals          | `42`, `3.14`, `0xFF`       |
-| `code.comment`     | Code comments             | `// comment`, `/* ... */`  |
-| `code.type`        | Type names, classes       | `String`, `Option<T>`      |
-| `code.line_number` | Line numbers in code view | `1`, `2`, `3`              |
+| Token              | Contract | Usage                     | Example                    |
+| ------------------ | -------- | ------------------------- | -------------------------- |
+| `code.keyword`     | ✓        | Programming keywords      | `fn`, `let`, `if`          |
+| `code.function`    | ✓        | Function/method names     | `calculate()`, `get_value` |
+| `code.string`      | ✓        | String literals           | `"hello"`, `'world'`       |
+| `code.number`      | ✓        | Numeric literals          | `42`, `3.14`, `0xFF`       |
+| `code.comment`     | ✓        | Code comments             | `// comment`, `/* ... */`  |
+| `code.type`        | ✓        | Type names, classes       | `String`, `Option<T>`      |
+| `code.line_number` | ✓        | Line numbers in code view | `1`, `2`, `3`              |
+| `code.hash`        | extra    | Commit hashes, checksums  | `a3f2c9b`                  |
+| `code.path`        | extra    | File paths, URLs          | `src/main.rs`              |
 
 **Example:**
 
@@ -262,13 +267,13 @@ Syntax highlighting tokens for source code.
 
 ## Mode Tabs
 
-Navigation tab states.
+Navigation tab states. These are git-iris extras with derived defaults.
 
-| Token           | Usage                             | Example          |
-| --------------- | --------------------------------- | ---------------- |
-| `mode.active`   | Currently active mode             | Selected tab     |
-| `mode.inactive` | Inactive modes                    | Unselected tabs  |
-| `mode.hover`    | Hovered mode (future enhancement) | Tab under cursor |
+| Token           | Default fallback   | Usage                             | Example          |
+| --------------- | ------------------ | --------------------------------- | ---------------- |
+| `mode.active`   | `accent.primary`   | Currently active mode             | Selected tab     |
+| `mode.inactive` | `text.muted`       | Inactive modes                    | Unselected tabs  |
+| `mode.hover`    | `accent.secondary` | Hovered mode (future enhancement) | Tab under cursor |
 
 **Example:**
 
@@ -291,7 +296,7 @@ Navigation tab states.
 
 ## Chat
 
-Conversational UI colors.
+Conversational UI colors. These are theme-defined extras — Studio renders chat in sensible accent colors even if a theme omits them.
 
 | Token       | Usage               | Example                |
 | ----------- | ------------------- | ---------------------- |
@@ -316,83 +321,64 @@ Iris: This commit adds theme support...
 ████  (chat.iris)
 ```
 
-## Token Validation
+## Load-Time Errors and Fallbacks
 
-Git-Iris validates all required tokens at theme load time. If any token is missing or invalid, you'll see a clear error message:
+opaline does **not** validate that any particular token is defined. A theme file with zero tokens loads without error; missing tokens silently resolve to `OpalineColor::FALLBACK` (`#808080`) and missing styles return `OpalineStyle::default()`.
+
+The errors you can hit at load time are:
 
 ```
-Error: Theme validation failed
-
-Missing tokens:
-  - text.primary
-  - bg.base
-  - accent.primary
-
-Invalid token references:
-  - "code.keyword" references "nonexistent_color"
-
-Invalid color values:
-  - "text.muted" = "#gggggg" (invalid hex)
+TOML parse error in <path>: <details>           # malformed TOML, unknown keys
+invalid color for token '<name>': <details>     # bad hex literal (`#rrggbb` only)
+unresolved token '<name>' references '<ref>'    # palette/token name not found
+circular token reference '<name>': a → b → a    # cycle in token-to-token chain
+gradient must have at least one color stop      # empty gradient array
 ```
+
+That's the entire error surface. If your theme parses cleanly, it loads — gaps just appear as gray.
 
 ## Complete Token Checklist
 
-Use this checklist when creating a new theme:
+opaline's **26-token contract** is what every well-rounded theme should cover. Git-iris layers **9 optional overrides** on top with sensible defaults derived from the contract.
 
-### Text (4 tokens)
+### opaline contract (26 tokens)
+
+**Text hierarchy (4)**
 
 - [ ] `text.primary`
 - [ ] `text.secondary`
 - [ ] `text.muted`
 - [ ] `text.dim`
 
-### Backgrounds (7 tokens)
+**Backgrounds (5)**
 
 - [ ] `bg.base`
 - [ ] `bg.panel`
 - [ ] `bg.code`
 - [ ] `bg.highlight`
-- [ ] `bg.elevated`
-- [ ] `bg.active`
 - [ ] `bg.selection`
 
-### Accents (4 tokens)
+**Accents (4)**
 
 - [ ] `accent.primary`
 - [ ] `accent.secondary`
 - [ ] `accent.tertiary`
 - [ ] `accent.deep`
 
-### Semantic Status (4 tokens)
+**Semantic status (4)**
 
 - [ ] `success`
 - [ ] `error`
 - [ ] `warning`
 - [ ] `info`
 
-### Git Status (4 tokens)
-
-- [ ] `git.staged`
-- [ ] `git.modified`
-- [ ] `git.untracked`
-- [ ] `git.deleted`
-
-### Diff (4 tokens)
-
-- [ ] `diff.added`
-- [ ] `diff.removed`
-- [ ] `diff.hunk`
-- [ ] `diff.context`
-
-### UI Elements (2 tokens)
+**Borders (2)**
 
 - [ ] `border.focused`
 - [ ] `border.unfocused`
 
-### Code Syntax (9 tokens)
+**Code syntax (7)**
 
-- [ ] `code.hash`
-- [ ] `code.path`
 - [ ] `code.keyword`
 - [ ] `code.function`
 - [ ] `code.string`
@@ -401,49 +387,67 @@ Use this checklist when creating a new theme:
 - [ ] `code.type`
 - [ ] `code.line_number`
 
-### Mode Tabs (3 tokens)
+### Optional overrides (derived defaults)
 
-- [ ] `mode.active`
-- [ ] `mode.inactive`
-- [ ] `mode.hover`
+Git-iris registers these as derived defaults at theme load — you can override any of them in your TOML, or omit them and they'll inherit from the contract tokens shown in parentheses.
 
-### Chat (2 tokens)
+**Git status** — derive from semantic colors
 
-- [ ] `chat.user`
-- [ ] `chat.iris`
+- `git.staged` (defaults to `success`)
+- `git.modified` (defaults to `warning`)
+- `git.untracked` (defaults to `text.muted`)
+- `git.deleted` (defaults to `error`)
 
-**Total: 43 required tokens**
+**Diff** — derive from semantic colors
+
+- `diff.added` (defaults to `success`)
+- `diff.removed` (defaults to `error`)
+- `diff.hunk` (defaults to `info`)
+- `diff.context` (defaults to `text.dim`)
+
+**Mode tabs** — derive from accents
+
+- `mode.active` (defaults to `accent.primary`)
+- `mode.inactive` (defaults to `text.muted`)
+- `mode.hover` (defaults to `accent.secondary`)
+
+**Code extras** — derive from accents
+
+- `code.hash` (defaults to `accent.tertiary`)
+- `code.path` (defaults to `accent.secondary`)
+
+Other tokens you'll see in some themes (`bg.elevated`, `bg.active`, `chat.user`, `chat.iris`) are extras some builtins define but aren't part of opaline's standard contract.
 
 ## Token Evolution
 
-As Git-Iris evolves, new tokens may be added. Your existing themes will continue to work—missing tokens fall back to safe defaults. However, for the best experience, update your themes when new tokens are introduced.
+The token contract is governed by the opaline crate version, not by git-iris itself.
 
-### Version Compatibility
+| opaline version | Contract size  | Notes                                       |
+| --------------- | -------------- | ------------------------------------------- |
+| 0.4.x           | 26 tokens      | Current version; see `opaline::names::tokens` |
 
-| Git-Iris Version | Token Count | New Tokens              |
-| ---------------- | ----------- | ----------------------- |
-| 1.0.0            | 43          | Initial token set       |
-| Future           | TBD         | Additions will be noted |
-
-Check release notes for new token announcements.
+Check opaline's release notes when bumping versions to spot any contract changes. Existing themes keep working through gaps — the only risk is unexpected gray fallbacks when a theme doesn't define a newly added token.
 
 ## Usage in Code
 
-Tokens are accessed throughout Git-Iris codebase:
+Tokens are accessed through the active theme. Conversion to ratatui types uses the `From`/`Into` adapter — there's no `to_ratatui()` method.
 
 ```rust
 use git_iris::theme;
+use opaline::names::tokens;
+use ratatui::style::{Color, Style};
 
 // Get current theme
 let theme = theme::current();
 
-// Access token
-let color = theme.color("accent.primary");
+// Look up a color by token name
+let color: Color = theme.color(tokens::ACCENT_PRIMARY).into();
 
-// Use in Ratatui style
-let style = theme.style("keyword");
-let ratatui_style = style.to_ratatui();
+// Look up a style and convert to a ratatui Style
+let style: Style = theme.style("keyword").into();
 ```
+
+In practice git-iris wraps these accessors in `src/studio/theme.rs` so call sites read like `theme::keyword()` and get a `ratatui::style::Style` directly.
 
 ## Token Naming Philosophy
 

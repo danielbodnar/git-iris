@@ -42,9 +42,13 @@ If `$XDG_CONFIG_HOME` is set, Git-Iris uses `$XDG_CONFIG_HOME/git-iris/config.to
 
 **Windows:**
 
+Git-Iris uses the same XDG-style resolver on Windows. When `$HOME` is set (typical for Git Bash, WSL, and most shells), the config file lives at:
+
 ```
-%APPDATA%\git-iris\config.toml
+%HOME%\.config\git-iris\config.toml
 ```
+
+If `$XDG_CONFIG_HOME` is set, that takes precedence (`%XDG_CONFIG_HOME%\git-iris\config.toml`). The platform's `%APPDATA%\git-iris\config.toml` path is only used as a last-resort fallback when `$HOME` cannot be determined.
 
 ### Project Config Location
 
@@ -90,13 +94,16 @@ fast_model = "gemini-2.5-flash"
 
 ## Global Settings
 
-| Setting              | Type    | Default     | Description                                   |
-| -------------------- | ------- | ----------- | --------------------------------------------- |
-| `use_gitmoji`        | Boolean | `true`      | Enable emoji prefixes in commit messages      |
-| `instructions`       | String  | `""`        | Custom instructions for all LLM operations    |
-| `instruction_preset` | String  | `"default"` | Built-in instruction preset name              |
-| `theme`              | String  | `""`        | Theme name (empty = default SilkCircuit Neon) |
-| `default_provider`   | String  | `"openai"`  | Default LLM provider                          |
+| Setting                 | Type    | Default     | Description                                              |
+| ----------------------- | ------- | ----------- | -------------------------------------------------------- |
+| `use_gitmoji`           | Boolean | `true`      | Enable emoji prefixes in commit messages                 |
+| `instructions`          | String  | `""`        | Custom instructions for all LLM operations               |
+| `instruction_preset`    | String  | `"default"` | Built-in instruction preset name                         |
+| `theme`                 | String  | `""`        | Theme name; empty means default (`silkcircuit-neon`)     |
+| `critic_enabled`        | Boolean | `true`      | Run critic verification pass after generation            |
+| `subagent_timeout_secs` | Integer | `120`       | Timeout in seconds for parallel subagent tasks           |
+| `subagent_max_turns`    | Integer | `20`        | Per-subagent turn budget for `parallel_analyze`          |
+| `default_provider`      | String  | `"openai"`  | Default LLM provider                                     |
 
 ## Next Steps
 

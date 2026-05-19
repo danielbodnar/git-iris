@@ -16,7 +16,7 @@ pub enum StructuredResponse {
     PullRequest(MarkdownPullRequest),      // Markdown wrapper
     Changelog(MarkdownChangelog),          // Markdown wrapper
     ReleaseNotes(MarkdownReleaseNotes),    // Markdown wrapper
-    MarkdownReview(MarkdownReview),        // Markdown wrapper
+    Review(crate::types::Review),          // Structured: summary + findings + stats
     SemanticBlame(String),                 // Plain text
     PlainText(String),                     // Fallback
 }
@@ -24,8 +24,8 @@ pub enum StructuredResponse {
 
 **Two patterns:**
 
-1. **Strict JSON** — `GeneratedMessage` with specific fields
-2. **Markdown wrappers** — Single `content: String` field for LLM flexibility
+1. **Strict JSON** — `GeneratedMessage` and `Review` populate every field of a schema-defined struct.
+2. **Markdown wrappers** — Single `content: String` field for LLM-driven layout flexibility.
 
 ### Schema-Driven Validation
 
@@ -36,10 +36,11 @@ use schemars::JsonSchema;
 
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct GeneratedMessage {
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub emoji: Option<String>,
     pub title: String,
     pub message: String,
+    #[serde(default)]
+    pub completion_message: Option<String>,
 }
 ```
 
@@ -52,12 +53,13 @@ The schema is injected into the prompt:
   "properties": {
     "emoji": { "type": ["string", "null"] },
     "title": { "type": "string" },
-    "message": { "type": "string" }
+    "message": { "type": "string" },
+    "completion_message": { "type": ["string", "null"] }
   }
 }
 ```
 
-Iris must return JSON matching this schema.
+Iris must return JSON matching this schema. `completion_message` is required by `commit.toml` so Studio always has a one-line status to display when generation finishes.
 
 ## Validation Pipeline
 
@@ -421,7 +423,8 @@ where
   "properties": {
     "emoji": { "type": ["string", "null"] },
     "title": { "type": "string", "maxLength": 72 },
-    "message": { "type": "string" }
+    "message": { "type": "string" },
+    "completion_message": { "type": ["string", "null"] }
   }
 }
 ```
@@ -431,10 +434,11 @@ where
 ```rust
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct GeneratedMessage {
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub emoji: Option<String>,
     pub title: String,
     pub message: String,
+    #[serde(default)]
+    pub completion_message: Option<String>,
 }
 ```
 
@@ -444,9 +448,60 @@ pub struct GeneratedMessage {
 {
   "emoji": "✨",
   "title": "Add parallel analysis for large changesets",
-  "message": "Implements concurrent subagent processing for analyzing large changesets. Each subagent runs independently with its own context window, preventing token limit errors."
+  "message": "Implements concurrent subagent processing for analyzing large changesets. Each subagent runs independently with its own context window, preventing token limit errors.",
+  "completion_message": "Parallel analysis ready to commit."
 }
 ```
+
+### Structured Review
+
+The `review` capability returns a structured `Review` rather than a markdown wrapper:
+
+```rust
+pub struct Review {
+    pub summary: String,
+    pub metadata: ReviewMetadata,
+    pub findings: Vec<Finding>,
+    pub stats: ReviewStats,
+    pub parse_failed: bool,
+}
+
+pub struct ReviewMetadata {
+    pub risk_level: Option<RiskLevel>,        // critical | high | medium | low
+    pub strategy: String,
+    pub specialist_passes: Vec<String>,
+    pub coverage_notes: Vec<String>,
+}
+
+pub struct Finding {
+    pub id: FindingId,
+    pub severity: Severity,
+    pub confidence: u8,           // 0-100; <70 hidden from inline comments
+    pub file: PathBuf,
+    pub start_line: u32,
+    pub end_line: u32,
+    pub category: Category,       // 12 variants — security, performance, error_handling, …
+    pub title: String,
+    pub body: String,
+    pub suggested_fix: Option<String>,
+    pub evidence: Vec<EvidenceRef>,
+}
+
+pub struct EvidenceRef {
+    pub file: PathBuf,
+    pub line: u32,
+    pub end_line: Option<u32>,
+    pub note: Option<String>,
+}
+
+pub const DEFAULT_MIN_FINDING_CONFIDENCE: u8 = 70;
+```
+
+`Review::from_unstructured(text)` produces a fallback `Review` with `parse_failed = true` and the raw text fenced into `summary` — used when JSON parsing fails after streaming. `Review::visible_findings()` filters at `DEFAULT_MIN_FINDING_CONFIDENCE = 70`, and `visible_findings_at(min)` lets callers override the cutoff.
+
+`Category` is a 12-variant enum: `security`, `performance`, `error_handling`, `complexity`, `abstraction`, `duplication`, `testing`, `style`, `api_contract`, `concurrency`, `documentation`, `other`. `Severity` and `RiskLevel` are both `critical`/`high`/`medium`/`low`.
+
+**GitHub publishing.** `publish_structured_review` (`src/github.rs:116-124`) posts the review with the markdown body plus a "GitHub Permalinks" section linking each visible finding. When `options.inline_comments` is set, each visible finding becomes a single inline review comment on its `(file, line)` (or `start_line..line` range) using `RIGHT` side. Inline candidates are filtered through `parse_reviewable_lines` against the PR's actual diff so only commentable lines survive — and the `confidence < 70` gate means low-confidence findings stay in the review body without spamming inline threads.
 
 ### Markdown Wrapper: MarkdownPullRequest
 
@@ -515,44 +570,39 @@ Git-Iris supports two execution modes:
 
 - Iris streams text as it's generated
 - TUI displays chunks immediately
-- No JSON validation (markdown only)
-- Aggregated text converted to structured response at end
+- No JSON validation in-flight
+- Aggregated text converted to the appropriate structured response at end via `text_to_structured_response`
 
 **Limitations:**
 
-- Only works for markdown types
 - No schema validation until stream completes
+- Strict JSON types fall back to `PlainText` if the aggregated text doesn't parse
 
-**Implementation:**
+**Implementation sketch:**
 
 ```rust
-pub async fn execute_task_streaming<F>(
-    &mut self,
-    capability: &str,
-    user_prompt: &str,
-    mut on_chunk: F,
-) -> Result<StructuredResponse>
-where
-    F: FnMut(&str, &str) + Send,
-{
-    let agent = self.build_agent()?;
-    let mut stream = agent.stream_prompt(&full_prompt).multi_turn(50).await;
-
-    let mut aggregated_text = String::new();
-
-    while let Some(item) = stream.next().await {
-        if let StreamedAssistantContent::Text(text) = item {
-            aggregated_text.push_str(&text.text);
-            on_chunk(&text.text, &aggregated_text);  // TUI update
-        }
+// Provider-specific streaming agents (rig's stream types are model-specific)
+let aggregated_text = match self.provider.as_str() {
+    "openai" => {
+        let agent = self.build_openai_agent_for_streaming(&full_prompt)?;
+        let stream = agent.stream_prompt(&full_prompt).multi_turn(50).await;
+        consume_stream!(stream)
     }
+    "anthropic" => { /* … */ }
+    "google" | "gemini" => { /* … */ }
+    _ => return Err(anyhow::anyhow!("Unsupported provider: {}", self.provider)),
+};
 
-    // Convert to structured response
-    Ok(StructuredResponse::MarkdownReview(MarkdownReview {
-        content: aggregated_text,
-    }))
-}
+let response = Self::text_to_structured_response(&output_type, aggregated_text);
 ```
+
+The `consume_stream!` macro matches `MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(...))` for chunks and `StreamedAssistantContent::ToolCall { tool_call, .. }` for status updates. `text_to_structured_response` dispatches on the capability's declared output type:
+
+- `GeneratedMessage` — try `extract_json_from_response` + `parse_with_recovery`; fall back to `PlainText` on failure.
+- `Review` — wrap with `Review::from_unstructured(text)` (sets `parse_failed = true`) so the streamed markdown is still surfaced.
+- `MarkdownPullRequest` / `MarkdownChangelog` / `MarkdownReleaseNotes` — wrap the text directly.
+- `SemanticBlame` — return as-is.
+- anything else — `PlainText` fallback.
 
 ## Error Reporting
 

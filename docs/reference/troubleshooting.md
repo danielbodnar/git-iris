@@ -290,10 +290,13 @@ No colors or wrong colors displayed.
    # Should be: xterm-256color or similar
    ```
 
-3. **Try different theme:**
+3. **Try a different theme:**
    ```bash
    git-iris themes
-   git-iris config --theme silkcircuit-dawn
+   # Override per invocation
+   git-iris studio --theme silkcircuit-dawn
+   # Or make it permanent by adding `theme = "silkcircuit-dawn"` to
+   # ~/.config/git-iris/config.toml (there is no `config --theme` flag).
    ```
 
 ---
@@ -422,6 +425,8 @@ Git-Iris takes too long to respond.
    # Try different provider
    git-iris gen --provider openai
    ```
+
+> **Note on Anthropic prompt caching:** Git-Iris enables automatic prompt caching for Anthropic models via rig-core 0.37. The first call for a given system prompt is full price; subsequent calls within the cache TTL pay a fraction for the cached portion. This happens transparently — no configuration required.
 
 ---
 

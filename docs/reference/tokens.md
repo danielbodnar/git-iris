@@ -8,25 +8,41 @@ Theme tokens are semantic color names that adapt to different theme variants. In
 
 ## Available Themes
 
-| Theme                 | Variant | Description                             |
-| --------------------- | ------- | --------------------------------------- |
-| `silkcircuit-neon`    | Dark    | Electric purple and neon cyan (default) |
-| `silkcircuit-soft`    | Dark    | Muted, gentle tones                     |
-| `silkcircuit-glow`    | Dark    | Vibrant glowing accents                 |
-| `silkcircuit-vibrant` | Dark    | High saturation colors                  |
-| `silkcircuit-dawn`    | Light   | Warm pastel palette                     |
+Git-Iris ships **39 builtin themes** through [opaline](https://github.com/hyperb1iss/opaline), the underlying theme engine. Run `git-iris themes` for the full list with descriptions. Themes are grouped by family:
+
+| Family              | Variants                                                                              | Notes                                       |
+| ------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------- |
+| **SilkCircuit**     | `silkcircuit-neon` (default), `silkcircuit-soft`, `silkcircuit-vibrant`, `silkcircuit-glow`, `silkcircuit-dawn` (light) | Native Git-Iris design language             |
+| **Dracula**         | `dracula`                                                                             |                                             |
+| **Nord**            | `nord`                                                                                |                                             |
+| **Tokyo Night**     | `tokyo-night`, `tokyo-night-moon`, `tokyo-night-storm`                                |                                             |
+| **Catppuccin**      | `catppuccin-mocha`, `catppuccin-macchiato`, `catppuccin-frappe`, `catppuccin-latte` (light) |                                       |
+| **Gruvbox**         | `gruvbox-dark`, `gruvbox-light`                                                       |                                             |
+| **Ayu**             | `ayu-dark`, `ayu-mirage`, `ayu-light`                                                 |                                             |
+| **Rosé Pine**       | `rose-pine`, `rose-pine-moon`, `rose-pine-dawn` (light)                               |                                             |
+| **Kanagawa**        | `kanagawa-wave`, `kanagawa-dragon`, `kanagawa-lotus` (light)                          |                                             |
+| **Everforest**      | `everforest-dark`, `everforest-light`                                                 |                                             |
+| **Flexoki**         | `flexoki-dark`, `flexoki-light`                                                       |                                             |
+| **GitHub**          | `github-dark-dimmed`, `github-light`                                                  |                                             |
+| **Solarized**       | `solarized-dark`, `solarized-light`                                                   |                                             |
+| **Night/Light Owl** | `night-owl`, `light-owl`                                                              |                                             |
+| **Other classics**  | `monokai-pro`, `one-dark`, `one-light`, `palenight`                                   |                                             |
 
 ## Using Themes
 
+There is no `git-iris config --theme` flag. Set the theme in your config file, or pass the global `--theme` flag on any invocation.
+
 ```bash
-# List available themes
+# List every available theme
 git-iris themes
 
-# Set theme in config
-git-iris config --theme silkcircuit-glow
+# Override for a single invocation (works on any subcommand)
+git-iris studio --theme silkcircuit-glow
+git-iris gen --theme silkcircuit-dawn --print
 
-# Override for one session
-git-iris studio --theme silkcircuit-vibrant
+# Make it your default by editing ~/.config/git-iris/config.toml:
+#
+#   theme = "silkcircuit-glow"
 ```
 
 ## Token Categories
@@ -116,13 +132,6 @@ git-iris studio --theme silkcircuit-vibrant
 | `mode.active`   | Active mode tab    | `#e135ff` (Purple) |
 | `mode.inactive` | Inactive mode tabs | `#6e7daf` (Gray)   |
 | `mode.hover`    | Hovered mode tab   | `#80ffea` (Cyan)   |
-
-### Chat Tokens
-
-| Token       | Purpose       | Default (Neon)     |
-| ----------- | ------------- | ------------------ |
-| `chat.user` | User messages | `#80ffea` (Cyan)   |
-| `chat.iris` | Iris messages | `#e135ff` (Purple) |
 
 ## Style Tokens
 
@@ -239,10 +248,15 @@ Place custom themes in:
 ~/.config/git-iris/themes/mytheme.toml
 ```
 
-Then load with:
+Then load with the global `--theme` flag, or set it as your default in `~/.config/git-iris/config.toml`:
 
 ```bash
-git-iris config --theme mytheme
+# One-off
+git-iris studio --theme mytheme
+
+# Persistent default — add to ~/.config/git-iris/config.toml
+#
+#   theme = "mytheme"
 ```
 
 ## Terminal Requirements

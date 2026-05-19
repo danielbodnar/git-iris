@@ -7,7 +7,7 @@ Iris Studio follows **vim-inspired keybindings** for consistent, keyboard-driven
 - **Vim-like movement**: <kbd>hjkl</kbd> or arrow keys
 - **Context-aware actions**: Keys behave intelligently based on what you're viewing
 - **Modal focus**: Different panels respond to the same keys differently
-- **No mouse required**: Everything is keyboard-accessible
+- **Keyboard-first, mouse fully supported**: Click to focus a panel, double-click to activate items, drag in the code view to select lines, click files in the tree to load them
 
 ## Movement Keys
 
@@ -271,12 +271,13 @@ diff --git a/src/studio/state.rs b/src/studio/state.rs  ← File 2
 
 When modals are open (Help, Chat, Settings, Selectors):
 
-| Key                       | Action                                      |
-| ------------------------- | ------------------------------------------- |
-| <kbd>Esc</kbd>            | Close modal                                 |
-| <kbd>j</kbd>/<kbd>k</kbd> | Navigate options (selectors)                |
-| <kbd>Enter</kbd>          | Confirm selection                           |
-| Text input                | Type to filter (ref/emoji/preset selectors) |
+| Key                       | Action                                                                  |
+| ------------------------- | ----------------------------------------------------------------------- |
+| <kbd>Esc</kbd>            | Close modal                                                             |
+| <kbd>j</kbd>/<kbd>k</kbd> | Navigate options in **selector modals only** (refs, emoji, preset, settings list) |
+| <kbd>↑</kbd>/<kbd>↓</kbd> | Universal navigation; the Chat modal scrolls history only with arrow keys (and PageUp/PageDown) — `j`/`k` are typed as message text |
+| <kbd>Enter</kbd>          | Confirm selection / send chat message                                   |
+| Text input                | Type to filter (ref/emoji/preset selectors) or compose a chat message   |
 
 See specific mode documentation for modal-specific keys.
 
@@ -311,7 +312,7 @@ See specific mode documentation for modal-specific keys.
 
 ## Accessibility Notes
 
-- **No mouse required**: All actions are keyboard-accessible
+- **Keyboard-first, mouse fully supported**: Every action has a keybinding, and the mouse handles click-to-focus, double-click activation, drag-to-select in code views, and file-tree clicks
 - **Visual feedback**: Active panel has bright border (Electric Purple)
 - **Status indicators**: Current line/item highlighted in selection color
 - **Scroll indicators**: `↓` and `↑` arrows show when content extends beyond view

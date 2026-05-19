@@ -40,6 +40,8 @@ impl Tool for MyTool {
 }
 ```
 
+`Output` does not have to be `String`. Any type that implements `Serialize` and `Deserialize` works — Rig will serialize the value when it relays the tool result to the LLM. The canonical modern reference for a struct output is `src/agents/tools/repo_map.rs`, where `RepoMapTool` uses `type Output = RepoMap;` and returns a structured `RepoMap` (`pub struct RepoMap { pub files_analyzed: usize, pub files_shown: usize, pub changed_files: Vec<PathBuf>, pub mentioned_files: Vec<PathBuf>, pub content: String }`). Use `String` when the output is naturally a single rendered blob (most git tools); use a struct when the consumer benefits from typed fields.
+
 ## Step-by-Step: Creating a Tool
 
 ### Example: Dependency Analyzer
@@ -263,7 +265,7 @@ pub use dependency_analyzer::DependencyAnalyzer;
 
 ### Step 3: Register in Tool Registry
 
-Edit `src/agents/tools/registry.rs`:
+Edit `src/agents/tools/registry.rs`. Add your tool to both the `attach_core_tools!` macro body and the `CORE_TOOLS` reference slice. The current registry attaches the 11 shipped core tools:
 
 ```rust
 #[macro_export]
@@ -271,17 +273,21 @@ macro_rules! attach_core_tools {
     ($builder:expr) => {{
         use $crate::agents::debug_tool::DebugTool;
         use $crate::agents::tools::{
-            CodeSearch, DependencyAnalyzer, FileRead, GitChangedFiles,
-            GitDiff, GitLog, GitStatus, ProjectDocs,
+            CodeSearch, DependencyAnalyzer, FileRead, GitBlame, GitChangedFiles, GitDiff, GitLog,
+            GitShow, GitStatus, ProjectDocs, RepoMapTool, StaticAnalysis,
         };
 
         $builder
             .tool(DebugTool::new(GitStatus))
             .tool(DebugTool::new(GitDiff))
             .tool(DebugTool::new(GitLog))
+            .tool(DebugTool::new(GitShow))
             .tool(DebugTool::new(GitChangedFiles))
+            .tool(DebugTool::new(GitBlame))
             .tool(DebugTool::new(FileRead))
             .tool(DebugTool::new(CodeSearch))
+            .tool(DebugTool::new(RepoMapTool))
+            .tool(DebugTool::new(StaticAnalysis))
             .tool(DebugTool::new(ProjectDocs))
             .tool(DebugTool::new(DependencyAnalyzer))  // Add here
     }};
@@ -291,25 +297,31 @@ pub const CORE_TOOLS: &[&str] = &[
     "git_status",
     "git_diff",
     "git_log",
+    "git_show",
     "git_changed_files",
+    "git_blame",
     "file_read",
     "code_search",
+    "repo_map",
+    "static_analysis",
     "project_docs",
     "dependency_analyzer",  // Add here
 ];
 ```
 
+The `registry.rs` test asserts `CORE_TOOLS.len()` matches the count of attached tools — bump it when you add an entry.
+
 ### Step 4: Test Your Tool
 
 ```bash
 # Build
-cargo build
+just build
 
 # Test with debug mode to see tool calls
-cargo run -- gen --debug
+just gen-debug
 
-# You can also test tools directly in unit tests
-cargo test dependency_analyzer
+# Run a specific test by name
+just test-one dependency_analyzer
 ```
 
 ## Tool Design Patterns
@@ -532,26 +544,39 @@ Ok(output)
 
 ### 6. Test Your Tool
 
-Write unit tests:
+Per the [project test convention](./contributing.md#testing-requirements), tests live in a `tests/` subdirectory alongside the module they exercise — never inline in the tool's own `.rs` file. The shipped tool tests follow this pattern: `src/agents/tools/tests/{repo_map_tests.rs, git_blame_tests.rs, git_show_tests.rs, static_analysis_tests.rs}`.
 
-```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
+To add tests for `dependency_analyzer`:
 
-    #[tokio::test]
-    async fn test_dependency_analyzer() {
-        let tool = DependencyAnalyzer;
-        let args = DependencyAnalyzerArgs {
-            manifest_type: Some("cargo".to_string()),
-            include_dev: false,
-        };
+1. Create `src/agents/tools/tests/dependency_analyzer_tests.rs`:
 
-        let result = tool.call(args).await;
-        assert!(result.is_ok());
-    }
-}
-```
+   ```rust
+   use rig::tool::Tool;
+
+   use crate::agents::tools::dependency_analyzer::{
+       DependencyAnalyzer, DependencyAnalyzerArgs,
+   };
+
+   #[tokio::test]
+   async fn test_dependency_analyzer_cargo() {
+       let tool = DependencyAnalyzer;
+       let args = DependencyAnalyzerArgs {
+           manifest_type: Some("cargo".to_string()),
+           include_dev: false,
+       };
+
+       let result = tool.call(args).await;
+       assert!(result.is_ok());
+   }
+   ```
+
+2. Declare the test module in `src/agents/tools/tests/mod.rs`:
+
+   ```rust
+   mod dependency_analyzer_tests;
+   ```
+
+`src/agents/tools/mod.rs` already ends with `#[cfg(test)] mod tests;`, so the new test file is picked up automatically.
 
 ## Real-World Examples
 
@@ -607,6 +632,78 @@ From `src/agents/tools/workspace.rs`:
 
 **Study this for**: Stateful tools, action-based interfaces, concurrent access
 
+### Repo Map Tool
+
+From `src/agents/tools/repo_map.rs`:
+
+**Key features:**
+
+- Non-`String` `Output` — uses `type Output = RepoMap;` (a `Serialize`/`Deserialize` struct)
+- Re-exports both the tool struct (`RepoMapTool`) and its args type (`RepoMapArgs`) from `mod.rs`
+- Walks the repo with `ignore::WalkBuilder`, scores files, and respects a token budget
+- Extracts top-level definitions and imports across many languages with `regex` patterns
+- Tests live in `src/agents/tools/tests/repo_map_tests.rs`
+
+**Study this for**: Struct outputs, language-agnostic source scanning, budget-aware truncation.
+
+### Git Blame Tool
+
+From `src/agents/tools/git.rs` (the `GitBlame` struct):
+
+**Key features:**
+
+- Line-range blame plus recent file commits
+- Uses the same `get_current_repo()` helper as other git tools
+- Tests live in `src/agents/tools/tests/git_blame_tests.rs`
+
+**Study this for**: Line-range arguments, defaulting via `#[serde(default)]`, and exercising `git` end-to-end in tests with a temporary repository.
+
+### Git Show Tool
+
+From `src/agents/tools/git.rs` (the `GitShow` struct):
+
+**Key features:**
+
+- Inspects a specific commit (metadata + diff) by revision
+- Caps output size to stay inside the LLM context budget
+- Tests live in `src/agents/tools/tests/git_show_tests.rs`
+
+**Study this for**: Commit-level introspection and clamping output for context-budget safety.
+
+### Static Analysis Tool
+
+From `src/agents/tools/static_analysis.rs`:
+
+**Key features:**
+
+- Runs installed linters asynchronously via `tokio::process::Command`
+- Times each command out with `tokio::time::timeout` and truncates noisy output
+- Exposes a `JsonSchema` enum (`StaticAnalyzer` with `Auto`, `Rust`, `Python`, `Javascript`, `Go`) as an argument
+- Registers three names from `mod.rs`: `StaticAnalysis` (the tool), `StaticAnalysisArgs` (the args), and `StaticAnalyzer` (the analyzer enum)
+- Tests live in `src/agents/tools/tests/static_analysis_tests.rs`
+
+**Study this for**: Async subprocess tools, enum-typed arguments, and testing complex selection logic by injecting an availability oracle.
+
+### Content Update Tools (Studio Chat)
+
+From `src/agents/tools/content_update.rs`:
+
+`UpdateCommitTool`, `UpdatePRTool`, and `UpdateReviewTool` are wired into Studio's chat capability so Iris can mutate the displayed commit/PR/review directly while chatting. Each tool holds a cloned `ContentUpdateSender` (an `mpsc::Sender<ContentUpdate>`) and forwards a `ContentUpdate::Commit`/`PR`/`Review` over the channel. The Studio app side instantiates the receiver via `create_content_update_channel()` and dispatches the resulting updates into mode state.
+
+**Study this for**: Tools that bridge the agent loop back into UI state, and the channel-based pattern for streaming structured side effects to the host.
+
+### Tool struct vs args naming pattern
+
+Most tools follow the `(Tool, ToolArgs)` pair convention. A few tools register a third name — typically an enum used inside the args:
+
+```rust
+// src/agents/tools/mod.rs
+pub use repo_map::{RepoMap, RepoMapArgs, RepoMapTool};
+pub use static_analysis::{StaticAnalysis, StaticAnalysisArgs, StaticAnalyzer};
+```
+
+When your tool's args reference a public enum or sub-struct the LLM is expected to fill in, re-export it alongside the tool so it's reachable from `crate::agents::tools::*`. The capability TOML can then cite the enum variants by name in workflow guidance.
+
 ## Common Tool Helpers
 
 Use the shared utilities in `src/agents/tools/common.rs`:
@@ -639,7 +736,7 @@ This creates a consistent error type that works with the `Tool` trait.
 Test tool execution with debug mode:
 
 ```bash
-cargo run -- gen --debug
+just gen-debug
 ```
 
 This shows:

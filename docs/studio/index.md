@@ -45,7 +45,7 @@ These work in **all modes**:
 | <kbd>Shift+P</kbd>   | Switch to PR mode                        |
 | <kbd>Shift+L</kbd>   | Switch to Changelog mode                 |
 | <kbd>Shift+N</kbd>   | Switch to Release Notes mode             |
-| <kbd>,</kbd>         | Open Settings                            |
+| <kbd>Shift+S</kbd>   | Open Settings                            |
 | <kbd>q</kbd>         | Quit Studio                              |
 | <kbd>Esc</kbd>       | Close modal / Clear selection            |
 

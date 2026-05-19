@@ -1,6 +1,6 @@
 # 🔧 Git-Iris Configuration Guide
 
-> **📚 For detailed configuration guides, examples, and advanced topics, see the [full documentation](/docs/configuration/).**
+> **📚 For detailed configuration guides, examples, and advanced topics, see the [full documentation](https://hyperb1iss.github.io/git-iris/configuration/).**
 
 Git-Iris uses a TOML configuration file located at `~/.config/git-iris/config.toml`. This document provides a quick reference for all available configuration options.
 
@@ -16,11 +16,15 @@ The configuration file is organized into these main sections:
 
 ### Global Settings
 
-| Option               | Type    | Default     | Description                                     |
-| -------------------- | ------- | ----------- | ----------------------------------------------- |
-| `use_gitmoji`        | Boolean | `false`     | Enable Gitmoji in commit messages               |
-| `instructions`       | String  | `""`        | Custom instructions included in all LLM prompts |
-| `instruction_preset` | String  | `"default"` | Default preset for AI instructions              |
+| Option                  | Type    | Default     | Description                                              |
+| ----------------------- | ------- | ----------- | -------------------------------------------------------- |
+| `use_gitmoji`           | Boolean | `false`     | Enable Gitmoji in commit messages                        |
+| `instructions`          | String  | `""`        | Custom instructions included in all LLM prompts          |
+| `instruction_preset`    | String  | `"default"` | Default preset for AI instructions                       |
+| `theme`                 | String  | `""`        | Theme name; empty resolves to `silkcircuit_neon`         |
+| `critic_enabled`        | Boolean | `true`      | Run critic verification pass after generation            |
+| `subagent_timeout_secs` | Integer | `120`       | Per-subagent execution timeout (seconds)                 |
+| `subagent_max_turns`    | Integer | `20`        | Per-subagent maximum tool-call turns                     |
 
 **Examples:**
 
@@ -115,7 +119,7 @@ token_limit = 1048576
 # Set provider and API key
 git-iris config --provider openai --api-key YOUR_API_KEY
 
-# Set models
+# Set primary and fast models
 git-iris config --provider anthropic --model claude-opus-4-6
 git-iris config --provider anthropic --fast-model claude-haiku-4-5-20251001
 
@@ -124,6 +128,10 @@ git-iris config --provider openai --token-limit 8000
 
 # Set additional parameters
 git-iris config --provider openai --param temperature=0.7 --param max_tokens=4096
+
+# Tune subagent budgets
+git-iris config --subagent-timeout 180
+git-iris config --subagent-max-turns 30
 
 # Enable Gitmoji
 git-iris config --gitmoji
@@ -134,6 +142,24 @@ git-iris config --instructions "Your custom instructions here"
 # Set default preset
 git-iris config --preset conventional
 ```
+
+### Themes and Per-Run Flags
+
+```bash
+# List available themes
+git-iris themes
+
+# Override theme for a single run (CLI or Studio)
+git-iris --theme catppuccin_mocha studio
+git-iris --theme silkcircuit_dawn gen
+
+# Toggle the critic verification pass for a single run
+# (mutually exclusive; default is on)
+git-iris gen --critic
+git-iris gen --no-critic
+```
+
+The `--critic` / `--no-critic` flags are accepted by every generation command (`gen`, `review`, `pr`, `changelog`, `release-notes`) via the shared `CommonParams`. The persistent default is controlled by the `critic_enabled` config field.
 
 ### Project Configuration
 
@@ -238,7 +264,7 @@ git-iris gen --log --log-file debug.log
 git-iris gen --debug  # Gorgeous color-coded agent execution
 ```
 
-For further assistance, please refer to the [Git-Iris documentation](https://github.com/hyperb1iss/git-iris/wiki) or [open an issue](https://github.com/hyperb1iss/git-iris/issues).
+For further assistance, please refer to the [Git-Iris documentation](https://hyperb1iss.github.io/git-iris/) or [open an issue](https://github.com/hyperb1iss/git-iris/issues).
 
 ---
 
@@ -246,7 +272,7 @@ For further assistance, please refer to the [Git-Iris documentation](https://git
 
 For comprehensive configuration guides, advanced topics, and examples:
 
-- **[Configuration Overview](/docs/configuration/)** — Complete configuration guide
-- **[Provider Setup](/docs/configuration/providers.md)** — Detailed provider configuration
-- **[Instruction Presets](/docs/configuration/presets.md)** — Custom instruction presets
-- **[Project Configuration](/docs/configuration/project.md)** — Project-specific settings
+- **[Configuration Overview](https://hyperb1iss.github.io/git-iris/configuration/)** — Complete configuration guide
+- **[Provider Setup](https://hyperb1iss.github.io/git-iris/configuration/providers)** — Detailed provider configuration
+- **[Instruction Presets](https://hyperb1iss.github.io/git-iris/user-guide/presets)** — Custom instruction presets
+- **[Project Configuration](https://hyperb1iss.github.io/git-iris/configuration/project-config)** — Project-specific settings

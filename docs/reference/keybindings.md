@@ -50,11 +50,22 @@ Navigate and explore your codebase.
 
 ### Explore Actions
 
-| Key | Action                     |
-| --- | -------------------------- |
-| `w` | Ask "Why does this exist?" |
-| `H` | Toggle heat map view       |
-| `o` | Open in external editor    |
+| Key | Action                                                |
+| --- | ----------------------------------------------------- |
+| `w` | Ask "Why does this exist?"                            |
+| `H` | Toggle heat-map flag (renderer not yet implemented)   |
+| `L` | Toggle file log ↔ global commit log (context panel)  |
+| `v` | Enter visual line-selection mode (`y` to copy, `Esc` to cancel) |
+| `y` | Copy current line or visual selection                 |
+| `Y` | Copy entire file contents                             |
+| `o` | Copy an `$EDITOR +line file` command to the clipboard |
+
+### Context Panel (Right) — Commit Log
+
+| Key     | Action                                                                    |
+| ------- | ------------------------------------------------------------------------- |
+| `Enter` | Copy a `git show <hash> [-- <file>]` command to the clipboard             |
+| `y`     | Copy the selected commit's short hash to the clipboard                    |
 
 ## Commit Mode
 
@@ -136,6 +147,7 @@ Code review generation and viewing.
 | `Ctrl+D` / `PgDn` | Page down                |
 | `Ctrl+U` / `PgUp` | Page up                  |
 | `r`               | Regenerate review        |
+| `R`               | Reset / clear the review |
 | `y`               | Copy review to clipboard |
 | `f`               | Change from ref          |
 | `t`               | Change to ref            |
@@ -146,51 +158,72 @@ Pull request description generation.
 
 ### PR Panel
 
-| Key               | Action                    |
-| ----------------- | ------------------------- |
-| `j` / `Down`      | Scroll down               |
-| `k` / `Up`        | Scroll up                 |
-| `Ctrl+D` / `PgDn` | Page down                 |
-| `Ctrl+U` / `PgUp` | Page up                   |
-| `r`               | Regenerate PR description |
-| `y`               | Copy to clipboard         |
-| `b`               | Change base branch        |
-| `t`               | Change target ref         |
+| Key               | Action                                          |
+| ----------------- | ----------------------------------------------- |
+| `j` / `Down`      | Scroll down                                     |
+| `k` / `Up`        | Scroll up                                       |
+| `Ctrl+D` / `PgDn` | Page down                                       |
+| `Ctrl+U` / `PgUp` | Page up                                         |
+| `r`               | Regenerate PR description                       |
+| `y`               | Copy to clipboard                               |
+| `f`               | Change from ref (base)                          |
+| `t`               | Change to ref (target)                          |
+| `#`               | Set from ref to `HEAD~N` via the count picker   |
 
 ## Changelog Mode
 
 Changelog generation.
 
-### Changelog Panel
+### Changelog Panel (Output)
 
-| Key               | Action                   |
-| ----------------- | ------------------------ |
-| `j` / `Down`      | Scroll down              |
-| `k` / `Up`        | Scroll up                |
-| `Ctrl+D` / `PgDn` | Page down                |
-| `Ctrl+U` / `PgUp` | Page up                  |
-| `r`               | Regenerate changelog     |
-| `y`               | Copy to clipboard        |
-| `f`               | Change from ref          |
-| `t`               | Change to ref            |
-| `u`               | Update CHANGELOG.md file |
+| Key               | Action                          |
+| ----------------- | ------------------------------- |
+| `j` / `Down`      | Scroll down                     |
+| `k` / `Up`        | Scroll up                       |
+| `Ctrl+D` / `PgDn` | Page down                       |
+| `Ctrl+U` / `PgUp` | Page up                         |
+| `r`               | Regenerate changelog            |
+| `R`               | Reset / clear the changelog     |
+| `y`               | Copy to clipboard               |
+| `f`               | Change from ref                 |
+| `t`               | Change to ref                   |
+| `u`               | Update CHANGELOG.md file        |
+
+### Changelog Diff Panel
+
+| Key  | Action                              |
+| ---- | ----------------------------------- |
+| `]`  | Next hunk                           |
+| `[`  | Previous hunk                       |
+| `n`  | Next file in the diff               |
+| `p`  | Previous file in the diff           |
 
 ## Release Notes Mode
 
 Release notes generation.
 
-### Release Notes Panel
+### Release Notes Panel (Output)
 
-| Key               | Action                   |
-| ----------------- | ------------------------ |
-| `j` / `Down`      | Scroll down              |
-| `k` / `Up`        | Scroll up                |
-| `Ctrl+D` / `PgDn` | Page down                |
-| `Ctrl+U` / `PgUp` | Page up                  |
-| `r`               | Regenerate release notes |
-| `y`               | Copy to clipboard        |
-| `f`               | Change from ref          |
-| `t`               | Change to ref            |
+| Key               | Action                          |
+| ----------------- | ------------------------------- |
+| `j` / `Down`      | Scroll down                     |
+| `k` / `Up`        | Scroll up                       |
+| `Ctrl+D` / `PgDn` | Page down                       |
+| `Ctrl+U` / `PgUp` | Page up                         |
+| `r`               | Regenerate release notes        |
+| `R`               | Reset / clear the release notes |
+| `y`               | Copy to clipboard               |
+| `f`               | Change from ref                 |
+| `t`               | Change to ref                   |
+
+### Release Notes Diff Panel
+
+| Key  | Action                              |
+| ---- | ----------------------------------- |
+| `]`  | Next hunk                           |
+| `[`  | Previous hunk                       |
+| `n`  | Next file in the diff               |
+| `p`  | Previous file in the diff           |
 
 ## Modal Keybindings
 
@@ -228,13 +261,18 @@ Release notes generation.
 
 ### Chat Panel
 
-| Key          | Action          |
-| ------------ | --------------- |
-| `Esc`        | Close chat      |
-| `j` / `Down` | Scroll down     |
-| `k` / `Up`   | Scroll up       |
-| `Enter`      | Send message    |
-| Type         | Compose message |
+The chat input is always in compose mode — `j` and `k` are typed into the message, they do not scroll. Use the arrow keys or PageUp/PageDown to move through history.
+
+| Key                | Action                       |
+| ------------------ | ---------------------------- |
+| `Esc`              | Close chat                   |
+| `Up`               | Scroll up one line           |
+| `Down`             | Scroll down one line         |
+| `PageUp`           | Scroll up ten lines          |
+| `PageDown`         | Scroll down ten lines        |
+| `Enter`            | Send message                 |
+| `Backspace`        | Delete previous character    |
+| Any printable char | Append to the message buffer |
 
 ## Quick Reference by Task
 
@@ -261,7 +299,7 @@ Release notes generation.
 
 ```
 1. Shift+P           → Switch to PR mode
-2. b / t             → Set branches if needed
+2. f / t             → Set from / to refs if needed
 3. r                 → Generate PR description
 4. y                 → Copy to clipboard
 ```

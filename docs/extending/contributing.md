@@ -30,7 +30,7 @@ git push origin feature/my-extension
 
 ### Prerequisites
 
-- **Rust**: 1.75 or later (`rustup update`)
+- **Rust**: 1.85 or later (`rustup update`) — the crate uses `edition = "2024"`, which requires Rust 1.85+
 - **just**: Task runner ([install](https://github.com/casey/just#installation))
 - **Git**: 2.30 or later
 - **LLM Provider**: At least one API key (OpenAI, Anthropic, or Google)
@@ -293,70 +293,85 @@ fn handle_key(state: &mut StudioState, key: KeyEvent) -> Vec<SideEffect> {
 
 ### Unit Tests
 
-Every tool and capability should have tests:
+Every tool and capability should have tests. Per the [project test convention](#testing-requirements), tests live in a separate `tests/` subdirectory alongside the module they exercise — never inline in the implementation `.rs` file. For tools, that means `src/agents/tools/tests/<tool_name>_tests.rs`, registered in `src/agents/tools/tests/mod.rs`. The shipped tools follow this pattern (see `repo_map_tests.rs`, `git_blame_tests.rs`, `git_show_tests.rs`, `static_analysis_tests.rs`).
+
+Example test file at `src/agents/tools/tests/dependency_analyzer_tests.rs`:
 
 ```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
+use std::path::PathBuf;
 
-    #[tokio::test]
-    async fn test_dependency_analyzer_cargo() {
-        let tool = DependencyAnalyzer;
-        let args = DependencyAnalyzerArgs {
-            manifest_type: Some("cargo".to_string()),
-            include_dev: false,
-        };
+use rig::tool::Tool;
 
-        let result = tool.call(args).await;
-        assert!(result.is_ok());
-    }
+use crate::agents::tools::dependency_analyzer::{
+    DependencyAnalyzer, DependencyAnalyzerArgs, detect_manifest_type,
+};
 
-    #[tokio::test]
-    async fn test_dependency_analyzer_auto_detect() {
-        let tool = DependencyAnalyzer;
-        let args = DependencyAnalyzerArgs {
-            manifest_type: None,
-            include_dev: true,
-        };
+#[tokio::test]
+async fn test_dependency_analyzer_cargo() {
+    let tool = DependencyAnalyzer;
+    let args = DependencyAnalyzerArgs {
+        manifest_type: Some("cargo".to_string()),
+        include_dev: false,
+    };
 
-        let result = tool.call(args).await;
-        // Should auto-detect and succeed
-        assert!(result.is_ok());
-    }
+    let result = tool.call(args).await;
+    assert!(result.is_ok());
+}
 
-    #[test]
-    fn test_detect_manifest_type() {
-        let path = PathBuf::from("./");
-        let result = detect_manifest_type(&path);
-        // Project has Cargo.toml
-        assert_eq!(result.unwrap(), "cargo");
-    }
+#[tokio::test]
+async fn test_dependency_analyzer_auto_detect() {
+    let tool = DependencyAnalyzer;
+    let args = DependencyAnalyzerArgs {
+        manifest_type: None,
+        include_dev: true,
+    };
+
+    let result = tool.call(args).await;
+    // Should auto-detect and succeed
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_detect_manifest_type() {
+    let path = PathBuf::from("./");
+    let result = detect_manifest_type(&path);
+    // Project has Cargo.toml
+    assert_eq!(result.unwrap(), "cargo");
 }
 ```
 
+Then add `mod dependency_analyzer_tests;` to `src/agents/tools/tests/mod.rs`. The bottom of `src/agents/tools/mod.rs` already wires the `tests` submodule in under `#[cfg(test)]`.
+
 ### Integration Tests
 
-For modes and end-to-end flows:
+For modes and end-to-end flows, put the integration test file alongside its module's `tests/` directory. `IrisAgentService::new` takes four arguments and is not fallible, and task execution uses `execute_task(capability, TaskContext)` or `execute_task_with_prompt(capability, &str)`:
 
 ```rust
-#[cfg(test)]
-mod integration_tests {
-    use super::*;
+use crate::agents::iris::StructuredResponse;
+use crate::agents::setup::{IrisAgentService, TaskContext};
 
-    #[tokio::test]
-    async fn test_commit_generation_flow() {
-        // Set up test repo
-        let temp_dir = tempdir::TempDir::new("test_repo").unwrap();
-        // ... create test commits ...
+#[tokio::test]
+async fn test_commit_generation_flow() -> anyhow::Result<()> {
+    // Set up test repo
+    let temp_dir = tempfile::TempDir::new()?;
+    // ... create test commits ...
 
-        // Generate commit message
-        let service = IrisAgentService::new(test_config())?;
-        let response = service.execute_capability("commit", &[]).await?;
+    // Build the service explicitly with provider/model values
+    let service = IrisAgentService::new(
+        test_config(),
+        "anthropic".to_string(),
+        "claude-opus-4-6".to_string(),
+        "claude-haiku-4-5-20251001".to_string(),
+    );
 
-        // Verify output
-        assert!(matches!(response, StructuredResponse::CommitMessage(_)));
-    }
+    // Generate commit message
+    let response = service
+        .execute_task("commit", TaskContext::for_gen())
+        .await?;
+
+    // Verify output
+    assert!(matches!(response, StructuredResponse::CommitMessage(_)));
+    Ok(())
 }
 ```
 
@@ -590,7 +605,7 @@ just test-one test_name
 just test-verbose
 
 # Run with logging
-RUST_LOG=debug cargo test
+RUST_LOG=debug just test
 ```
 
 ### Clippy Warnings

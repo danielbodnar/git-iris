@@ -75,7 +75,7 @@ git-iris pr --preset technical --from main --to refactor-branch
 | -------------- | ----- | --------------------------- | --------------------------------- |
 | `user-focused` | 👥    | Emphasize user impact       | Changelogs, release notes         |
 | `explanatory`  | 💡    | Focus on the "why"          | Complex changes, breaking changes |
-| `conventional` | 📋    | Strict Conventional Commits | Automated workflows, consistency  |
+| `conventional` | 📏    | Strict Conventional Commits | Automated workflows, consistency  |
 
 **Examples:**
 
@@ -151,6 +151,34 @@ git-iris gen --preset cosmic
 git-iris review --preset nature-documentary
 # Output: "Here we observe the authentication module in its natural habitat..."
 ```
+
+### Review-Specific Presets
+
+These presets are scoped to `git-iris review` and tune Iris toward a specific lens. `git-iris list-presets` prints them under a dedicated "Review-specific Presets" header.
+
+| Preset            | Emoji | Description                                       | Best For                                |
+| ----------------- | ----- | ------------------------------------------------- | --------------------------------------- |
+| `security`        | 🔒    | Vulnerabilities, auth, data exposure, hardening    | Security audits, sensitive changes      |
+| `performance`     | ⚡    | Bottlenecks, hot paths, resource usage             | Hot-path PRs, perf regressions          |
+| `architecture`    | 🏗️    | SOLID, coupling, separation of concerns            | Refactors, design-heavy PRs             |
+| `testing`         | 🧪    | Coverage gaps, edge cases, test strategy           | PRs landing without tests, test rewrites |
+| `maintainability` | 🔧    | Readability, naming, long-term maintenance         | Large changes, onboarding-sensitive code |
+| `conventions`     | 📏    | Language/project style and consistency             | Codebase consistency checks             |
+
+**Examples:**
+
+```bash
+# Security-focused review
+git-iris review --preset security
+
+# Performance audit
+git-iris review --preset performance --from main --to hot-path-fix
+
+# Architecture pass on a refactor
+git-iris review --preset architecture --from main --to refactor-branch
+```
+
+These are not valid for `git-iris gen` — Iris will warn if you pass a review-only preset to a commit command.
 
 ## Custom Instructions
 

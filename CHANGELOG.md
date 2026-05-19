@@ -1,3 +1,38 @@
+## [Unreleased]
+
+This release adds **agentic exploration tools** (`repo_map`, `git_blame`, `git_show`, `static_analysis`), a **critic verification pass** that double-checks generated artifacts, **structured Review findings** with confidence gating and inline GitHub publishing, and **Anthropic prompt caching**.
+
+### Added
+
+- ✨ Add `repo_map` tool for ranked codebase orientation with token budget and mentioned-file prioritization (7bc87d8)
+- ✨ Add `git_blame` tool for line history and recent file commits (29204e2)
+- ✨ Add `git_show` tool for inspecting historical commits with output-size budget (71597d3)
+- ✨ Add `static_analysis` tool for direct linter runs across rust/python/javascript/go (85bc0bf)
+- ✨ Add **critic verification pass** (`verify` capability) that audits generated artifacts against repository evidence after generation, with a single revision attempt when issues are flagged (f81e4ad)
+- ✨ Add `--critic` / `--no-critic` flags and `critic_enabled` config field (default `true`) to control the verification pass
+- ✨ Return **structured `Review` findings** (`summary`, `metadata`, `findings[]`, `stats`) instead of opaque markdown, and publish them as inline GitHub PR comments (ac93033)
+- ✨ Gate review findings at confidence ≥ 70 for terminal display and GitHub publishing, with linked inline comments at flagged lines (4eff8cc)
+- ✨ Surface the **agentic review strategy** (small / medium / large) as `Review` metadata (83dbf6f)
+- 💰 Enable **Anthropic prompt caching** automatically for Iris and subagents via `with_automatic_caching()` (29b6e2d)
+- ✨ Make the **subagent turn budget configurable** via `subagent_max_turns` config and per-call `max_turns` parameter on `parallel_analyze` (a9ed419)
+- 📝 Document branch git-iris usage in the Claude Code skill (cd7b654)
+
+### Changed
+
+- ⬆️ Bump `rig-core` from 0.36 to 0.37 and rename the crate import to `rig` (2f7da2b)
+- 🔧 Harden structured review confidence handling and category parsing for malformed responses (69d0028)
+- 🔎 Tighten structured review findings and GitHub inline link generation (fbf903f)
+- 🪪 Seed parallel subagent slots with task-tagged failures so failed slots remain attributable (d7290aa)
+- 🗺️ Replace the companion design doc with a phased roadmap (65c1fc1)
+- 📝 Refresh docs to cover GitHub publishing, amend, XDG config, and Homebrew (8bc59b9)
+
+### Fixed
+
+- 🐛 Give parallel subagents a turn budget and surface visible failures instead of silent timeouts (eed94c3)
+- 🔧 Parse streamed `GeneratedMessage` text into the commit response so streaming output is no longer dropped (fb4a20f)
+
+<!-- -------------------------------------------------------------- -->
+
 ## [2.0.9] - 2026-05-05
 
 This release adds **GitHub integration** for publishing PR descriptions and code reviews directly from the CLI, along with support for repository PR templates and tighter clippy lint coverage.

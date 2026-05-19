@@ -1,6 +1,6 @@
 # Code Reviews
 
-Iris performs multi-dimensional code analysis across 10+ dimensions including complexity, security, performance, maintainability, and more.
+Iris performs structured code analysis, returning severity-graded findings with location, category, confidence, and (optionally) suggested fixes — across concerns like security, performance, error handling, complexity, testing, and more.
 
 ## Quick Example
 
@@ -41,12 +41,15 @@ git-iris review [FLAGS] [OPTIONS]
 
 ### Global Options
 
-| Option                      | Description                  |
-| --------------------------- | ---------------------------- |
-| `--provider <name>`         | Override LLM provider        |
-| `--preset <name>`           | Use instruction preset       |
-| `-i, --instructions "text"` | Custom review focus          |
-| `--debug`                   | Show agent execution details |
+| Option                      | Description                                                        |
+| --------------------------- | ------------------------------------------------------------------ |
+| `--provider <name>`         | Override LLM provider                                              |
+| `--model <name>`            | Override model for this operation                                  |
+| `-r, --repo <url>`          | Run against a remote repository URL instead of the local repo      |
+| `--preset <name>`           | Use instruction preset                                             |
+| `-i, --instructions "text"` | Custom review focus                                                |
+| `--critic` / `--no-critic`  | Run or skip the critic verification pass after generation (default: on) |
+| `--debug`                   | Show agent execution details                                       |
 
 ## Review Modes
 
@@ -100,58 +103,76 @@ git-iris review --to feature-branch
 git-iris review --from develop --to feature-xyz
 ```
 
-## Review Dimensions
+## Finding Categories
 
-Iris analyzes code across these dimensions:
+Each finding Iris produces is tagged with one of these categories (the `Category` enum in source):
 
-| Dimension          | Focus                                              |
-| ------------------ | -------------------------------------------------- |
-| **Complexity**     | Code clarity, readability, maintainability         |
-| **Security**       | Vulnerabilities, unsafe patterns, input validation |
-| **Performance**    | Efficiency, algorithmic complexity, resource usage |
-| **Error Handling** | Edge cases, error propagation, recovery            |
-| **Testing**        | Test coverage, testability, quality                |
-| **Documentation**  | Code comments, API docs, clarity                   |
-| **Architecture**   | Design patterns, separation of concerns            |
-| **Dependencies**   | External libraries, version management             |
-| **Code Style**     | Consistency, conventions, formatting               |
-| **Best Practices** | Language idioms, community standards               |
+| Category           | Focus                                                          |
+| ------------------ | -------------------------------------------------------------- |
+| **security**       | Vulnerabilities, unsafe patterns, missing input validation     |
+| **performance**    | Inefficient algorithms, resource leaks, hot-path regressions   |
+| **error_handling** | Edge cases, error propagation, recovery gaps                   |
+| **complexity**     | Deep nesting, god functions, hard-to-reason logic              |
+| **abstraction**    | Leaky abstractions, unclear separation of concerns             |
+| **duplication**    | Copy-pasted code, repeated logic                               |
+| **testing**        | Gaps in coverage, brittle or missing tests                     |
+| **style**          | Inconsistencies, naming, formatting                            |
+| **api_contract**   | Breaking changes, public surface drift                         |
+| **concurrency**    | Race conditions, locking errors, async correctness             |
+| **documentation** | Missing or misleading docs and comments                        |
+| **other**          | Anything that doesn't fit cleanly above                        |
 
 ## Output Format
 
-Reviews are formatted as markdown with sections for each relevant dimension:
+Reviews are emitted as structured findings rendered into markdown. The shape is:
 
 ```markdown
 # Code Review
 
 ## Summary
 
-High-level overview of changes and overall assessment.
+High-level overview of the changeset and overall assessment.
 
-## Security
+## Review Coverage
 
-- ✓ Input validation added for user-supplied data
-- ⚠ Consider rate limiting for authentication endpoint
-- ✗ Hardcoded secret detected in config file
+Risk: medium
 
-## Performance
+Strategy: Plan → run targeted specialist passes → reconcile findings.
 
-- ✓ Efficient algorithm with O(n log n) complexity
-- → Database queries could benefit from indexing
+Specialist passes:
+- Security pass on auth changes
+- Concurrency pass on the session manager
 
-## Recommendations
+## Findings
 
-1. Add integration tests for authentication flow
-2. Extract configuration to environment variables
-3. Consider caching for frequently accessed data
+Reviewed 7 file(s). Found 3 issue(s): 1 critical, 1 high, 1 medium, 0 low.
+
+### CRITICAL
+
+- [CRITICAL] **Hardcoded secret in config loader in `src/config/loader.rs:42`**
+  Category: security. Confidence: 92%.
+  The default config path embeds an HMAC key that ships with the binary.
+  **Fix**: Read the key from the environment and fail loudly if absent.
+  Evidence: src/config/loader.rs:42, src/config/loader.rs:48
+
+### HIGH
+
+- [HIGH] **Unbounded retry loop on auth failure in `src/auth/refresh.rs:118`**
+  Category: error_handling. Confidence: 81%.
+  ...
+
+### MEDIUM
+
+- [MEDIUM] **Duplicate token-validation logic in `src/auth/middleware.rs:60`**
+  Category: duplication. Confidence: 74%.
+  ...
 ```
 
-Symbols:
+Each finding includes a severity tag (`CRITICAL` / `HIGH` / `MEDIUM` / `LOW`), a title with file and line, a category, a confidence percentage, a body, and optional `**Fix**:` and `Evidence:` lines. Findings are grouped by severity; there are no per-dimension sections.
 
-- `✓` Positive findings
-- `⚠` Warnings/considerations
-- `✗` Critical issues
-- `→` Suggestions
+## Confidence Gating
+
+Iris filters findings to those with at least **70% confidence** before rendering or publishing. The model may produce lower-confidence observations during reasoning, but only the high-confidence ones reach the output (and the summary counts reflect the filtered set, not the raw count). If you're seeing fewer findings than expected, the others fell below the gate.
 
 ## Customizing Reviews
 
@@ -229,9 +250,18 @@ git-iris review --from main --to feature-branch --github-review --pr 123
 # Request changes when publishing
 git-iris review --github-review --github-review-event request-changes
 
-# Add inline comments only where Iris cites lines present in the PR diff
+# Add an inline comment per finding (uses each finding's file + start/end line)
 git-iris review --github-review --github-inline-comments
 ```
+
+When `--github-inline-comments` is set, every finding at or above the 70% confidence gate posts an inline comment directly on the cited file and line range — no extra heuristic matching required, since findings carry structured locations.
+
+The review body is also augmented with a `## GitHub Permalinks` section listing one permalink per visible finding back to the exact commit and lines, so reviewers can jump straight to the code.
+
+PR auto-detection looks at the current branch. It fails clearly in two cases:
+
+- **Detached HEAD** — no branch to infer a PR from. Pass `--pr <number>`.
+- **Zero or multiple open PRs for the branch** — Iris can't pick for you. Pass `--pr <number>`.
 
 Git-Iris reads `GH_TOKEN` / `GITHUB_TOKEN`, then falls back to the GitHub CLI auth store.
 
@@ -272,6 +302,17 @@ Usage:
 git ai-review
 git review-commit abc1234
 ```
+
+## How Iris Reviews Code
+
+Beyond reading the diff, Iris uses a handful of investigative tools to ground her findings:
+
+- **`static_analysis`** — runs the project's configured linters (e.g. `cargo clippy`, `eslint`, `ruff`) on changed files. If a linter already flags an issue, Iris won't duplicate it as a speculative manual finding; if it reports failures on changed code, those get prioritized.
+- **`repo_map`** — ranked overview of the codebase, used to orient before drilling in.
+- **`git_blame`** — line-level history to understand who touched what and when.
+- **`git_show`** — inspects historical commits when context older than the diff matters.
+
+This is why review findings tend to be specific and citation-backed rather than generic style nitpicks.
 
 ## Tips
 

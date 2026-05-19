@@ -42,12 +42,15 @@ git-iris release-notes --from <ref> [FLAGS] [OPTIONS]
 
 ### Global Options
 
-| Option                      | Description                  |
-| --------------------------- | ---------------------------- |
-| `--provider <name>`         | Override LLM provider        |
-| `--preset <name>`           | Use instruction preset       |
-| `-i, --instructions "text"` | Custom release notes focus   |
-| `--debug`                   | Show agent execution details |
+| Option                      | Description                                                        |
+| --------------------------- | ------------------------------------------------------------------ |
+| `--provider <name>`         | Override LLM provider                                              |
+| `--model <name>`            | Override model for this operation                                  |
+| `-r, --repo <url>`          | Run against a remote repository URL instead of the local repo      |
+| `--preset <name>`           | Use instruction preset                                             |
+| `-i, --instructions "text"` | Custom release notes focus                                         |
+| `--critic` / `--no-critic`  | Run or skip the critic verification pass after generation (default: on) |
+| `--debug`                   | Show agent execution details                                       |
 
 ## Usage Patterns
 

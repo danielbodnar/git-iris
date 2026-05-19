@@ -35,13 +35,16 @@ The chat modal appears as an overlay with a conversation history and input field
 
 ## Chat Controls
 
-| Key                                                    | Action               |
-| ------------------------------------------------------ | -------------------- |
-| <kbd>Type</kbd>                                        | Enter your message   |
-| <kbd>Enter</kbd>                                       | Send message to Iris |
-| <kbd>Esc</kbd>                                         | Close chat modal     |
-| <kbd>j</kbd>/<kbd>k</kbd> or <kbd>↓</kbd>/<kbd>↑</kbd> | Scroll chat history  |
-| <kbd>Ctrl+d</kbd>/<kbd>Ctrl+u</kbd>                    | Page up/down         |
+The chat input captures every printable character — including `j`, `k`, `h`, `l` — as part of your message. To scroll the conversation history, use the arrow keys or PageUp/PageDown rather than vim-style navigation.
+
+| Key                                 | Action                                  |
+| ----------------------------------- | --------------------------------------- |
+| <kbd>Type</kbd>                     | Enter your message (all letters insert) |
+| <kbd>Enter</kbd>                    | Send message to Iris                    |
+| <kbd>Esc</kbd>                      | Close chat modal                        |
+| <kbd>↓</kbd> / <kbd>↑</kbd>         | Scroll chat history one line            |
+| <kbd>PageDown</kbd> / <kbd>PageUp</kbd> | Scroll chat history ten lines       |
+| <kbd>Backspace</kbd>                | Delete the previous character           |
 
 ## What You Can Ask
 

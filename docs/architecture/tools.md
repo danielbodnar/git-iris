@@ -1,6 +1,6 @@
 # Tool System
 
-Tools are functions that Iris calls to gather information. Built on the [Rig framework](https://docs.rs/rig-core), they provide structured, type-safe interfaces for code analysis and Git operations.
+Tools are functions that Iris calls to gather information. Built on [rig-core 0.37](https://docs.rs/rig-core/0.37.0) (imported as `rig`), they provide structured, type-safe interfaces for code analysis and Git operations.
 
 **Location:** `src/agents/tools/`
 
@@ -70,22 +70,25 @@ Files changed: 3
 
 #### `git_diff`
 
-**Purpose:** Get staged changes with relevance scoring and semantic analysis
+**Purpose:** Get staged changes (or a range diff) with relevance scoring and semantic analysis
 
 **Arguments:**
 
 ```rust
 pub struct GitDiffArgs {
-    pub detail: DetailLevel,        // summary | standard
-    pub from: Option<String>,       // For PR/review (e.g., "<default-branch>")
-    pub to: Option<String>,         // Default: HEAD
+    pub detail: DetailLevel,             // summary (default) or standard
+    pub from: Option<String>,            // For PR/review (e.g., "main"); omit for staged
+    pub to: Option<String>,              // Defaults to HEAD when `from` is set
+    pub files: Option<Vec<String>>,      // Filter to specific repo-relative paths
 }
 
 pub enum DetailLevel {
-    Summary,   // File list + stats, no diffs
-    Standard,  // Full diffs for selected files
+    Summary,   // File list with stats and relevance scores (default)
+    Standard,  // Full diffs (use with `files` for targeted analysis on large changesets)
 }
 ```
+
+There are exactly two detail levels. The `files` filter is what large-changeset workflows use to pull full diffs for the highest-relevance paths without re-streaming everything.
 
 **Returns:** Formatted diff with metadata
 
@@ -93,7 +96,7 @@ pub enum DetailLevel {
 
 - **Relevance scoring** (0.0-1.0) for each file
 - **Semantic change detection** (function additions, type changes, refactors)
-- **Size guidance** for context strategy
+- **Size guidance** for context strategy (3 buckets: Small, Medium, Large; plus Filtered when `files` is supplied)
 - **Sorted by relevance** (most important first)
 
 **Example output:**
@@ -130,19 +133,21 @@ See [Context Strategy](./context.md) for the algorithm.
 
 #### `git_log`
 
-**Purpose:** Fetch recent commits for style reference
+**Purpose:** Fetch recent commits, or commits in a range, for style reference or PR/release context
 
 **Arguments:**
 
 ```rust
 pub struct GitLogArgs {
-    pub count: usize,  // Number of commits (default: 5)
+    pub count: Option<usize>,   // Number of recent commits (default: 10)
+    pub from: Option<String>,   // Start of range (commit/branch). When set, requires `to`.
+    pub to: Option<String>,     // End of range; defaults to "HEAD" when only `from` is set.
 }
 ```
 
-**Returns:** Recent commit messages
+When `from` is provided, the tool returns commits in `from..to` and appends a deduplicated contributor list (bot accounts filtered out). Otherwise it returns the N most recent commits.
 
-**Example:**
+**Returns:** Recent commit messages
 
 ```
 ✨ Add parallel analysis for large changesets
@@ -150,17 +155,42 @@ pub struct GitLogArgs {
 📝 Update documentation with architecture diagrams
 ```
 
-Iris uses this to match project style.
+Iris uses this to match project style and to assemble release notes.
+
+#### `git_show`
+
+**Purpose:** Inspect a historical commit's message, metadata, stat, and patch.
+
+**Arguments:**
+
+```rust
+pub struct GitShowArgs {
+    pub commit: String,                  // commit hash, tag, or branch name
+    pub files: Option<Vec<PathBuf>>,     // optional repo-relative paths to filter the patch
+    pub max_output_chars: usize,         // default 20000, clamped to 1000..=50000
+}
+```
+
+`commit` is validated against `git rev-parse --verify --quiet <commit>^{commit}`; whitespace or leading `-` is rejected to keep the shell-out safe. Use this after `git_log` or `git_blame` when a historical commit's exact patch would clarify intent, prior behavior, or regression risk.
+
+**Returns:** Formatted commit metadata, stat, and patch — truncated to `max_output_chars`.
 
 #### `git_changed_files`
 
-**Purpose:** Get list of changed files without diffs
+**Purpose:** Get list of changed files (no diffs)
 
-**Arguments:** None
+**Arguments:**
+
+```rust
+pub struct GitChangedFilesArgs {
+    pub from: Option<String>,   // start of range; with `to`, lists files in `from..to`
+    pub to: Option<String>,     // end of range; with only `to`, lists files in that single commit
+}
+```
+
+When both `from` and `to` are omitted, the tool returns staged files. `from` without `to` is rejected — file listing requires a complete range.
 
 **Returns:** Simple file list
-
-**Example:**
 
 ```
 src/agents/iris.rs (Modified)
@@ -169,6 +199,23 @@ README.md (Modified)
 ```
 
 Useful for quick changeset overview.
+
+#### `git_blame`
+
+**Purpose:** Line-level blame for a file range plus the recent commits that touched the file.
+
+**Arguments:**
+
+```rust
+pub struct GitBlameArgs {
+    pub file: PathBuf,                // repo-relative path
+    pub start_line: u32,              // 1-based, defaults to 1
+    pub end_line: Option<u32>,        // defaults to `start_line`
+    pub recent_commits: usize,        // default 3, clamped 1..=10
+}
+```
+
+Use this when ownership, prior intent, or stylistic precedent would sharpen commit messages, PR descriptions, or semantic explanations. The output combines the requested line range, blame metadata for each line, and the most recent N commits touching the file.
 
 ### File Operations
 
@@ -210,41 +257,103 @@ file_read({
 
 #### `code_search`
 
-**Purpose:** Search for patterns, symbols, or text across files
+**Purpose:** ripgrep-backed search for patterns, symbols, or text across files
 
 **Arguments:**
 
 ```rust
 pub struct CodeSearchArgs {
-    pub pattern: String,           // Regex pattern
-    pub file_pattern: Option<String>, // Optional: file glob (e.g., "*.rs")
-    pub context_lines: usize,      // Lines of context (default: 2)
+    pub query: String,                 // Function name, class name, variable, text, or pattern
+    pub search_type: SearchType,       // function | class | variable | text (default) | pattern
+    pub file_pattern: Option<String>,  // Optional file glob (e.g., "*.rs")
+    pub max_results: usize,            // Default 20, capped at 100
+}
+
+pub enum SearchType {
+    Function,  // function/method definitions
+    Class,     // class/struct/enum definitions
+    Variable,  // variable assignments
+    Text,      // case-insensitive text search (default)
+    Pattern,   // regex pattern
 }
 ```
 
-**Returns:** Matches with context
+**Returns:** JSON object with `query`, `search_type`, `results: Vec<SearchResult>`, `total_found`, `max_results`.
 
-**Example:**
+**Examples:**
 
-```rust
-// Find all function definitions
-code_search({
-    "pattern": "pub fn ",
-    "file_pattern": "src/**/*.rs"
-})
+```jsonc
+// Find function definitions named "execute_with_agent"
+{ "query": "execute_with_agent", "search_type": "function", "file_pattern": "*.rs" }
 
-// Find specific API usage
-code_search({
-    "pattern": "execute_with_agent",
-    "context_lines": 5
-})
+// Find usages of a string across the repo
+{ "query": "StructuredResponse::Review", "search_type": "text", "max_results": 50 }
 ```
 
 **Best practices:**
 
-- Use sparingly — `file_read` is better for known files
-- Prefer specific patterns over broad searches
-- Limit file patterns to relevant areas
+- Use sparingly — `file_read` is better for known files, and `repo_map` is better for cross-file orientation.
+- Prefer the targeted `search_type` variants (`function`/`class`/`variable`) over freeform text when you know what you're looking for.
+- Use `file_pattern` to scope ripgrep at the input layer.
+
+### Repository Orientation
+
+#### `repo_map`
+
+**Purpose:** Build a compact, ranked map of source files, their definitions, imports, and changed-or-mentioned-file signals — the codebase skeleton without reading every file.
+
+**Arguments:**
+
+```rust
+pub struct RepoMapArgs {
+    pub token_budget: u32,             // default 2000, max 8000
+    pub mentioned_files: Vec<PathBuf>, // files to boost in ranking
+    pub max_files: usize,              // default 60, clamped 1..=200
+}
+```
+
+**Returns:** A `RepoMap` struct (not a string):
+
+```rust
+pub struct RepoMap {
+    pub files_analyzed: usize,
+    pub files_shown: usize,
+    pub changed_files: Vec<PathBuf>,
+    pub mentioned_files: Vec<PathBuf>,
+    pub content: String,   // rendered ranked map within `token_budget`
+}
+```
+
+`repo_map` walks the repository through `WalkBuilder` (honors `.gitignore`), extracts up to 12 definition matches and 6 import matches per file using language-aware regex sets (Rust, TypeScript/JavaScript, Python, Go, Kotlin/Swift, Ruby, Lua, shell), ranks each file by definitions/imports plus changed-status and mentioned-status boosts, and renders the top-N within `token_budget`. Use it for broad cross-file orientation before targeted reads.
+
+### Static Analysis
+
+#### `static_analysis`
+
+**Purpose:** Run installed linters directly so review-quality evidence comes from a real analyzer, not a manual eyeball.
+
+**Arguments:**
+
+```rust
+pub struct StaticAnalysisArgs {
+    pub analyzer: StaticAnalyzer,   // auto (default) | rust | python | javascript | go
+    pub timeout_secs: u64,          // default 300, clamped 1..=600
+    pub max_output_chars: usize,    // default 12000, clamped 512..=40000
+}
+```
+
+`auto` selects analyzers by detecting project files (`Cargo.toml`, `pyproject.toml`/`ruff.toml`/`setup.cfg`, `package.json`, Go modules). The tool only runs commands that are installed on `PATH`:
+
+| Language                | Command sequence                                            |
+| ----------------------- | ----------------------------------------------------------- |
+| Rust                    | `cargo clippy --workspace --no-deps --message-format short` |
+| Python                  | `ruff check .`                                              |
+| JavaScript / TypeScript | `biome check .` if installed, otherwise `oxlint .`          |
+| Go                      | `golangci-lint run` if installed, otherwise `go vet ./...`  |
+
+Output is truncated to `max_output_chars` per command and prefixed with a one-line reason explaining why the command was selected. When no installed analyzer matches, the tool returns an availability summary instead of failing. Because these analyzers can execute project build scripts, plugins, or configuration, run them only in trusted workspaces.
+
+**Used by:** the `review` capability prefers analyzer findings over speculative manual notes when both are available.
 
 ### Project Documentation
 
@@ -256,33 +365,36 @@ code_search({
 
 ```rust
 pub struct ProjectDocsArgs {
-    pub doc_type: String,  // "readme", "agents", "claude", "context"
+    pub doc_type: DocType,   // enum, default: readme
+    pub max_chars: usize,    // default: 20000
+}
+
+pub enum DocType {
+    Readme,        // README.md / README.rst / README.txt (default)
+    Contributing, // CONTRIBUTING.md
+    Changelog,    // CHANGELOG.md, HISTORY.md
+    License,      // LICENSE files
+    CodeOfConduct, // CODE_OF_CONDUCT.md
+    Agents,       // AGENTS.md, CLAUDE.md, .github/copilot-instructions.md, ...
+    Context,      // concise README + agent-instructions summary (shared budget)
+    All,          // all supported project docs
 }
 ```
 
-**Returns:** Document contents
-
-**Doc types:**
-
-- `readme` — Project README
-- `agents` — Agent instruction files such as `AGENTS.md`, `CLAUDE.md`, or `.github/copilot-instructions.md`
-- `contributing` — Contribution guidelines
-- `changelog` — Changelog/history files
-- `license` — License files
-- `codeofconduct` — Code of conduct
 - `context` — A concise README + agent-instructions summary
-- `all` — All supported project docs
+
+**Returns:** Document contents (truncated when total chars exceed `max_chars`).
 
 **Example:**
 
-```rust
+```jsonc
 // Get a compact project context snapshot
-project_docs({ "doc_type": "context" })
+{ "doc_type": "context", "max_chars": 8000 }
 ```
 
 **Why this matters:**
 
-Every project has conventions (commit style, terminology, architecture patterns). Iris can grab a compact context snapshot quickly, then request targeted docs when she needs the full file.
+Every project has conventions (commit style, terminology, architecture patterns). Iris can grab a compact context snapshot quickly with `doc_type: "context"`, then request targeted docs when she needs the full file. The `max_chars` budget is enforced per file, with `context` treating it as a shared budget across the snapshot.
 
 ### Repository Metadata
 
@@ -311,58 +423,68 @@ Useful for including repo URLs in PR descriptions or release notes.
 
 #### `workspace`
 
-**Purpose:** Iris's persistent notes and task tracking
+**Purpose:** Iris's persistent notes and task tracking (main agent only — not attached to subagents).
 
 **Arguments:**
 
 ```rust
 pub struct WorkspaceArgs {
-    pub action: String,  // "add", "list", "clear"
-    pub note: Option<String>,
+    pub action: WorkspaceAction,        // add_note | add_task | update_task | get_summary (default)
+    pub content: Option<String>,        // note text or task description
+    pub priority: Option<TaskPriority>, // low | medium (default) | high | critical
+    pub task_index: Option<usize>,      // 0-based; required for update_task
+    pub status: Option<TaskStatus>,     // pending (default) | in_progress | completed | blocked
 }
 ```
 
-**Returns:** Current workspace state
+**Returns:** Current workspace state (notes + tasks summary).
 
-**Example:**
+**Examples:**
 
-```rust
+```jsonc
 // Add a note
-workspace({ "action": "add", "note": "Auth changes affect 3 modules" })
+{ "action": "add_note", "content": "Auth changes affect 3 modules" }
 
-// List notes
-workspace({ "action": "list" })
+// Add a task
+{ "action": "add_task", "content": "Verify migration", "priority": "high" }
 
-// Clear all notes
-workspace({ "action": "clear" })
+// Update a task's status
+{ "action": "update_task", "task_index": 0, "status": "completed" }
+
+// Get current workspace summary (default)
+{ "action": "get_summary" }
 ```
 
-**Use case:** Iris tracks findings across multiple tool calls, building up context before generating final output.
+**Use case:** Iris tracks findings across many tool calls, building up context and a TODO list before generating the final output. The workspace is per-agent-instance and is reset whenever a fresh agent is built.
 
 #### `parallel_analyze`
 
-**Purpose:** Spawn concurrent subagents for large tasks
+**Purpose:** Spawn concurrent subagents for large tasks (main agent only).
 
 **Arguments:**
 
 ```rust
 pub struct ParallelAnalyzeArgs {
-    pub tasks: Vec<String>,  // List of focused prompts
+    pub tasks: Vec<String>,         // 1..=10 focused prompts (JSON schema enforces minItems/maxItems)
+    pub max_turns: Option<usize>,   // optional per-subagent turn budget; clamped 1..=100
 }
 ```
+
+If `max_turns` is omitted the subagents inherit the budgets configured on `ParallelAnalyze::with_limits` — which come from `Config.subagent_max_turns` (default 20) and `Config.subagent_timeout_secs` (default 120). Increase `max_turns` for repository-wide sweeps; lower it to cap cost or runaway tool loops.
 
 **Returns:** Aggregated results
 
 **Example:**
 
-```rust
-parallel_analyze({
-    "tasks": [
-        "Analyze authentication changes in src/auth/",
-        "Review API endpoint changes in src/api/",
-        "Check database migration in migrations/"
-    ]
-})
+```jsonc
+{
+  "tasks": [
+    "Analyze authentication changes in src/auth/",
+    "Review API endpoint changes in src/api/",
+    "Check database migration in migrations/",
+  ],
+  "max_turns": 30,
+}
 ```
 
 **Returns:**
@@ -447,7 +569,7 @@ Iris: [Calls update_commit with revised message]
 
 ## Tool Registry
 
-To ensure consistency between main agents and subagents, Git-Iris uses a **tool registry macro**:
+To ensure consistency between main agents and subagents, Git-Iris uses a **tool registry macro** that wires the eleven core tools onto any agent builder.
 
 **Source:** `src/agents/tools/registry.rs`
 
@@ -455,38 +577,57 @@ To ensure consistency between main agents and subagents, Git-Iris uses a **tool 
 #[macro_export]
 macro_rules! attach_core_tools {
     ($builder:expr) => {{
+        use $crate::agents::debug_tool::DebugTool;
+        use $crate::agents::tools::{
+            CodeSearch, FileRead, GitBlame, GitChangedFiles, GitDiff, GitLog, GitShow, GitStatus,
+            ProjectDocs, RepoMapTool, StaticAnalysis,
+        };
+
         $builder
             .tool(DebugTool::new(GitStatus))
             .tool(DebugTool::new(GitDiff))
             .tool(DebugTool::new(GitLog))
+            .tool(DebugTool::new(GitShow))
             .tool(DebugTool::new(GitChangedFiles))
+            .tool(DebugTool::new(GitBlame))
             .tool(DebugTool::new(FileRead))
             .tool(DebugTool::new(CodeSearch))
+            .tool(DebugTool::new(RepoMapTool))
+            .tool(DebugTool::new(StaticAnalysis))
             .tool(DebugTool::new(ProjectDocs))
     }};
 }
+
+pub const CORE_TOOLS: &[&str] = &[
+    "git_status", "git_diff", "git_log", "git_show",
+    "git_changed_files", "git_blame",
+    "file_read", "code_search",
+    "repo_map", "static_analysis", "project_docs",
+];
 ```
+
+A `#[test]` asserts `CORE_TOOLS.len() == 11` so drift between the macro and the constant trips CI immediately.
 
 **Usage:**
 
 ```rust
 // Main agent
 let agent = attach_core_tools!(builder)
-    .tool(GitRepoInfo)       // Main agent only
-    .tool(Workspace::new())  // Main agent only
-    .tool(ParallelAnalyze::new(...)) // Main agent only
+    .tool(DebugTool::new(GitRepoInfo))   // Main agent only
+    .tool(DebugTool::new(self.workspace.clone())) // Main agent only
+    .tool(DebugTool::new(ParallelAnalyze::with_limits(/* … */)?)) // Main agent only
+    .tool(sub_agent)                     // analyze_subagent (Rig agent-as-tool)
     .build();
 
-// Subagent
-let sub_agent = attach_core_tools!(sub_builder)
-    .build();  // No delegation tools (prevents recursion)
+// Subagent (no delegation tools — prevents recursion)
+let sub_agent = attach_core_tools!(sub_builder).build();
 ```
 
 **Benefits:**
 
-- Subagents always have the same analysis capabilities
-- Changes to tool set apply everywhere
-- No drift between agent implementations
+- Subagents always have the same eleven analysis tools as the main agent.
+- Changes to the core tool set apply everywhere through one macro.
+- No drift between agent implementations — enforced by the `CORE_TOOLS` count test.
 
 ## Creating a Custom Tool
 
@@ -612,10 +753,10 @@ description: "Get staged changes with relevance scores. Use this to see what's \
 Make common use cases simple:
 
 ```rust
-#[derive(JsonSchema)]
+#[derive(JsonSchema, Default)]
 pub struct GitDiffArgs {
-    #[serde(default = "DetailLevel::default")]
-    pub detail: DetailLevel,  // Defaults to Full
+    #[serde(default)]
+    pub detail: DetailLevel,  // Defaults to Summary
 }
 ```
 
@@ -675,10 +816,11 @@ async fn test_git_diff() {
         detail: DetailLevel::Summary,
         from: None,
         to: None,
+        files: None,
     };
 
     let result = tool.call(args).await.unwrap();
-    assert!(result.contains("DIFF SUMMARY"));
+    assert!(result.contains("CHANGES SUMMARY"));
 }
 ```
 
@@ -725,17 +867,16 @@ pub struct FileReadArgs {
 
 ### Progressive Detail
 
-Offer multiple detail levels:
+Offer a default-light detail level, then a heavier one that the caller can scope. `git_diff` uses this pattern:
 
 ```rust
 pub enum DetailLevel {
-    Summary,  // Quick overview
-    Minimal,  // Key items only
-    Full,     // Everything
+    Summary,   // file list + relevance scores; default
+    Standard,  // full diffs (combine with `files: Vec<String>` for targeted analysis)
 }
 ```
 
-Iris can start with `Summary` and drill down if needed.
+Iris starts with `Summary`, reads the size guidance, then calls `Standard` with a `files` filter scoped to the highest-relevance paths.
 
 ## Performance Considerations
 
@@ -744,8 +885,8 @@ Iris can start with `Summary` and drill down if needed.
 Compute expensive operations only when needed:
 
 ```rust
-// ✅ Good: Compute relevance only if detail level requires it
-if matches!(args.detail, DetailLevel::Full | DetailLevel::Minimal) {
+// ✅ Good: Compute relevance only if the caller asked for diffs
+if matches!(args.detail, DetailLevel::Standard) {
     calculate_relevance_scores(&files);
 }
 ```

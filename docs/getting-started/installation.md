@@ -12,6 +12,29 @@ Git-Iris requires Git 2.23.0+ and an API key for your chosen LLM provider.
 
 ## Installation Methods
 
+### Quick Install (Recommended)
+
+The fastest way to get Git-Iris on macOS or Linux:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/hyperb1iss/git-iris/main/install.sh | sh
+```
+
+This downloads a pre-built binary and installs it to `~/.local/bin` by default. Make sure that directory is on your `PATH`.
+
+Customize the install with environment variables:
+
+| Variable           | Default        | Description                                       |
+| ------------------ | -------------- | ------------------------------------------------- |
+| `IRIS_INSTALL_DIR` | `~/.local/bin` | Where to drop the `git-iris` binary               |
+| `IRIS_VERSION`     | latest         | Pin to a specific release tag (e.g. `v1.4.0`)     |
+
+```bash
+# Pin a specific version and install system-wide
+curl -fsSL https://raw.githubusercontent.com/hyperb1iss/git-iris/main/install.sh \
+  | IRIS_INSTALL_DIR=/usr/local/bin IRIS_VERSION=v1.4.0 sh
+```
+
 ### Via Homebrew (macOS / Linux)
 
 ```bash

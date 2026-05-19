@@ -1,6 +1,6 @@
 # Architecture Overview
 
-Git-Iris is built on an **agent-first architecture** where intelligent decisions are made by Iris, an LLM-driven agent powered by the [Rig framework](https://docs.rs/rig-core). Rather than dumping context upfront, Iris dynamically explores codebases using tool calls, gathering precisely what she needs.
+Git-Iris is built on an **agent-first architecture** where intelligent decisions are made by Iris, an LLM-driven agent powered by [rig-core 0.37](https://docs.rs/rig-core/0.37.0) (imported as `rig`). Rather than dumping context upfront, Iris dynamically explores codebases using tool calls, gathering precisely what she needs.
 
 ## Core Philosophy
 
@@ -38,14 +38,15 @@ The unified agent combines **capabilities** (task definitions) with **tools** (c
 | Capabilities          | Tools              | Output Types           |
 | --------------------- | ------------------ | ---------------------- |
 | `commit.toml`         | `git_diff`         | `GeneratedMessage`     |
-| `review.toml`         | `git_log`          | `MarkdownReview`       |
+| `review.toml`         | `git_log`          | `Review` (structured)  |
 | `pr.toml`             | `file_read`        | `MarkdownPullRequest`  |
 | `changelog.toml`      | `code_search`      | `MarkdownChangelog`    |
 | `release_notes.toml`  | `parallel_analyze` | `MarkdownReleaseNotes` |
 | `chat.toml`           | `workspace`        | `PlainText`            |
 | `semantic_blame.toml` | `git_diff`         | `String`               |
+| `verify.toml`         | (any core tool)    | `Critique` (internal)  |
 
-**Execution flow:** Capability selects prompt → Iris calls tools (up to 50 turns) → Returns structured JSON
+**Execution flow:** Capability selects prompt → Iris calls tools (up to 50 turns) → Returns structured JSON → Optional critic verification pass (`verify_response_if_enabled`) re-runs once if material issues are flagged.
 
 ## Architecture Components
 
@@ -113,21 +114,26 @@ See: [Capabilities Documentation](./capabilities.md)
 
 **Location:** `src/agents/tools/`
 
-Tools are Rig-compatible functions that Iris calls to gather information:
+Tools are Rig-compatible functions that Iris calls to gather information. Eleven **core tools** are wired into every main agent and subagent through the `attach_core_tools!` macro; the remaining tools are attached only to the main agent (or only in Studio chat mode).
 
-| Tool                | Purpose                                   |
-| ------------------- | ----------------------------------------- |
-| `git_diff`          | Get staged changes with relevance scoring |
-| `git_log`           | Fetch recent commits for style reference  |
-| `git_status`        | Repository status                         |
-| `git_changed_files` | List of changed files                     |
-| `file_read`         | Read file contents directly               |
-| `code_search`       | Search for patterns/symbols               |
-| `project_docs`      | Read README, AGENTS.md, CLAUDE.md         |
-| `workspace`         | Iris's persistent notes and task tracking |
-| `parallel_analyze`  | Spawn subagents for large changesets      |
+| Tool                | Purpose                                                              |
+| ------------------- | -------------------------------------------------------------------- |
+| `git_status`        | Repository status (branch + changed file list)                       |
+| `git_diff`          | Staged or range diff with relevance scoring                          |
+| `git_log`           | Recent commits or commits in a range                                 |
+| `git_show`          | Inspect a historical commit's message, stat, and patch               |
+| `git_changed_files` | List changed files between commits/branches or staged                |
+| `git_blame`         | Line-level blame for a file range plus recent commits touching it    |
+| `file_read`         | Read file contents and targeted line ranges                          |
+| `code_search`       | ripgrep-backed search for patterns/symbols                           |
+| `repo_map`          | Compact ranked map of source files, definitions, imports             |
+| `static_analysis`   | Run installed linters (clippy, ruff, biome/oxlint, golangci-lint)    |
+| `project_docs`      | Read README, AGENTS.md, CLAUDE.md, or compact `context` snapshot     |
+| `workspace`         | Iris's persistent notes and task tracking (main agent only)          |
+| `parallel_analyze`  | Spawn concurrent subagents for large changesets (main agent only)    |
+| `git_repo_info`     | Repository metadata: branch, remote, path (main agent only)          |
 
-**Tool Registry:** The `attach_core_tools!` macro ensures consistent tool sets across main agents and subagents, preventing drift.
+**Tool Registry:** The `attach_core_tools!` macro (`src/agents/tools/registry.rs`) ensures consistent tool sets across main agents and subagents, preventing drift. Delegation tools (`workspace`, `parallel_analyze`, the sub-agent itself) are excluded from subagents to prevent recursion.
 
 See: [Tools Documentation](./tools.md)
 
@@ -139,14 +145,17 @@ All Iris responses are validated against JSON schemas:
 
 ```rust
 pub enum StructuredResponse {
-    CommitMessage(GeneratedMessage),       // { emoji, title, message }
+    CommitMessage(GeneratedMessage),       // { emoji, title, message, completion_message }
     PullRequest(MarkdownPullRequest),      // { content: String }
     Changelog(MarkdownChangelog),          // { content: String }
     ReleaseNotes(MarkdownReleaseNotes),    // { content: String }
-    MarkdownReview(MarkdownReview),        // { content: String }
-    // ...
+    Review(crate::types::Review),          // structured { summary, metadata, findings[], stats }
+    SemanticBlame(String),                 // plain text
+    PlainText(String),                     // fallback
 }
 ```
+
+The `Review` variant is **structured** rather than a markdown wrapper: it carries a parseable list of `Finding` records (id, severity, confidence, file, line range, category, body, optional suggested fix, evidence references). See [Output Validation](./output.md) for the full schema.
 
 **Validation and recovery** handles malformed LLM output gracefully, attempting repairs before failing.
 
@@ -156,14 +165,16 @@ See: [Output Validation Documentation](./output.md)
 
 **Location:** `src/agents/tools/git.rs`
 
-Iris adapts her approach based on changeset size:
+Iris adapts her approach based on changeset size. Sizes are computed inline inside `format_diff_output` (no `ChangesetSize` enum) and surfaced in the `git_diff` header as the **Size** and **Guidance** lines:
 
-| Size   | Criteria               | Strategy                              |
-| ------ | ---------------------- | ------------------------------------- |
-| Small  | ≤3 files, <100 lines   | Full context for all changes          |
-| Medium | ≤10 files, <500 lines  | Focus on files with >60% relevance    |
-| Large  | >10 files, >500 lines  | Top 5-7 highest-relevance files       |
-| Huge   | >20 files, >1000 lines | Use `parallel_analyze` with subagents |
+| Size       | Criteria                                  | Guidance                                                      |
+| ---------- | ----------------------------------------- | ------------------------------------------------------------- |
+| `Small`    | ≤3 files **and** <100 lines               | Focus on all files equally                                    |
+| `Medium`   | ≤10 files **and** <500 lines              | Prioritize files with >60% relevance                          |
+| `Large`    | anything bigger                           | Use `files=['path1','path2']` with `detail="standard"`        |
+| `Filtered` | when the `files` argument is used         | Show only the requested files                                 |
+
+For genuinely huge changesets (multiple modules touched), Iris is instructed by capability prompts to fall back to `parallel_analyze` so each subagent gets its own context window.
 
 **Relevance scoring** considers:
 
@@ -184,6 +195,7 @@ Iris executes in **multi-turn mode**, allowing up to 50 tool calls per task:
 3. **Deep Dive** — May call `parallel_analyze` or `analyze_subagent` for large tasks
 4. **Synthesis** — Returns structured JSON matching the expected schema
 5. **Validation** — Output validator ensures JSON is well-formed
+6. **Critic verification (optional)** — `verify_response_if_enabled` loads the `verify` capability and critiques the artifact against repository evidence; if it returns `requires_revision`, Iris regenerates the artifact once with the critic's revision prompt appended. The pass runs for `commit`, `review`, `pr`, `changelog`, and `release_notes`, and is gated by `Config.critic_enabled` (default `true`).
 
 **Why 50 turns?** Complex tasks like PRs and release notes may require analyzing many files and commits. Iris knows when to stop, so we give generous headroom.
 
@@ -212,16 +224,18 @@ flowchart LR
 
 Each subagent:
 
-- Runs concurrently with its own context window
-- Has access to core tools (`git_diff`, `file_read`, etc.)
+- Runs concurrently with its own context window (default timeout 120 s, default turn budget 20)
+- Has access to the same 11 core tools attached by `attach_core_tools!`, but no delegation tools (no recursion)
 - Returns a focused analysis
 - Uses the **fast model** for cost efficiency
+
+**Configurable budgets.** Both `Config.subagent_timeout_secs` (default 120) and `Config.subagent_max_turns` (default 20) tune subagent resource use. `parallel_analyze` also accepts an optional `max_turns` argument (clamped to 1..=100) so the LLM can request a larger budget for sweeping repository searches or a smaller one to cap cost.
 
 **Prevents:** Context overflow, token limit errors, information loss
 
 ## Provider Abstraction
 
-Git-Iris supports multiple LLM providers through Rig's unified interface:
+Git-Iris supports multiple LLM providers through rig's unified interface. There is no `DynClientBuilder`; instead `IrisAgent::build_agent` dispatches on the configured provider string and calls one of `provider::openai_builder`, `provider::anthropic_builder`, or `provider::gemini_builder`, returning a `DynAgent` enum that wraps the provider-specific `Agent<M>`.
 
 | Provider  | Default Model          | Fast Model                  |
 | --------- | ---------------------- | --------------------------- |
@@ -230,6 +244,8 @@ Git-Iris supports multiple LLM providers through Rig's unified interface:
 | Google    | `gemini-3-pro-preview` | `gemini-2.5-flash`          |
 
 Provider switching is transparent — the same capabilities and tools work across all backends.
+
+**Anthropic prompt caching is always-on.** `anthropic_agent_builder` wraps every Anthropic completion model with `.with_automatic_caching()` (`src/agents/provider.rs:194-204`). The API places a `cache_control` breakpoint on the last cacheable block and advances it as the conversation grows, so multi-turn tool loops re-bill prior turns at the cached rate. Token-usage debug surfaces `cache_creation_input_tokens` and `cached_input_tokens` alongside the standard input/output totals.
 
 ## Design Decisions
 

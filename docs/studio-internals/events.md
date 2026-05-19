@@ -70,6 +70,7 @@ fn reduce(state: &mut State, event: Event) -> Vec<Effect> {
 Located in `src/studio/events.rs`:
 
 ```rust
+#[derive(Debug, Clone)]
 pub enum StudioEvent {
     // User Input
     KeyPressed(KeyEvent),
@@ -82,7 +83,8 @@ pub enum StudioEvent {
     FocusPrev,
 
     // Content Generation
-    GenerateCommit { instructions, preset, use_gitmoji },
+    GenerateCommit { instructions, preset, use_gitmoji, amend },
+    ToggleAmendMode,
     GenerateReview { from_ref, to_ref },
     GeneratePR { base_branch, to_ref },
     GenerateChangelog { from_ref, to_ref },
@@ -96,6 +98,7 @@ pub enum StudioEvent {
     AgentError { task_type, error },
     StreamingChunk { task_type, chunk, aggregated },
     StreamingComplete { task_type },
+    StatusMessage(StatusMessage),  // Dynamic status from fast model
 
     // Tool-Triggered (agent controls UI)
     UpdateContent { content_type, content },
@@ -103,12 +106,15 @@ pub enum StudioEvent {
     StageFile(PathBuf),
     UnstageFile(PathBuf),
 
-    // File & Git
-    FileStaged(PathBuf),
-    FileUnstaged(PathBuf),
-    RefreshGitStatus,
-    GitStatusRefreshed,
+    // File & Git + history logs
+    FileStaged(PathBuf), FileUnstaged(PathBuf),
+    RefreshGitStatus, GitStatusRefreshed,
     SelectFile(PathBuf),
+    FileLogLoaded { file, entries },
+    FileLogLoading(PathBuf),
+    GlobalLogLoaded { entries },
+    GlobalLogLoading,
+    ToggleGlobalLog,
 
     // Modals
     OpenModal(ModalType),
@@ -131,10 +137,18 @@ pub enum StudioEvent {
     // Lifecycle
     Quit,
     Tick,
+
+    // Companion (ambient awareness)
+    CompanionFileCreated(PathBuf),
+    CompanionFileModified(PathBuf),
+    CompanionFileDeleted(PathBuf),
+    CompanionGitRefChanged,
+    CompanionWatcherError(String),
+    CompanionBranchSwitch { branch, welcome_message },
 }
 ```
 
-**30+ event variants** covering every possible state transition.
+**48 variants** total, covering every state transition. The derive is `#[derive(Debug, Clone)]` only — `StudioEvent` is not `Serialize`/`Deserialize`, and there is no `History::save_to_file` / `load_from_file` today. Persistence is planned future work (see `history.rs:9`).
 
 ## Event Categories
 
@@ -163,7 +177,7 @@ KeyPressed(KeyEvent { code: Char('g'), ... })
   ↓
 Handler: handle_commit_key()
   ↓
-GenerateCommit { instructions: None, preset: "default", use_gitmoji: true }
+GenerateCommit { instructions: None, preset: "default", use_gitmoji: true, amend: false }
 ```
 
 ### Navigation Events
@@ -188,7 +202,8 @@ FocusPrev               // Shift-Tab to previous
 **Origin:** User requests Iris to generate content
 
 ```rust
-GenerateCommit { instructions, preset, use_gitmoji }
+GenerateCommit { instructions, preset, use_gitmoji, amend }
+ToggleAmendMode    // Swap in/out of amend mode (loads HEAD message)
 GenerateReview { from_ref, to_ref }
 GeneratePR { base_branch, to_ref }
 GenerateChangelog { from_ref, to_ref }
@@ -201,19 +216,19 @@ ChatMessage(String)
 ```
 User triggers generation
   ↓
-GenerateCommit event
+GenerateCommit event (with amend: bool)
   ↓
-Reducer sets generating=true
+Reducer sets generating=true, marks Iris thinking
   ↓
-Returns SpawnAgent effect
+Returns SpawnAgent { task: AgentTask::Commit { ... } } effect
   ↓
-Executor spawns async task
+Executor spawns async task via spawn_commit_generation
   ↓
 Task runs LLM API call
   ↓
-Task sends AgentComplete event
+Task sends AgentComplete event back through the iris_result channel
   ↓
-Reducer updates state with result
+Reducer extends state.modes.commit.messages and updates the editor
 ```
 
 ### Agent Response Events
@@ -275,9 +290,9 @@ ChatMessage("Make it more concise")
   ↓
 Agent uses update_commit_message tool
   ↓
-Tool emits UpdateContent { content_type: CommitMessage, content: ... }
+Tool emits UpdateContent { content_type: CommitMessage, content: ContentPayload::Commit(msg) }
   ↓
-Reducer updates state.modes.commit.message
+Reducer writes state.modes.commit.messages[current_index] and refreshes message_editor
   ↓
 UI shows updated message
 ```
@@ -335,8 +350,9 @@ pub enum ModalType {
     Settings,
     PresetSelector,
     EmojiSelector,
-    RefSelector { field },
+    RefSelector { field: RefField },
     ConfirmCommit,
+    ConfirmAmend,
     ConfirmQuit,
 }
 ```
@@ -440,18 +456,18 @@ flowchart TB
 
 ## Event Sources
 
-Events come from three sources:
+Events come from four sources:
 
 ```rust
 pub enum EventSource {
     User,    // Keyboard, mouse
     Agent,   // LLM responses
     Tool,    // Agent tool calls
-    System,  // Tick, refresh
+    System,  // Tick, refresh, async task results
 }
 ```
 
-Tracked in history:
+For convenience, `TimestampedEvent` pairs a `StudioEvent` with its source and `Instant`:
 
 ```rust
 pub struct TimestampedEvent {
@@ -461,11 +477,13 @@ pub struct TimestampedEvent {
 }
 ```
 
+This is the type the rest of the system passes around when it cares about provenance; the unified `History` stores a denormalized `HistoryEntry` per event with the same `source` plus a `HistoryChange` payload.
+
 **Why track source?**
 
 - Debugging ("was this user or agent?")
 - Analytics (how often do users vs agents trigger actions?)
-- Replay (filter events by source)
+- Filtering replays/inspections by source
 
 ## Supporting Types
 
@@ -494,7 +512,7 @@ Identifies which agent task is running. Used in:
 ```rust
 pub enum AgentResult {
     CommitMessages(Vec<GeneratedMessage>),
-    ReviewContent(String),
+    ReviewContent(Review),                       // structured Review type
     PRContent(String),
     ChangelogContent(String),
     ReleaseNotesContent(String),
@@ -503,7 +521,7 @@ pub enum AgentResult {
 }
 ```
 
-Typed result from agent completion. Reducer matches on this to update correct state field.
+Typed result from agent completion. Reducer matches on this to update the correct state field. Note that `ReviewContent` wraps the structured `Review` type (with `findings`), not a raw markdown string.
 
 ### ContentType
 
@@ -540,6 +558,7 @@ pub enum DataType {
     PRDiff,
     ChangelogCommits,
     ReleaseNotesCommits,
+    ExploreFiles,           // Lazy-load file tree on Explore mode switch
 }
 ```
 
@@ -578,18 +597,23 @@ Semantic scroll commands (not raw line offsets).
 **Effects are data** describing I/O operations to execute after state update:
 
 ```rust
+#[derive(Debug, Clone)]
 pub enum SideEffect {
     SpawnAgent { task: AgentTask },
     LoadData { data_type, from_ref, to_ref },
-    GitStage(PathBuf),
-    GitUnstage(PathBuf),
-    GitStageAll,
-    GitUnstageAll,
+    GitStage(PathBuf), GitUnstage(PathBuf),
+    GitStageAll, GitUnstageAll,
     SaveSettings,
     RefreshGitStatus,
     CopyToClipboard(String),
     ExecuteCommit { message },
+    ExecuteAmend { message },
+    ShowNotification { level, message, duration_ms },
+    Redraw,
     Quit,
+    GatherBlameAndSpawnAgent { file, start_line, end_line },
+    LoadFileLog(PathBuf),
+    LoadGlobalLog,
 }
 ```
 
@@ -598,23 +622,23 @@ pub enum SideEffect {
 - Events describe **what happened**
 - Effects describe **what to do**
 
-Reducer returns effects, executor performs I/O.
+Reducer returns effects, executor performs I/O. Some effects — `Quit`, `ExecuteCommit`, `ExecuteAmend` — also short-circuit the event loop by returning a typed `ExitResult`.
 
 ### AgentTask
 
 ```rust
 pub enum AgentTask {
-    Commit { instructions, preset, use_gitmoji },
+    Commit { instructions, preset, use_gitmoji, amend },
     Review { from_ref, to_ref },
     PR { base_branch, to_ref },
     Changelog { from_ref, to_ref },
     ReleaseNotes { from_ref, to_ref },
-    Chat { message, context },
-    SemanticBlame { blame_info },
+    Chat { message, context: ChatContext },
+    SemanticBlame { blame_info: BlameInfo },
 }
 ```
 
-Describes agent work to spawn.
+Describes agent work to spawn. `BlameInfo` carries the file/line range, commit hash, author, date, message, and the actual code content for the semantic-blame agent to explain.
 
 ### ChatContext
 
@@ -642,7 +666,7 @@ Let's trace a complete flow: **User generates commit message**
 4. Handler checks: no modal, not editing, key is 'g'
    Returns: []  (effects handled by reducer directly)
    Actually pushes event to queue:
-   GenerateCommit { instructions: None, preset: "default", use_gitmoji: true }
+   GenerateCommit { instructions: None, preset: "default", use_gitmoji: true, amend: false }
    ↓
 5. Event loop processes queue
    ↓
@@ -679,11 +703,13 @@ Let's trace a complete flow: **User generates commit message**
 16. Calls reduce(state, event, history)
     ↓
 17. Reducer matches AgentComplete:
-    - state.modes.commit.messages = result
+    - state.modes.commit.messages.extend(result.clone())
+    - state.modes.commit.current_index = first_new_index
     - state.modes.commit.generating = false
-    - state.iris_status = Idle
+    - state.modes.commit.message_editor.add_messages(result)
+    - state.iris_status = Complete { message: "Ready." }
     - history.record_agent_complete(Commit, true)
-    - history.record_commit_message(&messages[0])
+    - history.record_content(Mode::Commit, ContentType::CommitMessage, ..., "generation_complete")
     Returns: []
     ↓
 18. UI renders with new messages, no spinner
@@ -743,72 +769,78 @@ Tool emits UpdateContent event
 State.modes.commit.message updated
 ```
 
-### Pattern 4: Optimistic Update
+### Pattern 4: Confirm + Execute (modal flow)
 
 ```rust
-// Assume success, rollback on error
-StageFile(path)
+// User triggers commit
+KeyPressed('c') → OpenModal(ConfirmCommit)
   ↓ (reducer)
-State: staged_files.push(path), Effect: GitStage(path)
+state.modal = Modal::Confirm { message, action: "commit" }
+  ↓ (user presses Enter)
+KeyPressed(Enter) → ModalConfirmed { modal_type: ConfirmCommit, data: None }
+  ↓ (reducer)
+state.modal = None
+Effect: ExecuteCommit { message: format_commit_message(...) }
   ↓ (executor)
-Git add command
+self.perform_commit(&message) → returns ExitResult::Committed(output)
   ↓
-If success: FileStaged(path)
-If error: FileStageFailed(path)
-  ↓ (reducer)
-FileStageFailed: rollback staged_files
+Main loop exits with ExitResult, prints output
 ```
+
+`ExecuteCommit` (and its sibling `ExecuteAmend`) are the only effects besides `Quit` that short-circuit the event loop.
 
 ## History and Replay
 
-Every event is recorded to history:
+Every significant event is recorded to history:
 
 ```rust
+#[derive(Debug, Clone)]
 pub struct History {
-    pub events: Vec<TimestampedEvent>,
-    pub mode_history: Vec<ModeSwitch>,
-    pub content_history: Vec<ContentSnapshot>,
-    pub chat_messages: Vec<ChatMessage>,
+    pub metadata: SessionMetadata,                              // session_id, timestamps, repo_path, branch
+    events: VecDeque<HistoryEntry>,                             // unified event log (bounded)
+    max_events: usize,
+    chat_messages: Vec<ChatMessage>,                            // chat across modes (bounded)
+    content_versions: HashMap<ContentKey, Vec<ContentVersion>>, // per (mode, content_type)
+    next_id: u64,
+}
+
+pub struct HistoryEntry {
+    pub id: u64,
+    pub timestamp: Instant,
+    pub source: EventSource,
+    pub change: HistoryChange,    // Event, ContentUpdated, ChatMessage, ModeSwitch, AgentTaskStarted, AgentTaskCompleted
 }
 ```
+
+`History` is the single source of truth for "what happened" across the session. `SessionMetadata` carries the bits that would be needed by a future thread-resume UI (session id, repo path, branch, timestamps, optional title) — today they're populated and updated, but nothing on disk reads them yet.
 
 **Use cases:**
 
 ### Debugging
 
 ```rust
-// Print all events leading to current state
-for event in &history.events {
+// Print all entries leading to current state
+for entry in history.events() {
     println!("{:?} from {:?} at {:?}",
-        event.event, event.source, event.timestamp);
+        entry.change, entry.source, entry.timestamp);
 }
 ```
 
-### Session Persistence
+### Session Persistence (planned)
 
-```rust
-// Save session
-history.save_to_file("session.json")?;
-
-// Restore session
-let history = History::load_from_file("session.json")?;
-// Replay events to reconstruct state
-for event in history.events {
-    reduce(&mut state, event.event, &mut new_history);
-}
-```
+`History` does not currently implement save/load. The data model carries the metadata required for thread resume; the persistence layer itself is future work. Today, history lives entirely in memory for the lifetime of the `StudioApp`.
 
 ### Analytics
 
 ```rust
-// How often do users generate commits?
-let commit_count = history.events.iter()
-    .filter(|e| matches!(e.event, StudioEvent::GenerateCommit { .. }))
+// How many content updates happened?
+let updates = history.events()
+    .filter(|entry| matches!(entry.change, HistoryChange::ContentUpdated { .. }))
     .count();
 
-// Average time between mode switches?
-let switches: Vec<_> = history.events.iter()
-    .filter(|e| matches!(e.event, StudioEvent::SwitchMode(_)))
+// Mode-switch trail
+let switches: Vec<_> = history.events()
+    .filter(|entry| matches!(entry.change, HistoryChange::ModeSwitch { .. }))
     .collect();
 ```
 
@@ -820,11 +852,15 @@ fn test_session_replay() {
     let mut state = StudioState::new(config, None);
     let mut history = History::new();
 
-    // Simulate user session
     let events = vec![
         StudioEvent::SwitchMode(Mode::Commit),
-        StudioEvent::GenerateCommit { ... },
-        StudioEvent::AgentComplete { ... },
+        StudioEvent::GenerateCommit {
+            instructions: None,
+            preset: "default".into(),
+            use_gitmoji: true,
+            amend: false,
+        },
+        // AgentComplete event with AgentResult::CommitMessages(...) injected here
     ];
 
     for event in events {
@@ -832,40 +868,40 @@ fn test_session_replay() {
     }
 
     assert_eq!(state.active_mode, Mode::Commit);
-    assert!(!state.modes.commit.messages.is_empty());
 }
 ```
 
 ## Testing Events
 
-Events are data, easy to test:
+Events are plain data, easy to construct and to assert against:
 
 ```rust
 #[test]
-fn test_event_serialization() {
+fn test_event_construction() {
     let event = StudioEvent::GenerateCommit {
         instructions: Some("Be concise".into()),
         preset: "default".into(),
         use_gitmoji: true,
+        amend: false,
     };
 
-    let json = serde_json::to_string(&event).unwrap();
-    let parsed: StudioEvent = serde_json::from_str(&json).unwrap();
-
-    assert_eq!(event, parsed);
+    // StudioEvent is Debug + Clone, but not Eq / Hash / Serialize today —
+    // assert by matching on the variant rather than equality.
+    assert!(matches!(event, StudioEvent::GenerateCommit { .. }));
 }
 
 #[test]
-fn test_event_ordering() {
+fn test_history_records_source() {
     let mut history = History::new();
 
-    history.record_event(EventSource::User, StudioEvent::SwitchMode(Mode::Commit));
-    history.record_event(EventSource::User, StudioEvent::GenerateCommit { ... });
-    history.record_event(EventSource::Agent, StudioEvent::AgentComplete { ... });
+    history.record_mode_switch(Mode::Explore, Mode::Commit);
+    history.record_agent_start(TaskType::Commit);
+    history.record_agent_complete(TaskType::Commit, true);
 
-    assert_eq!(history.events.len(), 3);
-    assert!(matches!(history.events[0].source, EventSource::User));
-    assert!(matches!(history.events[2].source, EventSource::Agent));
+    assert_eq!(history.event_count(), 3);
+    let sources: Vec<_> = history.events().map(|e| e.source).collect();
+    assert!(matches!(sources[0], EventSource::User));
+    assert!(matches!(sources[2], EventSource::Agent));
 }
 ```
 
@@ -928,6 +964,7 @@ fn handle_key(key: Key) -> StudioEvent {
         instructions: None,  // Simple, reducer decides
         preset: "default".into(),
         use_gitmoji: true,
+        amend: false,
     }
 }
 ```
@@ -961,30 +998,25 @@ pub fn reduce(state: &mut State, event: Event, history: &mut History) -> Vec<Eff
 }
 ```
 
-### Filter events by type
+### Filter entries by source
 
 ```rust
-// Only show agent events
-for event in &history.events {
-    if matches!(event.source, EventSource::Agent) {
-        println!("{:?}", event);
+for entry in history.events() {
+    if matches!(entry.source, EventSource::Agent) {
+        println!("{:?}", entry);
     }
 }
 ```
 
-### Event statistics
+### Entry statistics
 
 ```rust
 use std::collections::HashMap;
 
 let mut counts: HashMap<String, usize> = HashMap::new();
-for event in &history.events {
-    let key = format!("{:?}", event.event).split('(').next().unwrap().to_string();
+for entry in history.events() {
+    let key = format!("{:?}", entry.change).split('{').next().unwrap_or("").to_string();
     *counts.entry(key).or_default() += 1;
-}
-
-for (event_type, count) in counts {
-    println!("{}: {}", event_type, count);
 }
 ```
 

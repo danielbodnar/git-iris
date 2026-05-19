@@ -61,6 +61,7 @@ Bad context (skip these):
 | `-a` / `--auto-commit` | Iris commits directly with the generated message                                                                                                                                      |
 | `--amend`              | Amend the previous commit. Requires `-p` or `-a`; standalone `--amend` is a no-op with a warning                                                                                      |
 | `--no-verify`          | Skip iris's auto-commit hooks. **Only affects iris's own commit (`-a` mode).** When you commit yourself with `git commit -F-`, pass `--no-verify` to git too if the user asked for it |
+| `--critic` / `--no-critic` | Toggle the critic verification pass after generation. Mutually exclusive; default on                                                                                              |
 
 ### PR descriptions (`pr`)
 
@@ -70,17 +71,19 @@ Bad context (skip these):
 | `--pr <N>`                    | Target a specific PR number for `--update`. Has no effect without `--update` |
 | `--from <ref>` / `--to <ref>` | Custom commit range                                                          |
 | `-c` / `--copy`               | Copy raw markdown to clipboard                                               |
+| `--critic` / `--no-critic`    | Toggle the critic verification pass after generation. Default on             |
 
 ### Changelog and release notes
 
 Both subcommands **require `--from`**. `--to` defaults to `HEAD` if omitted.
 
-| Flag                 | When                                                                    |
-| -------------------- | ----------------------------------------------------------------------- |
-| `--from <ref>`       | **Required.** Starting reference (commit/tag/branch)                    |
-| `--to <ref>`         | Ending reference. Defaults to `HEAD`                                    |
-| `--version-name <X>` | Explicit version label (works for both `changelog` and `release-notes`) |
-| `--file <path>`      | Output file path (defaults to `CHANGELOG.md` / `RELEASE_NOTES.md`)      |
+| Flag                       | When                                                                    |
+| -------------------------- | ----------------------------------------------------------------------- |
+| `--from <ref>`             | **Required.** Starting reference (commit/tag/branch)                    |
+| `--to <ref>`               | Ending reference. Defaults to `HEAD`                                    |
+| `--version-name <X>`       | Explicit version label (works for both `changelog` and `release-notes`) |
+| `--file <path>`            | Output file path (defaults to `CHANGELOG.md` / `RELEASE_NOTES.md`)      |
+| `--critic` / `--no-critic` | Toggle the critic verification pass after generation. Default on        |
 
 ### Code review (`review`)
 
@@ -95,7 +98,9 @@ By default, reviews staged changes. Use the flags below for other scopes.
 | `--from <ref>` / `--to <ref>` | Review a commit range. `--from` requires `--to`                                           |
 | `--github-review`             | Post the review to the current GitHub PR (requires `gh auth`)                             |
 | `--github-inline-comments`    | Add inline comments at flagged lines when posting                                         |
+| `--github-review-event <E>`   | GitHub review action: `comment` (default), `request-changes`, `approve`                   |
 | `--pr <N>`                    | Target a specific PR for `--github-review`                                                |
+| `--critic` / `--no-critic`    | Toggle the critic verification pass after generation. Default on                          |
 
 ## Attributions and trailers
 

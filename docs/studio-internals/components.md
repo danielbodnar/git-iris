@@ -48,48 +48,64 @@ Studio components are **stateful widgets** that:
 #### State Structure
 
 ```rust
+#[derive(Debug, Clone)]
 pub struct FileTreeState {
-    /// Root tree nodes
-    pub root: Vec<TreeNode>,
-    /// Currently selected file path
-    pub selected: Option<PathBuf>,
-    /// Expanded directories
-    pub expanded: HashSet<PathBuf>,
-    /// Scroll offset
-    pub scroll_offset: usize,
-    /// Viewport height
-    pub viewport_height: usize,
+    root: Vec<TreeNode>,           // Tree root nodes
+    expanded: HashSet<PathBuf>,    // Expanded directory paths
+    selected: usize,               // Selected index in the flat view
+    scroll_offset: usize,          // Scroll offset
+    flat_cache: Vec<FlatEntry>,    // Cached flat view (rebuilt on demand)
+    cache_dirty: bool,
 }
 ```
+
+The selection is an **index into the flat view**, not a path. Path lookups go through `selected_path()`/`selected_entry()`.
 
 #### Key Methods
 
 ```rust
 impl FileTreeState {
-    /// Create from file list with git status
-    pub fn from_files(files: Vec<(PathBuf, FileGitStatus)>) -> Self
+    pub fn new() -> Self;
 
-    /// Select next file
-    pub fn select_next(&mut self)
+    /// Build a tree from a flat list of paths plus git status hints
+    pub fn from_paths(paths: &[PathBuf], git_statuses: &[(PathBuf, FileGitStatus)]) -> Self;
 
-    /// Select previous file
-    pub fn select_prev(&mut self)
+    /// Get the rendered flat view (rebuilds cache if needed)
+    pub fn flat_view(&mut self) -> &[FlatEntry];
 
-    /// Toggle expand/collapse directory
-    pub fn toggle_expand(&mut self)
+    /// Get selected entry / path
+    pub fn selected_entry(&mut self) -> Option<FlatEntry>;
+    pub fn selected_path(&mut self) -> Option<PathBuf>;
+    pub fn selected_index(&self) -> usize;
 
-    /// Get currently selected file
-    pub fn selected_file(&self) -> Option<&PathBuf>
+    /// Navigation
+    pub fn select_prev(&mut self);
+    pub fn select_next(&mut self);
+    pub fn select_first(&mut self);
+    pub fn select_last(&mut self);
+    pub fn page_up(&mut self, page_size: usize);
+    pub fn page_down(&mut self, page_size: usize);
+    pub fn select_path(&mut self, path: &Path) -> bool;
 
-    /// Scroll to ensure selection is visible
-    pub fn scroll_to_selection(&mut self)
+    /// Expansion
+    pub fn toggle_expand(&mut self);
+    pub fn expand(&mut self);
+    pub fn collapse(&mut self);
+    pub fn expand_all(&mut self);
+    pub fn collapse_all(&mut self);
+    pub fn expand_to_depth(&mut self, max_depth: usize);
 
-    /// Flatten tree for rendering
-    fn flatten(&self) -> Vec<FlatEntry>
+    /// Mouse support
+    pub fn select_by_row(&mut self, row: usize) -> bool;
+    pub fn handle_click(&mut self, row: usize) -> (bool, bool);
+    pub fn is_row_selected(&self, row: usize) -> bool;
+
+    /// Render-time viewport bookkeeping
+    pub fn update_scroll(&mut self, visible_height: usize);
 }
 ```
 
-#### TreeNode Structure
+#### TreeNode + FlatEntry
 
 ```rust
 pub struct TreeNode {
@@ -100,9 +116,21 @@ pub struct TreeNode {
     pub depth: usize,
     pub children: Vec<TreeNode>,
 }
+
+/// A flattened view entry for rendering. The flat cache is the output of
+/// walking the tree, respecting the `expanded` set.
+pub struct FlatEntry {
+    pub name: String,
+    pub path: PathBuf,
+    pub is_dir: bool,
+    pub git_status: FileGitStatus,
+    pub depth: usize,
+    pub is_expanded: bool,
+    pub has_children: bool,
+}
 ```
 
-Recursively builds directory tree from flat file list.
+`from_paths` builds the tree by walking each path's components and calling the internal `insert_path` helper. After construction the first two levels are auto-expanded so something is visible immediately.
 
 #### Git Status
 
@@ -126,9 +154,10 @@ Each status has indicator character and color.
 pub fn render_file_tree(
     frame: &mut Frame,
     area: Rect,
-    state: &FileTreeState,
+    state: &mut FileTreeState,  // mutable: render may rebuild the flat cache
+    title: &str,
     focused: bool,
-)
+);
 ```
 
 **Visual:**
@@ -164,46 +193,52 @@ pub fn render_file_tree(
 #### State Structure
 
 ```rust
+#[derive(Debug, Clone, Default)]
 pub struct CodeViewState {
-    /// File path being displayed
-    pub path: Option<PathBuf>,
-    /// File content (lines)
-    pub lines: Vec<String>,
-    /// Scroll offset (line number)
-    pub scroll_offset: usize,
-    /// Viewport height
-    pub viewport_height: usize,
-    /// Highlighted line range (for blame, etc.)
-    pub highlighted_range: Option<(usize, usize)>,
-    /// Language for syntax highlighting
-    pub language: Option<String>,
+    current_file: Option<PathBuf>,        // Path of the loaded file
+    lines: Vec<String>,                   // File content as lines
+    scroll_offset: usize,                 // Top visible line index
+    selected_line: usize,                 // 1-indexed selected line (0 = none)
+    selection: Option<(usize, usize)>,    // 1-indexed inclusive selection range
 }
 ```
+
+Syntax highlighting is *not* stored here — it's computed on the fly by `SyntaxHighlighter::for_path()` when the view renders, based on the file extension.
 
 #### Key Methods
 
 ```rust
 impl CodeViewState {
-    /// Load file content
-    pub fn load_file(&mut self, path: PathBuf, content: String)
+    pub fn new() -> Self;
 
-    /// Scroll down
-    pub fn scroll_down(&mut self, amount: usize)
+    /// Load file content from disk (returns io::Result)
+    pub fn load_file(&mut self, path: &Path) -> std::io::Result<()>;
 
-    /// Scroll up
-    pub fn scroll_up(&mut self, amount: usize)
+    /// Accessors
+    pub fn current_file(&self) -> Option<&Path>;
+    pub fn lines(&self) -> &[String];
+    pub fn line_count(&self) -> usize;
+    pub fn is_loaded(&self) -> bool;
+    pub fn scroll_offset(&self) -> usize;
+    pub fn selected_line(&self) -> usize;
+    pub fn selection(&self) -> Option<(usize, usize)>;
 
-    /// Jump to line
-    pub fn jump_to_line(&mut self, line: usize)
+    /// Navigation (1-indexed for line numbers)
+    pub fn scroll_up(&mut self, amount: usize);
+    pub fn scroll_down(&mut self, amount: usize);
+    pub fn scroll_to_line(&mut self, line: usize, visible_height: usize);
+    pub fn move_up(&mut self, amount: usize, visible_height: usize);
+    pub fn move_down(&mut self, amount: usize, visible_height: usize);
+    pub fn goto_first(&mut self);
+    pub fn goto_last(&mut self, visible_height: usize);
 
-    /// Highlight a line range
-    pub fn highlight_range(&mut self, start: usize, end: usize)
+    /// Selection
+    pub fn set_selected_line(&mut self, line: usize);
+    pub fn set_selection(&mut self, start: usize, end: usize);
+    pub fn clear_selection(&mut self);
 
-    /// Clear highlighting
-    pub fn clear_highlight(&mut self)
-
-    /// Get visible line range
-    pub fn visible_range(&self) -> (usize, usize)
+    /// Mouse support
+    pub fn select_by_row(&mut self, row: usize) -> bool;
 }
 ```
 
@@ -214,8 +249,9 @@ pub fn render_code_view(
     frame: &mut Frame,
     area: Rect,
     state: &CodeViewState,
+    title: &str,
     focused: bool,
-)
+);
 ```
 
 **Visual:**
@@ -251,80 +287,91 @@ pub fn render_code_view(
 #### State Structure
 
 ```rust
+#[derive(Debug, Clone)]
 pub struct DiffViewState {
-    /// List of file diffs
-    pub diffs: Vec<FileDiff>,
-    /// Currently selected file index
-    pub selected_file: usize,
-    /// Scroll offset
-    pub scroll_offset: usize,
-    /// Viewport height
-    pub viewport_height: usize,
-    /// Show/hide context lines
-    pub show_context: bool,
+    diffs: Vec<FileDiff>,           // All file diffs
+    selected_file: usize,           // Currently displayed file index
+    scroll_offset: usize,           // Scroll offset within selected file
+    selected_line: usize,           // Selected line within selected file
+    cached_lines: Vec<DiffLine>,    // Pre-flattened lines for current file
 }
 
+#[derive(Debug, Clone)]
 pub struct FileDiff {
     pub path: PathBuf,
-    pub old_path: Option<PathBuf>,  // For renames
-    pub status: DiffStatus,
+    pub old_path: Option<PathBuf>,   // For renames
+    pub is_new: bool,
+    pub is_deleted: bool,
+    pub is_binary: bool,
     pub hunks: Vec<DiffHunk>,
-    pub stats: DiffStats,
 }
 
+#[derive(Debug, Clone)]
 pub struct DiffHunk {
-    pub old_start: usize,
-    pub old_lines: usize,
-    pub new_start: usize,
-    pub new_lines: usize,
+    pub header: String,              // The "@@ -a,b +c,d @@" header
     pub lines: Vec<DiffLine>,
+    pub old_start: usize, pub old_count: usize,
+    pub new_start: usize, pub new_count: usize,
 }
 
+#[derive(Debug, Clone)]
 pub struct DiffLine {
-    pub kind: DiffLineKind,
+    pub line_type: DiffLineType,
     pub content: String,
+    pub old_line_num: Option<usize>,
+    pub new_line_num: Option<usize>,
 }
 
-pub enum DiffLineKind {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DiffLineType {
     Context,
-    Addition,
-    Deletion,
-    NoNewline,
+    Added,
+    Removed,
+    HunkHeader,    // The "@@ ... @@" line
+    FileHeader,    // The synthesized file-name header
+    Empty,
 }
 ```
+
+There is no `status`/`stats`/`show_context` field, no `DiffLineKind` enum, no `NoNewline` variant. Per-file diff stats are derived: call `FileDiff::lines_changed() -> (added, removed)`.
 
 #### Key Methods
 
 ```rust
 impl DiffViewState {
-    /// Load diffs from git output
-    pub fn load_diffs(&mut self, diff_output: String)
+    pub fn new() -> Self;
+    pub fn set_diffs(&mut self, diffs: Vec<FileDiff>);
 
-    /// Select next file
-    pub fn select_next_file(&mut self)
+    /// Accessors
+    pub fn current_diff(&self) -> Option<&FileDiff>;
+    pub fn file_count(&self) -> usize;
+    pub fn lines(&self) -> &[DiffLine];          // cached flat view for current file
+    pub fn scroll_offset(&self) -> usize;
+    pub fn selected_file_index(&self) -> usize;
+    pub fn file_paths(&self) -> Vec<&Path>;
 
-    /// Select previous file
-    pub fn select_prev_file(&mut self)
+    /// File navigation
+    pub fn next_file(&mut self);
+    pub fn prev_file(&mut self);
+    pub fn select_file(&mut self, index: usize);
+    pub fn select_file_by_path(&mut self, path: &Path) -> bool;
 
-    /// Scroll down
-    pub fn scroll_down(&mut self, amount: usize)
+    /// Scrolling
+    pub fn scroll_up(&mut self, amount: usize);
+    pub fn scroll_down(&mut self, amount: usize);
+    pub fn scroll_to_top(&mut self);
+    pub fn scroll_to_bottom(&mut self);
 
-    /// Scroll up
-    pub fn scroll_up(&mut self, amount: usize)
-
-    /// Jump to next hunk
-    pub fn next_hunk(&mut self)
-
-    /// Jump to previous hunk
-    pub fn prev_hunk(&mut self)
-
-    /// Get total line count
-    pub fn total_lines(&self) -> usize
-
-    /// Get statistics
-    pub fn stats_summary(&self) -> DiffStats
+    /// Hunk navigation (jumps scroll_offset to the next/prev hunk header)
+    pub fn next_hunk(&mut self);
+    pub fn prev_hunk(&mut self);
 }
+
+/// Standalone parser (NOT a method on DiffViewState)
+pub fn parse_diff(diff_text: &str) -> Vec<FileDiff>;
 ```
+
+The flow for loading diffs is `let diffs = parse_diff(unified_diff_text); state.set_diffs(diffs);`.
 
 #### Rendering
 
@@ -333,8 +380,12 @@ pub fn render_diff_view(
     frame: &mut Frame,
     area: Rect,
     state: &DiffViewState,
+    title: &str,
     focused: bool,
-)
+);
+
+/// Compact summary line for diff lists
+pub fn render_diff_summary(diff: &FileDiff) -> Line<'static>;
 ```
 
 **Visual:**
@@ -360,12 +411,11 @@ pub fn render_diff_view(
 
 **Features:**
 
-- File-level navigation
-- Hunk headers with line numbers
-- Color-coded additions/deletions
-- Diff statistics
-- Context line control
-- Git status indicators
+- File-level navigation (`next_file`/`prev_file`/`select_file_by_path`)
+- Hunk navigation (`next_hunk`/`prev_hunk`) anchored on `DiffLineType::HunkHeader`
+- Color-coded additions/deletions with old/new line numbers per side
+- Per-file diff stats via `FileDiff::lines_changed() -> (added, removed)`
+- New / deleted / renamed / binary file markers
 
 ### MessageEditorState
 
@@ -394,34 +444,40 @@ pub struct MessageEditorState {
 
 ```rust
 impl MessageEditorState {
-    /// Set generated messages
-    pub fn set_messages(&mut self, messages: Vec<GeneratedMessage>)
+    pub fn new() -> Self;
 
-    /// Select next message variant
-    pub fn next_message(&mut self)
+    /// Replace all generated messages
+    pub fn set_messages(&mut self, messages: Vec<GeneratedMessage>);
 
-    /// Select previous message variant
-    pub fn prev_message(&mut self)
+    /// Append more generated messages without losing the existing ones.
+    /// Returns the index of the first newly-added message.
+    pub fn add_messages(&mut self, messages: Vec<GeneratedMessage>) -> usize;
 
-    /// Enter edit mode
-    pub fn enter_edit_mode(&mut self)
+    /// Variant navigation
+    pub fn next_message(&mut self);
+    pub fn prev_message(&mut self);
+    pub fn message_count(&self) -> usize;
+    pub fn selected_index(&self) -> usize;
+    pub fn current_generated(&self) -> Option<&GeneratedMessage>;
 
-    /// Exit edit mode
-    pub fn exit_edit_mode(&mut self)
+    /// View / edit mode
+    pub fn enter_edit_mode(&mut self);
+    pub fn exit_edit_mode(&mut self);
+    pub fn is_editing(&self) -> bool;
 
-    /// Is in edit mode?
-    pub fn is_editing(&self) -> bool
+    /// Editing
+    pub fn handle_key(&mut self, key: KeyEvent) -> bool;   // returns true if key was consumed
+    pub fn get_message(&self) -> String;
+    pub fn is_modified(&self) -> bool;
+    pub fn reset(&mut self);
+    pub fn clear(&mut self);
 
-    /// Reset to original
-    pub fn reset(&mut self)
-
-    /// Get current message text
-    pub fn get_message(&self) -> String
-
-    /// Handle key input (when editing)
-    pub fn input(&mut self, key: KeyEvent)
+    /// Render helper
+    pub fn textarea(&self) -> &TextArea<'static>;
 }
 ```
+
+The editor wraps `ratatui_textarea::TextArea`; `handle_key` (not `input`) is the entry point for key events while in edit mode, and it returns `true` once the key has been consumed.
 
 #### Rendering
 
@@ -430,9 +486,14 @@ pub fn render_message_editor(
     frame: &mut Frame,
     area: Rect,
     state: &MessageEditorState,
+    title: &str,
     focused: bool,
-)
+    generating: bool,
+    status_message: Option<&str>,
+);
 ```
+
+`generating` toggles the braille spinner placeholder; `status_message` is the optional dynamic status string from the fast model that replaces the default "Iris is crafting your commit message…" hint.
 
 **Visual (View Mode):**
 
@@ -519,24 +580,23 @@ pub fn render_my_component(
 }
 ```
 
-### Pattern 3: Builder Pattern
+### Pattern 3: Constructor Helpers
+
+Most components provide a plain `new()` plus one or more domain-specific constructors:
 
 ```rust
 impl FileTreeState {
-    pub fn new() -> Self { ... }
+    pub fn new() -> Self;
+    pub fn from_paths(paths: &[PathBuf], git_statuses: &[(PathBuf, FileGitStatus)]) -> Self;
+}
 
-    pub fn with_files(files: Vec<(PathBuf, FileGitStatus)>) -> Self {
-        let mut state = Self::new();
-        state.load_files(files);
-        state
-    }
-
-    pub fn with_selection(mut self, path: PathBuf) -> Self {
-        self.selected = Some(path);
-        self
-    }
+impl MessageEditorState {
+    pub fn new() -> Self;
+    // Then mutate: state.set_messages(...) or state.add_messages(...)
 }
 ```
+
+There's no chained `.with_X()` builder convention in Studio today — callers either start empty and mutate, or pass everything to a domain constructor.
 
 ### Pattern 4: Event Emission
 
@@ -597,10 +657,20 @@ Each component is independent, mode state owns all component states.
 **Example:**
 
 ```rust
-pub struct CommitMode {
+pub struct CommitState {
     // Business state
     pub messages: Vec<GeneratedMessage>,
+    pub current_index: usize,
+    pub custom_instructions: String,
+    pub selected_file_index: usize,
+    pub editing_message: bool,
     pub generating: bool,
+    pub use_gitmoji: bool,
+    pub emoji_mode: EmojiMode,
+    pub preset: String,
+    pub show_all_files: bool,
+    pub amend_mode: bool,
+    pub original_message: Option<String>,
 
     // Component states
     pub message_editor: MessageEditorState,
@@ -608,6 +678,8 @@ pub struct CommitMode {
     pub file_tree: FileTreeState,
 }
 ```
+
+Notice the struct is `CommitState`, not `CommitMode`. The same `*State` naming convention applies to every other mode (`ExploreState`, `ReviewState`, `PrState`, `ChangelogState`, `ReleaseNotesState`).
 
 ### State Updates
 
@@ -621,9 +693,11 @@ state.modes.commit.diff_view.scroll_down(5);
 **Business state** updated via reducer:
 
 ```rust
-StudioEvent::AgentComplete { result } => {
-    state.modes.commit.messages = result;
-    state.modes.commit.message_editor.set_messages(result);
+StudioEvent::AgentComplete { result: AgentResult::CommitMessages(messages), .. } => {
+    let first_new_index = state.modes.commit.messages.len();
+    state.modes.commit.messages.extend(messages.clone());
+    state.modes.commit.current_index = first_new_index;
+    state.modes.commit.message_editor.add_messages(messages);
 }
 ```
 
@@ -635,20 +709,26 @@ StudioEvent::AgentComplete { result } => {
 
 ```rust
 pub struct SyntaxHighlighter {
-    highlighter: syntect::highlighting::Highlighter,
-    theme: syntect::highlighting::Theme,
+    syntax: Option<&'static SyntaxReference>,  // None when no syntax matches
 }
 
 impl SyntaxHighlighter {
-    pub fn highlight_line(
-        &self,
-        line: &str,
-        language: &str,
-    ) -> Vec<(Style, String)>
+    /// Pick a syntax by file extension (e.g. "rs", "py")
+    pub fn for_extension(ext: &str) -> Self;
+
+    /// Convenience: derive the extension from a Path
+    pub fn for_path(path: &Path) -> Self;
+
+    pub fn is_available(&self) -> bool;
+
+    /// Highlight one line of source. Falls back to a single plain-text span
+    /// when no syntax was matched.
+    pub fn highlight_line(&self, line: &str) -> Vec<(Style, String)>;
+    pub fn highlight_lines(&self, lines: &[String]) -> Vec<Vec<(Style, String)>>;
 }
 ```
 
-Used by `CodeViewState` to colorize code.
+`SYNTAX_SET` and `THEME_SET` are statics loaded once via `LazyLock` (defaults from syntect). `highlight_line` looks up `base16-ocean.dark` first, then any fallback theme, and remaps each syntect color into the SilkCircuit palette through `syntect_color_to_silkcircuit`. `CodeViewState` builds a fresh `SyntaxHighlighter::for_path` on every render — there's no caching on the state struct itself.
 
 ### Scrollbar
 
@@ -670,29 +750,17 @@ frame.render_stateful_widget(scrollbar, area, &mut scrollbar_state);
 
 ### Modal Overlays
 
-**Pattern:** Center modal over background.
+`render/modals/` is a directory of 12 modal renderers, one per modal kind:
 
-```rust
-pub fn render_modal_overlay(
-    frame: &mut Frame,
-    background_render: impl Fn(&mut Frame),
-) {
-    // 1. Render background (dimmed)
-    background_render(frame);
-
-    // 2. Calculate centered area
-    let area = centered_rect(60, 20, frame.size());
-
-    // 3. Clear modal area
-    frame.render_widget(Clear, area);
-
-    // 4. Render modal content
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title("Modal Title");
-    frame.render_widget(block, area);
-}
 ```
+src/studio/render/modals/
+  chat_modal.rs       confirm.rs           help.rs
+  commit_count.rs     emoji_selector.rs    instructions.rs
+  mod.rs              preset_selector.rs   ref_selector.rs
+  search.rs           settings.rs          theme_selector.rs
+```
+
+Each modal sizes its own area inside `mod.rs` (which dispatches on `Modal` variant), clears the area with `Clear`, and renders its content with a bordered `Block`. There is no generic `render_modal_overlay` / `centered_rect` helper — modals tailor their geometry to their contents.
 
 ## Component Testing
 
@@ -701,74 +769,60 @@ Components are easy to test:
 ```rust
 #[test]
 fn test_file_tree_selection() {
-    let files = vec![
-        (PathBuf::from("a.rs"), FileGitStatus::Normal),
+    let paths = vec![
+        PathBuf::from("a.rs"),
+        PathBuf::from("b.rs"),
+        PathBuf::from("c.rs"),
+    ];
+    let statuses = vec![
         (PathBuf::from("b.rs"), FileGitStatus::Modified),
         (PathBuf::from("c.rs"), FileGitStatus::Staged),
     ];
 
-    let mut tree = FileTreeState::from_files(files);
+    let mut tree = FileTreeState::from_paths(&paths, &statuses);
 
-    // Initial selection
-    assert_eq!(tree.selected_file(), Some(&PathBuf::from("a.rs")));
-
-    // Navigate
-    tree.select_next();
-    assert_eq!(tree.selected_file(), Some(&PathBuf::from("b.rs")));
+    // Initial selection is the first flat entry
+    assert_eq!(tree.selected_path(), Some(PathBuf::from("a.rs")));
 
     tree.select_next();
-    assert_eq!(tree.selected_file(), Some(&PathBuf::from("c.rs")));
+    assert_eq!(tree.selected_path(), Some(PathBuf::from("b.rs")));
 
-    // Wrap around
     tree.select_next();
-    assert_eq!(tree.selected_file(), Some(&PathBuf::from("a.rs")));
+    assert_eq!(tree.selected_path(), Some(PathBuf::from("c.rs")));
+
+    // Selection clamps at the end (does NOT wrap)
+    tree.select_next();
+    assert_eq!(tree.selected_path(), Some(PathBuf::from("c.rs")));
 }
 
 #[test]
-fn test_diff_view_stats() {
+fn test_diff_view_per_file_stats() {
+    let diffs = parse_diff(SAMPLE_UNIFIED_DIFF);
     let mut diff_view = DiffViewState::new();
-    diff_view.load_diffs(SAMPLE_DIFF);
+    diff_view.set_diffs(diffs);
 
-    let stats = diff_view.stats_summary();
-    assert_eq!(stats.files_changed, 3);
-    assert_eq!(stats.insertions, 42);
-    assert_eq!(stats.deletions, 18);
+    let current = diff_view.current_diff().expect("at least one file diff");
+    let (added, removed) = current.lines_changed();
+    assert!(added + removed > 0);
 }
 ```
+
+There is no `stats_summary()` API — diff stats are per-file via `FileDiff::lines_changed()`.
 
 ## Performance Considerations
 
-**Lazy rendering:** Only render visible lines.
+**Lazy rendering:** Only iterate the visible window. Every render function in `components/` does this — for example, `render_code_view` skips `scroll_offset` lines and takes `visible_height` lines from `state.lines()` before applying syntax highlighting.
+
+**Cache + dirty flag:** `FileTreeState` keeps a `flat_cache: Vec<FlatEntry>` plus a `cache_dirty: bool`. Anything that changes the visible shape of the tree (`expand`, `collapse`, `set_root`, `from_paths`) sets `cache_dirty = true`; the next call to `flat_view()` rebuilds the cache. `DiffViewState` uses the same pattern with `cached_lines` (refreshed in `update_cache()` whenever `set_diffs` or `*_file` is called).
 
 ```rust
-let visible_start = self.scroll_offset;
-let visible_end = visible_start + self.viewport_height;
-
-let visible_lines: Vec<_> = self.lines[visible_start..visible_end]
-    .iter()
-    .map(|line| Line::from(line.clone()))
-    .collect();
-```
-
-**Caching:** Pre-compute expensive operations.
-
-```rust
-pub struct FileTreeState {
-    root: Vec<TreeNode>,
-    flattened_cache: Option<Vec<FlatEntry>>,  // Cache
-}
-
-impl FileTreeState {
-    fn flatten(&mut self) -> &[FlatEntry] {
-        if self.flattened_cache.is_none() {
-            self.flattened_cache = Some(self.compute_flattened());
-        }
-        self.flattened_cache.as_ref().unwrap()
+fn rebuild_cache(&mut self) {
+    self.flat_cache.clear();
+    let root_clone = self.root.clone();
+    for node in &root_clone {
+        self.flatten_node(node);
     }
-
-    pub fn invalidate_cache(&mut self) {
-        self.flattened_cache = None;
-    }
+    self.cache_dirty = false;
 }
 ```
 
@@ -879,7 +933,7 @@ pub fn render_my_component(
 ### 4. Add to Mode State
 
 ```rust
-pub struct MyMode {
+pub struct MyState {
     pub my_component: MyComponentState,
 }
 ```
@@ -892,9 +946,10 @@ pub fn render_my_mode_panel(
     areas: &LayoutAreas,
     state: &StudioState,
 ) {
+    // areas.panels is a Vec<Rect> with one entry per panel (Left, Center, Right)
     render_my_component(
         frame,
-        areas.center,
+        areas.panels[1], // Center
         &state.modes.my_mode.my_component,
         state.focused_panel == PanelId::Center,
     );
@@ -903,87 +958,36 @@ pub fn render_my_mode_panel(
 
 ## Common Component Utilities
 
-### Centering
-
-```rust
-pub fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage((100 - percent_y) / 2),
-            Constraint::Percentage(percent_y),
-            Constraint::Percentage((100 - percent_y) / 2),
-        ])
-        .split(area);
-
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
-        ])
-        .split(popup_layout[1])[1]
-}
-```
+Shared helpers live in `src/studio/utils.rs` and are used across every component.
 
 ### Truncation
 
 ```rust
-pub fn truncate_width(text: &str, max_width: usize) -> String {
-    use unicode_width::UnicodeWidthStr;
+/// Truncate by character count, append "..." if cut. Use for log previews
+/// and other text where unicode display width isn't critical.
+pub fn truncate_chars(s: &str, max_chars: usize) -> String;
 
-    if text.width() <= max_width {
-        return text.to_string();
-    }
-
-    let mut width = 0;
-    let mut result = String::new();
-
-    for ch in text.chars() {
-        let ch_width = ch.width().unwrap_or(0);
-        if width + ch_width + 3 > max_width {  // Reserve space for "..."
-            result.push_str("...");
-            break;
-        }
-        result.push(ch);
-        width += ch_width;
-    }
-
-    result
-}
+/// Truncate by unicode display width, append "…". Use for any TUI rendering
+/// where CJK / emoji / combining characters matter.
+pub fn truncate_width(s: &str, max_width: usize) -> String;
 ```
 
-### Scroll Indicators
+`truncate_width` is the workhorse — `file_tree`, `code_view`, `diff_view`, and `message_editor` all call it when they need to fit a label inside a column-bounded area. `truncate_chars` is re-exported from `state::chat` as `truncate_preview` for chat history previews.
+
+### Tab + control-character handling
 
 ```rust
-pub fn render_scroll_indicators(
-    frame: &mut Frame,
-    area: Rect,
-    scroll_offset: usize,
-    total_lines: usize,
-    viewport_height: usize,
-) {
-    let can_scroll_up = scroll_offset > 0;
-    let can_scroll_down = scroll_offset + viewport_height < total_lines;
-
-    if can_scroll_up {
-        let indicator = Span::styled("▲", theme::dimmed());
-        frame.render_widget(
-            Paragraph::new(Line::from(indicator)),
-            Rect { x: area.x + area.width - 1, y: area.y, width: 1, height: 1 },
-        );
-    }
-
-    if can_scroll_down {
-        let indicator = Span::styled("▼", theme::dimmed());
-        frame.render_widget(
-            Paragraph::new(Line::from(indicator)),
-            Rect { x: area.x + area.width - 1, y: area.y + area.height - 1, width: 1, height: 1 },
-        );
-    }
-}
+/// Expand tabs to spaces (next multiple of `tab_width`) and strip control
+/// characters. Essential when displaying file content or diff lines in the
+/// TUI: raw tabs corrupt alignment, control codes corrupt the entire screen.
+pub fn expand_tabs(s: &str, tab_width: usize) -> String;
 ```
+
+Both `CodeViewState` rendering and `DiffViewState` rendering pipe each line through `expand_tabs(line, 4)` before measuring width or applying highlights.
+
+### Layout helpers
+
+Mode-level layout lives in `src/studio/layout.rs` and is not really a "component utility" — `calculate_layout(area, mode)` returns `LayoutAreas` (header, tabs, content, panels, optional companion bar, status). Modal centering is handled inside `render/modals/` per modal, sized to the contents rather than a generic `centered_rect` helper.
 
 ## Summary
 
