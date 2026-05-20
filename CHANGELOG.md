@@ -1,3 +1,48 @@
+## [2.1.0] - 2026-05-20
+
+This release introduces four new analysis tools, enables a critic verification pass for generated artifacts, and publishes structured review findings as GitHub inline comments.
+
+### Added
+
+- ✨ Add `repo_map` tool for ranked codebase orientation with token-budgeted file summaries, definitions, and imports (7bc87d8)
+- ✨ Add `git_blame` tool for line-level history and recent commits touching a file (29204e2)
+- ✨ Add `git_show` tool to inspect historical commit metadata, stats, and patches (71597d3)
+- ✨ Add `static_analysis` tool to run installed linters: clippy (Rust), ruff (Python), biome/oxlint (JS/TS), golangci-lint (Go) (85bc0bf)
+- ✨ Add critic verification pass that validates generated artifacts against repository evidence before output (f81e4ad)
+- ✨ Add structured `Review` type with findings, severity, confidence scores, and category taxonomy (ac93033)
+- ✨ Publish review findings as GitHub inline comments with multi-line range support (fbf903f)
+- ✨ Add configurable `subagent_max_turns` setting (1-100) to control parallel subagent turn budget (a9ed419)
+- ✨ Add GitHub permalink section to review body anchoring findings to commit SHAs (4eff8cc)
+- 📝 Add phased roadmap replacing companion design doc (65c1fc1)
+
+### Changed
+
+- ♻️ Enable Anthropic prompt caching for Iris and subagents to reduce multi-turn costs (29b6e2d)
+- ⬆️ Upgrade rig-core to 0.37 and rename crate import to `rig` (2f7da2b)
+- ♻️ Gate review findings at 70% confidence threshold; findings below are hidden from output (4eff8cc)
+- ♻️ Surface agentic review strategy as `ReviewMetadata` including risk level and specialist passes (83dbf6f)
+- ♻️ Parse flexible confidence formats: integers, floats, strings, percentage notation (69d0028)
+- ♻️ Normalize category parsing to handle whitespace, underscores, hyphens, and casing variants (69d0028)
+- 📝 Refresh documentation covering GitHub publishing, amend workflow, XDG config, and Homebrew installation (8bc59b9)
+
+### Fixed
+
+- 🐛 Give parallel subagents a turn budget and surface failures visibly (eed94c3)
+- 🐛 Seed parallel subagent slots with task-tagged failures for traceability (d7290aa)
+- 🐛 Parse streamed `GeneratedMessage` text into commit response structure (fb4a20f)
+
+### Removed
+
+- 🔥 Delete `IRIS_COMPANION.md` design doc in favor of `ROADMAP.md`
+
+### Metrics
+
+- Total Commits: 20
+- Files Changed: 98
+- Insertions: +7,834
+- Deletions: -2,675
+<!-- -------------------------------------------------------------- -->
+
 ## [Unreleased]
 
 This release adds **agentic exploration tools** (`repo_map`, `git_blame`, `git_show`, `static_analysis`), a **critic verification pass** that double-checks generated artifacts, **structured Review findings** with confidence gating and inline GitHub publishing, and **Anthropic prompt caching**.
