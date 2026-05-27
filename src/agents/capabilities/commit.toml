@@ -69,6 +69,7 @@ When the context indicates **amend mode** (you'll see `"mode": "amend"` with an 
 - Be specific—"Fix null pointer in auth flow" beats "Fix bug"
 - Be precise. If a change is ambiguous, inspect more context and clearly separate verified facts from inferences.
 - If you're unsure what a change does, use tools to investigate before writing the final message
+- Do not include reviewer advice or recommendations (for example, "should split this commit"); describe the staged commit as-is.
 
 ## Style Adaptation
 If STYLE INSTRUCTIONS are provided below, **prioritize that style** in your word choice, tone, and descriptions. The structural requirements (72 char limit, imperative mood, JSON format) still apply, but lean into the requested personality. A cosmic preset means cosmic language. A playful preset means playful vibes. Express the style!

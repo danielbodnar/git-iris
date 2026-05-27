@@ -116,22 +116,22 @@ See: [Capabilities Documentation](./capabilities.md)
 
 Tools are Rig-compatible functions that Iris calls to gather information. Eleven **core tools** are wired into every main agent and subagent through the `attach_core_tools!` macro; the remaining tools are attached only to the main agent (or only in Studio chat mode).
 
-| Tool                | Purpose                                                              |
-| ------------------- | -------------------------------------------------------------------- |
-| `git_status`        | Repository status (branch + changed file list)                       |
-| `git_diff`          | Staged or range diff with relevance scoring                          |
-| `git_log`           | Recent commits or commits in a range                                 |
-| `git_show`          | Inspect a historical commit's message, stat, and patch               |
-| `git_changed_files` | List changed files between commits/branches or staged                |
-| `git_blame`         | Line-level blame for a file range plus recent commits touching it    |
-| `file_read`         | Read file contents and targeted line ranges                          |
-| `code_search`       | ripgrep-backed search for patterns/symbols                           |
-| `repo_map`          | Compact ranked map of source files, definitions, imports             |
-| `static_analysis`   | Run installed linters (clippy, ruff, biome/oxlint, golangci-lint)    |
-| `project_docs`      | Read README, AGENTS.md, CLAUDE.md, or compact `context` snapshot     |
-| `workspace`         | Iris's persistent notes and task tracking (main agent only)          |
-| `parallel_analyze`  | Spawn concurrent subagents for large changesets (main agent only)    |
-| `git_repo_info`     | Repository metadata: branch, remote, path (main agent only)          |
+| Tool                | Purpose                                                           |
+| ------------------- | ----------------------------------------------------------------- |
+| `git_status`        | Repository status (branch + changed file list)                    |
+| `git_diff`          | Staged or range diff with relevance scoring                       |
+| `git_log`           | Recent commits or commits in a range                              |
+| `git_show`          | Inspect a historical commit's message, stat, and patch            |
+| `git_changed_files` | List changed files between commits/branches or staged             |
+| `git_blame`         | Line-level blame for a file range plus recent commits touching it |
+| `file_read`         | Read file contents and targeted line ranges                       |
+| `code_search`       | ripgrep-backed search for patterns/symbols                        |
+| `repo_map`          | Compact ranked map of source files, definitions, imports          |
+| `static_analysis`   | Run installed linters (clippy, ruff, biome/oxlint, golangci-lint) |
+| `project_docs`      | Read README, AGENTS.md, CLAUDE.md, or compact `context` snapshot  |
+| `workspace`         | Iris's persistent notes and task tracking (main agent only)       |
+| `parallel_analyze`  | Spawn concurrent subagents for large changesets (main agent only) |
+| `git_repo_info`     | Repository metadata: branch, remote, path (main agent only)       |
 
 **Tool Registry:** The `attach_core_tools!` macro (`src/agents/tools/registry.rs`) ensures consistent tool sets across main agents and subagents, preventing drift. Delegation tools (`workspace`, `parallel_analyze`, the sub-agent itself) are excluded from subagents to prevent recursion.
 
@@ -167,12 +167,12 @@ See: [Output Validation Documentation](./output.md)
 
 Iris adapts her approach based on changeset size. Sizes are computed inline inside `format_diff_output` (no `ChangesetSize` enum) and surfaced in the `git_diff` header as the **Size** and **Guidance** lines:
 
-| Size       | Criteria                                  | Guidance                                                      |
-| ---------- | ----------------------------------------- | ------------------------------------------------------------- |
-| `Small`    | ≤3 files **and** <100 lines               | Focus on all files equally                                    |
-| `Medium`   | ≤10 files **and** <500 lines              | Prioritize files with >60% relevance                          |
-| `Large`    | anything bigger                           | Use `files=['path1','path2']` with `detail="standard"`        |
-| `Filtered` | when the `files` argument is used         | Show only the requested files                                 |
+| Size       | Criteria                          | Guidance                                               |
+| ---------- | --------------------------------- | ------------------------------------------------------ |
+| `Small`    | ≤3 files **and** <100 lines       | Focus on all files equally                             |
+| `Medium`   | ≤10 files **and** <500 lines      | Prioritize files with >60% relevance                   |
+| `Large`    | anything bigger                   | Use `files=['path1','path2']` with `detail="standard"` |
+| `Filtered` | when the `files` argument is used | Show only the requested files                          |
 
 For genuinely huge changesets (multiple modules touched), Iris is instructed by capability prompts to fall back to `parallel_analyze` so each subagent gets its own context window.
 
@@ -195,7 +195,7 @@ Iris executes in **multi-turn mode**, allowing up to 50 tool calls per task:
 3. **Deep Dive** — May call `parallel_analyze` or `analyze_subagent` for large tasks
 4. **Synthesis** — Returns structured JSON matching the expected schema
 5. **Validation** — Output validator ensures JSON is well-formed
-6. **Critic verification (optional)** — `verify_response_if_enabled` loads the `verify` capability and critiques the artifact against repository evidence; if it returns `requires_revision`, Iris regenerates the artifact once with the critic's revision prompt appended. The pass runs for `commit`, `review`, `pr`, `changelog`, and `release_notes`, and is gated by `Config.critic_enabled` (default `true`).
+6. **Critic verification (optional)** — `verify_response_if_enabled` loads the `verify` capability and critiques the artifact against repository evidence; if it returns `requires_revision`, Iris regenerates the artifact once with the critic's revision prompt appended. The pass runs by default for `review`, `pr`, `changelog`, and `release_notes`; `commit` requires an explicit `--critic` opt-in. All critic runs are gated by `Config.critic_enabled` (default `true`).
 
 **Why 50 turns?** Complex tasks like PRs and release notes may require analyzing many files and commits. Iris knows when to stop, so we give generous headroom.
 

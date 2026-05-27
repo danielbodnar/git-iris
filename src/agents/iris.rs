@@ -1188,20 +1188,22 @@ Guidelines:
     }
 
     fn should_run_critic(&self, capability: &str, output_type: &str) -> bool {
-        let critic_enabled = self
-            .config
-            .as_ref()
-            .is_none_or(|config| config.critic_enabled);
+        let config = self.config.as_ref();
+        let critic_enabled = config.is_none_or(|config| config.critic_enabled);
+        if !critic_enabled {
+            return false;
+        }
 
-        critic_enabled
-            && matches!(
-                (capability, output_type),
-                ("commit", "GeneratedMessage")
-                    | ("review", "Review")
-                    | ("pr", "MarkdownPullRequest")
-                    | ("changelog", "MarkdownChangelog")
-                    | ("release_notes", "MarkdownReleaseNotes")
-            )
+        match (capability, output_type) {
+            ("commit", "GeneratedMessage") => {
+                config.is_some_and(|config| config.critic_override == Some(true))
+            }
+            ("review", "Review")
+            | ("pr", "MarkdownPullRequest")
+            | ("changelog", "MarkdownChangelog")
+            | ("release_notes", "MarkdownReleaseNotes") => true,
+            _ => false,
+        }
     }
 
     fn build_critic_task(
@@ -1249,7 +1251,7 @@ Guidelines:
             critique.revision_prompt.trim()
         };
         format!(
-            "{user_prompt}\n\n## Critic Feedback\nThe first draft contained unsupported or misleading claims. Regenerate the artifact once, preserving the original task and fixing these issues.{issues}\n\nRevision instruction:\n{}",
+            "{user_prompt}\n\n## Critic Feedback\nThe first draft contained unsupported or misleading claims. Regenerate the artifact once, preserving the original task and fixing these issues.{issues}\n\nRevision instruction:\n{}\n\nFinal artifact requirements: use this feedback only as private revision guidance. Do not mention the critic, this feedback, or the revision process in the final artifact.",
             revision_prompt
         )
     }
@@ -1757,9 +1759,21 @@ Line2\"}";
         agent.set_config(crate::config::Config::default());
 
         assert!(agent.should_run_critic("review", "Review"));
-        assert!(agent.should_run_critic("commit", "GeneratedMessage"));
+        assert!(!agent.should_run_critic("commit", "GeneratedMessage"));
         assert!(!agent.should_run_critic("chat", "PlainText"));
         assert!(!agent.should_run_critic("semantic_blame", "SemanticBlame"));
+    }
+
+    #[test]
+    fn critic_runs_for_commits_when_explicitly_enabled() {
+        let config = crate::config::Config {
+            critic_override: Some(true),
+            ..crate::config::Config::default()
+        };
+        let mut agent = IrisAgent::new("openai", "gpt-5.4").expect("agent should build");
+        agent.set_config(config);
+
+        assert!(agent.should_run_critic("commit", "GeneratedMessage"));
     }
 
     #[test]
@@ -1792,6 +1806,8 @@ Line2\"}";
         assert!(prompt.contains("Original task"));
         assert!(prompt.contains("[high] Unsupported auth claim"));
         assert!(prompt.contains("Remove the auth-hardening claim."));
+        assert!(prompt.contains("private revision guidance"));
+        assert!(prompt.contains("Do not mention the critic"));
     }
 
     #[test]

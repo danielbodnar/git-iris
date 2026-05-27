@@ -61,7 +61,7 @@ Bad context (skip these):
 | `-a` / `--auto-commit` | Iris commits directly with the generated message                                                                                                                                      |
 | `--amend`              | Amend the previous commit. Requires `-p` or `-a`; standalone `--amend` is a no-op with a warning                                                                                      |
 | `--no-verify`          | Skip iris's auto-commit hooks. **Only affects iris's own commit (`-a` mode).** When you commit yourself with `git commit -F-`, pass `--no-verify` to git too if the user asked for it |
-| `--critic` / `--no-critic` | Toggle the critic verification pass after generation. Mutually exclusive; default on                                                                                              |
+| `--critic` / `--no-critic` | Toggle the critic verification pass after generation. Commit messages default off; use `--critic` to opt in                                                                       |
 
 ### PR descriptions (`pr`)
 

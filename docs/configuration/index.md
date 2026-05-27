@@ -94,16 +94,16 @@ fast_model = "gemini-2.5-flash"
 
 ## Global Settings
 
-| Setting                 | Type    | Default     | Description                                              |
-| ----------------------- | ------- | ----------- | -------------------------------------------------------- |
-| `use_gitmoji`           | Boolean | `true`      | Enable emoji prefixes in commit messages                 |
-| `instructions`          | String  | `""`        | Custom instructions for all LLM operations               |
-| `instruction_preset`    | String  | `"default"` | Built-in instruction preset name                         |
-| `theme`                 | String  | `""`        | Theme name; empty means default (`silkcircuit-neon`)     |
-| `critic_enabled`        | Boolean | `true`      | Run critic verification pass after generation            |
-| `subagent_timeout_secs` | Integer | `120`       | Timeout in seconds for parallel subagent tasks           |
-| `subagent_max_turns`    | Integer | `20`        | Per-subagent turn budget for `parallel_analyze`          |
-| `default_provider`      | String  | `"openai"`  | Default LLM provider                                     |
+| Setting                 | Type    | Default     | Description                                          |
+| ----------------------- | ------- | ----------- | ---------------------------------------------------- |
+| `use_gitmoji`           | Boolean | `true`      | Enable emoji prefixes in commit messages             |
+| `instructions`          | String  | `""`        | Custom instructions for all LLM operations           |
+| `instruction_preset`    | String  | `"default"` | Built-in instruction preset name                     |
+| `theme`                 | String  | `""`        | Theme name; empty means default (`silkcircuit-neon`) |
+| `critic_enabled`        | Boolean | `true`      | Run critic verification for long-form artifacts      |
+| `subagent_timeout_secs` | Integer | `120`       | Timeout in seconds for parallel subagent tasks       |
+| `subagent_max_turns`    | Integer | `20`        | Per-subagent turn budget for `parallel_analyze`      |
+| `default_provider`      | String  | `"openai"`  | Default LLM provider                                 |
 
 ## Next Steps
 

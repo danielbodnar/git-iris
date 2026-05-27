@@ -433,7 +433,7 @@ The structural requirements still apply, but adapt tone and word choice.
 
 Not every `output_type` corresponds to a user-facing `StructuredResponse` variant. The shipped `verify` capability (`src/agents/capabilities/verify.toml`) returns a `Critique` value that is consumed entirely inside `iris.rs`:
 
-- `should_run_critic(capability, output_type)` decides whether the critic should run for `(commit, GeneratedMessage)`, `(review, Review)`, `(pr, MarkdownPullRequest)`, `(changelog, MarkdownChangelog)`, or `(release_notes, MarkdownReleaseNotes)`.
+- `should_run_critic(capability, output_type)` decides whether the critic should run for `(review, Review)`, `(pr, MarkdownPullRequest)`, `(changelog, MarkdownChangelog)`, or `(release_notes, MarkdownReleaseNotes)` by default. `(commit, GeneratedMessage)` runs only when `gen --critic` explicitly opts in.
 - `verify_response_if_enabled()` loads the `verify` capability, runs `execute_with_agent::<Critique>()`, and either accepts the response or re-runs `execute_output_type()` with a revision prompt.
 - `Critique` is a private internal type — it is never serialized into `StructuredResponse`.
 

@@ -4,14 +4,14 @@ Git-Iris is an AI-powered Git workflow assistant that uses Iris, an intelligent 
 
 ## Core Capabilities
 
-| Feature             | Command                  | What It Does                                                   |
-| ------------------- | ------------------------ | -------------------------------------------------------------- |
-| **Commit Messages** | `git-iris gen`           | Generates conventional commit messages with optional emoji     |
+| Feature             | Command                  | What It Does                                                    |
+| ------------------- | ------------------------ | --------------------------------------------------------------- |
+| **Commit Messages** | `git-iris gen`           | Generates conventional commit messages with optional emoji      |
 | **Code Reviews**    | `git-iris review`        | Performs structured code analysis with severity-graded findings |
-| **PR Descriptions** | `git-iris pr`            | Creates detailed pull request descriptions                     |
-| **Changelogs**      | `git-iris changelog`     | Generates Keep a Changelog-formatted entries                   |
-| **Release Notes**   | `git-iris release-notes` | Creates release documentation                                  |
-| **Studio TUI**      | `git-iris studio`        | Unified terminal interface for all operations                  |
+| **PR Descriptions** | `git-iris pr`            | Creates detailed pull request descriptions                      |
+| **Changelogs**      | `git-iris changelog`     | Generates Keep a Changelog-formatted entries                    |
+| **Release Notes**   | `git-iris release-notes` | Creates release documentation                                   |
+| **Studio TUI**      | `git-iris studio`        | Unified terminal interface for all operations                   |
 
 ## Quick Start
 
@@ -37,17 +37,17 @@ git-iris changelog --from v1.0.0 --to v2.0.0
 
 Available across all commands:
 
-| Flag                        | Description                                                      |
-| --------------------------- | ---------------------------------------------------------------- |
-| `--provider <name>`         | Override LLM provider (openai, anthropic, google)                |
-| `--model <name>`            | Override model for this operation                                |
-| `-r, --repo <url>`          | Run against a remote repository URL instead of the local repo    |
-| `-i, --instructions "text"` | Add custom instructions for this operation                       |
-| `--preset <name>`           | Use instruction preset (see [Presets](./presets.md))             |
-| `--critic` / `--no-critic`  | Run or skip the critic verification pass after generation (default: on) |
-| `--debug`                   | Enable color-coded agent execution visualization                 |
-| `--quiet`                   | Suppress non-essential output                                    |
-| `--theme <name>`            | Override theme for this session                                  |
+| Flag                        | Description                                                   |
+| --------------------------- | ------------------------------------------------------------- |
+| `--provider <name>`         | Override LLM provider (openai, anthropic, google)             |
+| `--model <name>`            | Override model for this operation                             |
+| `-r, --repo <url>`          | Run against a remote repository URL instead of the local repo |
+| `-i, --instructions "text"` | Add custom instructions for this operation                    |
+| `--preset <name>`           | Use instruction preset (see [Presets](./presets.md))          |
+| `--critic` / `--no-critic`  | Run or skip the critic verification pass; commits opt in      |
+| `--debug`                   | Enable color-coded agent execution visualization              |
+| `--quiet`                   | Suppress non-essential output                                 |
+| `--theme <name>`            | Override theme for this session                               |
 
 ## Configuration
 

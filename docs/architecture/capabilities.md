@@ -240,12 +240,14 @@ pub struct Review {
 
 **Output:** `Critique` — a private struct in `iris.rs` with fields `requires_revision: bool`, `issues: Vec<CritiqueIssue>` (title, body, severity), `revision_prompt: String`, `confidence: u8`. `Critique` is **not** part of `StructuredResponse`; it's consumed inside `verify_response_if_enabled` and used to decide whether to regenerate the artifact.
 
-**How it runs.** After `execute_output_type` produces a `StructuredResponse`, `execute_task` passes the result to `verify_response_if_enabled`. When the critic is enabled (default `Config.critic_enabled = true`) and the `(capability, output_type)` pair matches commit / review / pr / changelog / release_notes, Iris loads `verify.toml`, runs `execute_with_agent::<Critique>` against the serialized artifact and the original user prompt, and:
+**How it runs.** After `execute_output_type` produces a `StructuredResponse`, `execute_task` passes the result to `verify_response_if_enabled`. When the critic is enabled (default `Config.critic_enabled = true`) and the `(capability, output_type)` pair matches review / pr / changelog / release_notes, Iris loads `verify.toml`, runs `execute_with_agent::<Critique>` against the serialized artifact and the original user prompt, and:
 
 - If `requires_revision` is `false` (or `true` but issues and `revision_prompt` are both empty), returns the original artifact.
 - Otherwise builds a revision prompt with the critic's issues and instruction appended and calls `execute_output_type` exactly once more.
 
-**What the critic flags.** Unsupported claims, asserted risks without code verification, review findings citing the wrong file or line, commit/PR/changelog text that overstates scope, and missing caveats when an inference is presented as fact. It deliberately skips wording preferences and style choices that match repository conventions.
+`commit` / `GeneratedMessage` uses the same mechanism only when the invocation explicitly opts in with `gen --critic`.
+
+**What the critic flags.** Unsupported claims, asserted risks without code verification, review findings citing the wrong file or line, PR/changelog/release note text that overstates scope, and missing caveats when an inference is presented as fact. It deliberately skips wording preferences and style choices that match repository conventions.
 
 The critic is a safety net: any error inside the pass (capability load failure, schema mismatch, network error) is logged as a warning and the original artifact is returned unchanged. To opt out, set `critic_enabled = false` in the Git-Iris config.
 

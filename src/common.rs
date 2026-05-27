@@ -42,7 +42,7 @@ pub struct CommonParams {
     /// Enable critic verification pass
     #[arg(
         long = "critic",
-        help = "Enable critic verification pass",
+        help = "Enable critic verification pass (commit messages opt in)",
         conflicts_with = "no_critic",
         action = clap::ArgAction::SetTrue
     )]
@@ -149,11 +149,12 @@ impl CommonParams {
             }
         }
 
-        if let Some(critic_enabled) = self.resolved_critic()
-            && config.critic_enabled != critic_enabled
-        {
-            config.critic_enabled = critic_enabled;
-            changes_made = true;
+        if let Some(critic_enabled) = self.resolved_critic() {
+            config.critic_override = Some(critic_enabled);
+            if config.critic_enabled != critic_enabled {
+                config.critic_enabled = critic_enabled;
+                changes_made = true;
+            }
         }
 
         Ok(changes_made)

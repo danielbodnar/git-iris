@@ -66,6 +66,9 @@ pub struct Config {
     /// Runtime-only: whether gitmoji was explicitly set via CLI (None = use style detection)
     #[serde(skip)]
     pub gitmoji_override: Option<bool>,
+    /// Runtime-only: whether critic was explicitly set via CLI
+    #[serde(skip)]
+    pub critic_override: Option<bool>,
 }
 
 fn default_true() -> bool {
@@ -127,6 +130,7 @@ impl Default for Config {
             temp_preset: None,
             is_project_config: false,
             gitmoji_override: None,
+            critic_override: None,
         }
     }
 }

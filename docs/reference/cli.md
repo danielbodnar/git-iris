@@ -21,21 +21,21 @@ Available on all commands:
 
 Every feature command (`gen`, `review`, `pr`, `changelog`, `release-notes`) accepts the same set of LLM/repository flags, in addition to the command-specific ones documented below:
 
-| Flag                    | Short | Description                                                       |
-| ----------------------- | ----- | ----------------------------------------------------------------- |
-| `--provider <NAME>`     |       | Override default provider for this invocation                     |
-| `--model <NAME>`        |       | Override model for this invocation                                |
-| `--instructions <TEXT>` | `-i`  | Custom instructions                                               |
-| `--preset <NAME>`       |       | Instruction preset name (see `git-iris list-presets`)             |
-| `--gitmoji`             |       | Enable gitmoji for this invocation (mutually exclusive)           |
-| `--no-gitmoji`          |       | Disable gitmoji for this invocation (mutually exclusive)          |
-| `--critic`              |       | Enable the critic verification pass (default: on)                 |
-| `--no-critic`           |       | Disable the critic verification pass (mutually exclusive)         |
-| `--repo <URL>`          | `-r`  | Operate on a remote repository URL instead of the local checkout  |
+| Flag                    | Short | Description                                                      |
+| ----------------------- | ----- | ---------------------------------------------------------------- |
+| `--provider <NAME>`     |       | Override default provider for this invocation                    |
+| `--model <NAME>`        |       | Override model for this invocation                               |
+| `--instructions <TEXT>` | `-i`  | Custom instructions                                              |
+| `--preset <NAME>`       |       | Instruction preset name (see `git-iris list-presets`)            |
+| `--gitmoji`             |       | Enable gitmoji for this invocation (mutually exclusive)          |
+| `--no-gitmoji`          |       | Disable gitmoji for this invocation (mutually exclusive)         |
+| `--critic`              |       | Enable the critic verification pass                              |
+| `--no-critic`           |       | Disable the critic verification pass (mutually exclusive)        |
+| `--repo <URL>`          | `-r`  | Operate on a remote repository URL instead of the local checkout |
 
 These are surfaced again in each command's Options table only when behavior is unusual; otherwise assume the full set is available.
 
-> **About the critic:** when enabled, Iris runs a verification + revision pass after the initial generation, catching factual errors and tightening the output before it's returned. It costs a second model call but materially improves quality. Disable with `--no-critic` when latency matters more than polish.
+> **About the critic:** when enabled, Iris runs a verification + revision pass after the initial generation, catching factual errors and tightening the output before it's returned. It costs a second model call but materially improves quality. Reviews, PR descriptions, changelogs, and release notes use it by default; commit messages skip it unless you pass `gen --critic`.
 
 ## Commands
 
@@ -61,8 +61,8 @@ Generate AI-powered commit messages for staged changes.
 | `--instructions <TEXT>` | `-i`  | Custom instructions                           |
 | `--preset <NAME>`       |       | Instruction preset name                       |
 | `--gitmoji`             |       | Enable gitmoji for this invocation            |
-| `--critic`              |       | Enable critic verification (default: on)      |
-| `--no-critic`           |       | Disable critic verification for this run      |
+| `--critic`              |       | Opt into critic verification for this commit  |
+| `--no-critic`           |       | Keep critic verification disabled             |
 
 **Examples:**
 
@@ -281,14 +281,14 @@ Generate detailed release notes.
 
 **Options:**
 
-| Flag                    | Required | Description                        |
-| ----------------------- | -------- | ---------------------------------- |
-| `--from <REF>`          | Yes      | Starting Git reference             |
-| `--to <REF>`            | No       | Ending reference (default: `HEAD`) |
-| `--raw`                 | No       | Output raw markdown                |
-| `--update`              | No       | Update the release notes file      |
-| `--file <PATH>`         | No       | Release notes file path            |
-| `--version-name <NAME>` | No       | Explicit version name              |
+| Flag                    | Required | Description                              |
+| ----------------------- | -------- | ---------------------------------------- |
+| `--from <REF>`          | Yes      | Starting Git reference                   |
+| `--to <REF>`            | No       | Ending reference (default: `HEAD`)       |
+| `--raw`                 | No       | Output raw markdown                      |
+| `--update`              | No       | Update the release notes file            |
+| `--file <PATH>`         | No       | Release notes file path                  |
+| `--version-name <NAME>` | No       | Explicit version name                    |
 | `--critic`              | No       | Enable critic verification (default: on) |
 | `--no-critic`           | No       | Disable critic verification for this run |
 
@@ -322,20 +322,20 @@ Configure global Git-Iris settings.
 
 **Options:**
 
-| Flag                           | Description                   |
-| ------------------------------ | ----------------------------- |
-| `--instructions <TEXT>`        | Set default instructions      |
-| `--preset <NAME>`              | Set default preset            |
-| `--gitmoji`                    | Enable gitmoji                |
-| `--no-gitmoji`                 | Disable gitmoji               |
-| `--critic`                     | Enable critic verification    |
-| `--no-critic`                  | Disable critic verification   |
-| `--provider <NAME>`            | Set default provider          |
-| `--api-key <KEY>`              | Set API key                   |
-| `--model <NAME>`               | Set primary model             |
-| `--fast-model <NAME>`          | Set fast model                |
-| `--token-limit <NUM>`          | Set token limit               |
-| `--param <KEY=VALUE>`          | Set additional parameters     |
+| Flag                           | Description                                    |
+| ------------------------------ | ---------------------------------------------- |
+| `--instructions <TEXT>`        | Set default instructions                       |
+| `--preset <NAME>`              | Set default preset                             |
+| `--gitmoji`                    | Enable gitmoji                                 |
+| `--no-gitmoji`                 | Disable gitmoji                                |
+| `--critic`                     | Enable critic verification                     |
+| `--no-critic`                  | Disable critic verification                    |
+| `--provider <NAME>`            | Set default provider                           |
+| `--api-key <KEY>`              | Set API key                                    |
+| `--model <NAME>`               | Set primary model                              |
+| `--fast-model <NAME>`          | Set fast model                                 |
+| `--token-limit <NUM>`          | Set token limit                                |
+| `--param <KEY=VALUE>`          | Set additional parameters                      |
 | `--subagent-timeout <SECONDS>` | Set parallel subagent timeout (default: `120`) |
 | `--subagent-max-turns <NUM>`   | Set subagent turn budget (default: `20`)       |
 
@@ -371,22 +371,22 @@ Manage project-specific `.irisconfig` file.
 
 **Options:**
 
-| Flag                           | Short | Description                   |
-| ------------------------------ | ----- | ----------------------------- |
-| `--provider <NAME>`            |       | Set project provider          |
-| `--instructions <TEXT>`        |       | Set project instructions      |
-| `--preset <NAME>`              |       | Set project preset            |
-| `--gitmoji`                    |       | Enable gitmoji                |
-| `--no-gitmoji`                 |       | Disable gitmoji               |
-| `--critic`                     |       | Enable critic verification    |
-| `--no-critic`                  |       | Disable critic verification   |
-| `--model <NAME>`               |       | Set project model             |
-| `--fast-model <NAME>`          |       | Set project fast model        |
-| `--token-limit <NUM>`          |       | Set project token limit       |
-| `--param <KEY=VALUE>`          |       | Set project parameters        |
+| Flag                           | Short | Description                                    |
+| ------------------------------ | ----- | ---------------------------------------------- |
+| `--provider <NAME>`            |       | Set project provider                           |
+| `--instructions <TEXT>`        |       | Set project instructions                       |
+| `--preset <NAME>`              |       | Set project preset                             |
+| `--gitmoji`                    |       | Enable gitmoji                                 |
+| `--no-gitmoji`                 |       | Disable gitmoji                                |
+| `--critic`                     |       | Enable critic verification                     |
+| `--no-critic`                  |       | Disable critic verification                    |
+| `--model <NAME>`               |       | Set project model                              |
+| `--fast-model <NAME>`          |       | Set project fast model                         |
+| `--token-limit <NUM>`          |       | Set project token limit                        |
+| `--param <KEY=VALUE>`          |       | Set project parameters                         |
 | `--subagent-timeout <SECONDS>` |       | Set parallel subagent timeout (default: `120`) |
 | `--subagent-max-turns <NUM>`   |       | Set subagent turn budget (default: `20`)       |
-| `--print`                      | `-p`  | Print current project config  |
+| `--print`                      | `-p`  | Print current project config                   |
 
 **Examples:**
 

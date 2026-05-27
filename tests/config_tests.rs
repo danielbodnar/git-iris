@@ -189,6 +189,7 @@ fn test_project_config_only_serializes_changed_values() {
         temp_preset: None,
         is_project_config: true,
         gitmoji_override: None,
+        critic_override: None,
     };
 
     let content = toml::to_string_pretty(&config).expect("Failed to serialize config");
@@ -260,6 +261,7 @@ fn test_project_config_with_provider_only_serializes_set_fields() {
         temp_preset: None,
         is_project_config: true,
         gitmoji_override: None,
+        critic_override: None,
     };
 
     let content = toml::to_string_pretty(&config).expect("Failed to serialize config");
@@ -348,6 +350,23 @@ fn test_common_params_can_disable_critic() {
         .expect("Failed to apply common params");
 
     assert!(!config.critic_enabled);
+    assert_eq!(config.critic_override, Some(false));
+}
+
+#[test]
+fn test_common_params_tracks_explicit_critic_opt_in() {
+    let common = CommonParams {
+        critic_flag: true,
+        ..CommonParams::default()
+    };
+    let mut config = Config::default();
+
+    common
+        .apply_to_config(&mut config)
+        .expect("Failed to apply common params");
+
+    assert!(config.critic_enabled);
+    assert_eq!(config.critic_override, Some(true));
 }
 
 #[test]

@@ -97,13 +97,14 @@ git-iris config --no-gitmoji  # Disable
 
 ### Critic Verification
 
-Git-Iris runs a critic pass after generated artifacts by default. The critic checks
-whether the draft is supported by repository evidence and allows one regeneration
-when it finds material overclaims.
+Git-Iris runs a critic pass after long-form generated artifacts by default. The
+critic checks whether the draft is supported by repository evidence and allows
+one regeneration when it finds material overclaims.
 
-The critic applies to commit messages, reviews, PR descriptions, changelogs, and
-release notes. It adds one extra model call, and a second extra call only when the
-critic asks Iris to revise the draft.
+The critic applies by default to reviews, PR descriptions, changelogs, and
+release notes. Commit messages skip the critic unless you opt in with
+`git-iris gen --critic`. It adds one extra model call, and a second extra call
+only when the critic asks Iris to revise the draft.
 
 To opt out globally, run `git-iris config --no-critic` or set
 `critic_enabled = false` in your config file.

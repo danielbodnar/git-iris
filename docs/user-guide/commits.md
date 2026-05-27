@@ -38,14 +38,14 @@ git-iris gen [FLAGS] [OPTIONS]
 
 ### Global Options
 
-| Option                     | Description                                                        |
-| -------------------------- | ------------------------------------------------------------------ |
-| `--provider <name>`        | Override LLM provider                                              |
-| `--model <name>`           | Override model for this operation                                  |
-| `-r, --repo <url>`         | Run against a remote repository URL instead of the local repo      |
-| `--critic` / `--no-critic` | Run or skip the critic verification pass after generation (default: on) |
-| `--debug`                  | Show agent execution details                                       |
-| `--quiet`                  | Suppress spinners and progress output                              |
+| Option                     | Description                                                   |
+| -------------------------- | ------------------------------------------------------------- |
+| `--provider <name>`        | Override LLM provider                                         |
+| `--model <name>`           | Override model for this operation                             |
+| `-r, --repo <url>`         | Run against a remote repository URL instead of the local repo |
+| `--critic` / `--no-critic` | Opt into or keep off critic verification for commit messages  |
+| `--debug`                  | Show agent execution details                                  |
+| `--quiet`                  | Suppress spinners and progress output                         |
 
 ## Workflow Modes
 
