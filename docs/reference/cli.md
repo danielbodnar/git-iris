@@ -324,7 +324,7 @@ Configure global Git-Iris settings.
 
 | Flag                           | Description                                    |
 | ------------------------------ | ---------------------------------------------- |
-| `--instructions <TEXT>`        | Set default instructions                       |
+| `--instructions <TEXT>`        | Set default PR instructions                    |
 | `--preset <NAME>`              | Set default preset                             |
 | `--gitmoji`                    | Enable gitmoji                                 |
 | `--no-gitmoji`                 | Disable gitmoji                                |
@@ -374,7 +374,7 @@ Manage project-specific `.irisconfig` file.
 | Flag                           | Short | Description                                    |
 | ------------------------------ | ----- | ---------------------------------------------- |
 | `--provider <NAME>`            |       | Set project provider                           |
-| `--instructions <TEXT>`        |       | Set project instructions                       |
+| `--instructions <TEXT>`        |       | Set project PR instructions                    |
 | `--preset <NAME>`              |       | Set project preset                             |
 | `--gitmoji`                    |       | Enable gitmoji                                 |
 | `--no-gitmoji`                 |       | Disable gitmoji                                |

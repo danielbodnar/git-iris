@@ -140,13 +140,14 @@ Presets are categorized:
 
 ### Custom Instructions
 
-Add global instructions that apply to all operations:
+Add saved instructions for PR descriptions:
 
 ```bash
-git-iris config --instructions "Always include JIRA ticket numbers in brackets"
+git-iris config --instructions "Always include a Validation section with exact commands."
 ```
 
-These combine with presets—your custom instructions are applied **in addition to** the preset style.
+These combine with presets when generating PR descriptions. For one-off instructions on any
+command, pass `--instructions` directly to that command.
 
 ### Additional Parameters
 
@@ -179,10 +180,10 @@ Set a model for the project:
 git-iris project-config --model gpt-5.4
 ```
 
-Set project instructions:
+Set project PR instructions:
 
 ```bash
-git-iris project-config --instructions "Follow Angular commit format"
+git-iris project-config --instructions "Call out migration blast radius explicitly."
 ```
 
 ### View Project Config
@@ -330,7 +331,7 @@ default_provider = "openai"
 use_gitmoji = true
 critic_enabled = true
 instruction_preset = "conventional"
-instructions = "Always include ticket numbers"
+instructions = "Always include validation receipts in PR descriptions"
 theme = "silkcircuit-neon"
 
 [providers.openai]

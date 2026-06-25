@@ -9,7 +9,7 @@ Project configs let you:
 - **Standardize** commit style across the team
 - **Enforce** consistent instruction presets
 - **Configure** team-wide model preferences
-- **Share** custom instructions for the project
+- **Share** custom PR description instructions for the project
 
 ## Security: API Keys Never Stored
 
@@ -49,7 +49,7 @@ default_provider = "anthropic"
 # Instruction preset
 instruction_preset = "conventional"
 
-# Custom instructions for this project
+# Custom PR description instructions for this project
 instructions = """
 Always mention the ticket number in the format [PROJ-123].
 Focus on business impact over implementation details.
@@ -121,7 +121,7 @@ model = "claude-opus-4-6"
 | `use_gitmoji`           | Boolean | Enable/disable gitmoji                          |
 | `default_provider`      | String  | Team's preferred provider                       |
 | `instruction_preset`    | String  | Shared instruction preset                       |
-| `instructions`          | String  | Custom project instructions                     |
+| `instructions`          | String  | Custom project PR instructions                  |
 | `theme`                 | String  | Team's preferred theme                          |
 | `critic_enabled`        | Boolean | Run critic verification for long-form artifacts |
 | `subagent_timeout_secs` | Integer | Timeout in seconds for parallel subagent tasks  |
@@ -145,27 +145,26 @@ model = "claude-opus-4-6"
 ```toml
 use_gitmoji = false
 instruction_preset = "conventional"
-
-instructions = """
-Use Conventional Commits format strictly.
-Include scope in parentheses: feat(api): add endpoint
-"""
 ```
 
-### Ticket Number Requirement
+### PR Ticket Number Requirement
 
 ```toml
 instructions = """
 Always include the ticket number in the format [PROJ-123].
-If no ticket exists, use [NO-TICKET].
+If no ticket exists, call that out in the reviewer notes.
 """
 ```
 
-### Security-Focused Reviews
+### Security-Focused Review Preset
 
 ```toml
 instruction_preset = "security"
+```
 
+### Security-Focused PR Descriptions
+
+```toml
 instructions = """
 Pay special attention to:
 - Authentication and authorization
@@ -232,7 +231,7 @@ git rm .irisconfig
 **Yes, if:**
 
 - Your team wants consistent commit style
-- You have project-specific instructions
+- You have project-specific PR description instructions
 - You want to standardize on a provider/model
 
 **Consider `.gitignore` if:**
@@ -249,7 +248,7 @@ instruction_preset = "conventional"
 default_provider = "anthropic"
 
 instructions = """
-Project-specific guidelines here.
+Project-specific PR description guidelines here.
 """
 
 [providers.anthropic]
@@ -352,7 +351,7 @@ instruction_preset = "conventional"
 instructions = """
 Follow our CONTRIBUTING.md guidelines.
 Reference issue numbers: Fixes #123
-Keep commit messages under 72 characters.
+Call out reviewer focus areas.
 """
 ```
 
@@ -384,7 +383,7 @@ token_limit = 150000
 
 instructions = """
 This is the payment-service microservice.
-All commits should:
+All PR descriptions should:
 - Mention impact on payment flow
 - Note PCI compliance implications
 - Reference security review if needed

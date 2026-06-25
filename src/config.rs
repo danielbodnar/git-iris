@@ -30,7 +30,7 @@ pub struct Config {
     /// Use gitmoji in commit messages
     #[serde(default = "default_true", skip_serializing_if = "is_true")]
     pub use_gitmoji: bool,
-    /// Custom instructions for all operations
+    /// Saved custom instructions used as pull request description defaults
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub instructions: String,
     /// Instruction preset name
@@ -54,7 +54,7 @@ pub struct Config {
     /// Run a critic verification pass after generated artifacts (default: true)
     #[serde(default = "default_true", skip_serializing_if = "is_true")]
     pub critic_enabled: bool,
-    /// Runtime-only: temporary instructions override
+    /// Runtime-only: temporary instructions for the current operation
     #[serde(skip)]
     pub temp_instructions: Option<String>,
     /// Runtime-only: temporary preset override

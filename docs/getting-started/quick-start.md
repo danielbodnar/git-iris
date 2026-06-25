@@ -172,7 +172,7 @@ git-iris gen -i "Mention the ticket number and performance impact"
 Globally:
 
 ```bash
-git-iris config --instructions "Always include JIRA ticket in commit messages"
+git-iris config --instructions "Always include JIRA ticket context in PR descriptions"
 ```
 
 ## Next Steps

@@ -280,11 +280,12 @@ impl IrisAgentService {
     ) -> Result<StructuredResponse> {
         let run_task = async {
             let mut agent = self.create_agent()?;
-            let task_prompt = Self::build_task_prompt(
+            let instructions = Self::custom_instructions_for_capability(
+                &self.config,
                 capability,
-                &context,
                 self.config.temp_instructions.as_deref(),
             );
+            let task_prompt = Self::build_task_prompt(capability, &context, instructions);
             agent.execute_task(capability, &task_prompt).await
         };
 
@@ -357,6 +358,8 @@ impl IrisAgentService {
             agent.set_config(config);
             agent.set_fast_model(self.fast_model.clone());
 
+            let instructions =
+                Self::custom_instructions_for_capability(&self.config, capability, instructions);
             let task_prompt = Self::build_task_prompt(capability, &context, instructions);
             agent.execute_task(capability, &task_prompt).await
         };
@@ -442,6 +445,16 @@ impl IrisAgentService {
                 context_json, diff_hint, instruction_suffix
             ),
         }
+    }
+
+    fn custom_instructions_for_capability<'a>(
+        config: &'a Config,
+        capability: &str,
+        runtime_instructions: Option<&'a str>,
+    ) -> Option<&'a str> {
+        runtime_instructions
+            .or_else(|| (capability == "pr").then_some(config.instructions.as_str()))
+            .filter(|instructions| !instructions.trim().is_empty())
     }
 
     /// Create a configured Iris agent
@@ -549,11 +562,12 @@ impl IrisAgentService {
     {
         let run_task = async {
             let mut agent = self.create_agent()?;
-            let task_prompt = Self::build_task_prompt(
+            let instructions = Self::custom_instructions_for_capability(
+                &self.config,
                 capability,
-                &context,
                 self.config.temp_instructions.as_deref(),
             );
+            let task_prompt = Self::build_task_prompt(capability, &context, instructions);
             agent
                 .execute_task_streaming(capability, &task_prompt, on_chunk)
                 .await
@@ -615,3 +629,6 @@ impl IrisAgentService {
             .map(String::from)
     }
 }
+
+#[cfg(test)]
+mod tests;
