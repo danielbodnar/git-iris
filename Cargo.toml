@@ -220,3 +220,26 @@ assets = [
     { source = "README.md", dest = "/usr/share/doc/git-iris/README", mode = "644" },
     { source = "git-iris.1", dest = "/usr/share/man/man1/git-iris.1", mode = "644" },
 ]
+
+# Release assets use short platform names (git-iris-linux-amd64) rather than
+# cargo-binstall's target-triple defaults; without these overrides binstall
+# finds nothing and silently falls back to compiling from source.
+[package.metadata.binstall]
+pkg-fmt = "bin"
+
+[package.metadata.binstall.overrides.x86_64-unknown-linux-gnu]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-linux-amd64"
+
+[package.metadata.binstall.overrides.aarch64-unknown-linux-gnu]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-linux-arm64"
+
+[package.metadata.binstall.overrides.aarch64-apple-darwin]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-macos-arm64"
+
+[package.metadata.binstall.overrides.x86_64-pc-windows-gnu]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-windows-gnu.exe"
+
+# The GNU-toolchain build runs fine on stock Windows; point the default
+# Windows target at it so `cargo binstall git-iris` works there too.
+[package.metadata.binstall.overrides.x86_64-pc-windows-msvc]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-windows-gnu.exe"

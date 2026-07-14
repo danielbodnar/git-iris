@@ -63,7 +63,8 @@ brew install git-iris
 ### Cargo
 
 ```bash
-cargo install git-iris
+cargo binstall git-iris  # prebuilt binary (cargo-binstall)
+cargo install git-iris   # or build from source
 ```
 
 ### Docker
