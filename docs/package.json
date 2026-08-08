@@ -12,7 +12,7 @@
     "format": "pnpm lint:fix"
   },
   "devDependencies": {
-    "mermaid": "^11.12.1",
+    "mermaid": "^11.16.1",
     "prettier": "^3.7.1",
     "vitepress": "^2.0.0-alpha.15"
   }
